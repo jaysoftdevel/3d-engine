@@ -1,0 +1,10 @@
+JSD Game Engine and sample — original implementation
+
+Copyright (c) 2026. Permission is granted to use, modify, compile, distribute
+and commercially use the original source and generated sample assets in this
+package, with or without modification, provided this notice is retained.
+It is supplied without warranty.
+
+Third-party source/runtime components retain their own licenses. See
+docs/THIRD_PARTY.md and the embedded license notices in third_party/.
+These permissions grant no rights to unrelated proprietary game content.

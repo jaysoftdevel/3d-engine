@@ -1,0 +1,140 @@
+{
+  "off": {
+    "reference": "off",
+    "changed_pixels": 0,
+    "mean_absolute_channel_difference": 0.0,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=440.903"
+  },
+  "taa": {
+    "reference": "off",
+    "changed_pixels": 14120,
+    "mean_absolute_channel_difference": 0.142467,
+    "statistics": "Frames=1 draws=39 triangles=4766 post_passes=5 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=461.519"
+  },
+  "upscale": {
+    "reference": "off",
+    "changed_pixels": 24501,
+    "mean_absolute_channel_difference": 0.563856,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=48.2921"
+  },
+  "bloom": {
+    "reference": "off",
+    "changed_pixels": 49430,
+    "mean_absolute_channel_difference": 0.319144,
+    "statistics": "Frames=1 draws=53 triangles=4766 post_passes=19 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=54.0595"
+  },
+  "exposure": {
+    "reference": "off",
+    "changed_pixels": 230400,
+    "mean_absolute_channel_difference": 24.507918,
+    "statistics": "Frames=1 draws=40 triangles=4766 post_passes=6 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=51.2541"
+  },
+  "tone-map": {
+    "reference": "off",
+    "changed_pixels": 230336,
+    "mean_absolute_channel_difference": 21.163683,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=66.2861"
+  },
+  "grade": {
+    "reference": "off",
+    "changed_pixels": 230400,
+    "mean_absolute_channel_difference": 14.276772,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=55.7499"
+  },
+  "vignette": {
+    "reference": "off",
+    "changed_pixels": 206978,
+    "mean_absolute_channel_difference": 16.837648,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=54.238"
+  },
+  "volumetric-fog": {
+    "reference": "off",
+    "changed_pixels": 230400,
+    "mean_absolute_channel_difference": 67.046521,
+    "statistics": "Frames=1 draws=39 triangles=4766 post_passes=5 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=75.2442"
+  },
+  "fxaa": {
+    "reference": "off",
+    "changed_pixels": 7125,
+    "mean_absolute_channel_difference": 0.359596,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=47.1786"
+  },
+  "smaa": {
+    "reference": "off",
+    "changed_pixels": 7109,
+    "mean_absolute_channel_difference": 0.220994,
+    "statistics": "Frames=1 draws=40 triangles=4766 post_passes=6 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=98.2183"
+  },
+  "msaa": {
+    "reference": "off",
+    "changed_pixels": 7973,
+    "mean_absolute_channel_difference": 0.269271,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=4 shadow=0 tessellation=mesh elapsed_ms=445.987"
+  },
+  "shadow": {
+    "reference": "off",
+    "changed_pixels": 6927,
+    "mean_absolute_channel_difference": 0.285871,
+    "statistics": "Frames=1 draws=86 triangles=12468 post_passes=4 terrain_tiles=21 msaa=1 shadow=2048 tessellation=mesh elapsed_ms=616.519"
+  },
+  "ao": {
+    "reference": "off",
+    "changed_pixels": 31746,
+    "mean_absolute_channel_difference": 0.440794,
+    "statistics": "Frames=1 draws=41 triangles=4766 post_passes=7 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=250.551"
+  },
+  "dof": {
+    "reference": "off",
+    "changed_pixels": 51731,
+    "mean_absolute_channel_difference": 1.82707,
+    "statistics": "Frames=1 draws=39 triangles=4766 post_passes=5 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=96.3532"
+  },
+  "probe": {
+    "reference": "off",
+    "changed_pixels": 135823,
+    "mean_absolute_channel_difference": 4.193199,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=74.001"
+  },
+  "ssgi": {
+    "reference": "probe",
+    "changed_pixels": 13371,
+    "mean_absolute_channel_difference": 0.103471,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=82.0245"
+  },
+  "ssr": {
+    "reference": "off",
+    "changed_pixels": 38894,
+    "mean_absolute_channel_difference": 0.358824,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=284.09"
+  },
+  "edge-fusion": {
+    "reference": "off",
+    "changed_pixels": 7254,
+    "mean_absolute_channel_difference": 0.291335,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=66.8142"
+  },
+  "view-distance": {
+    "reference": "off",
+    "changed_pixels": 28002,
+    "mean_absolute_channel_difference": 2.549605,
+    "statistics": "Frames=1 draws=61 triangles=9210 post_passes=4 terrain_tiles=44 msaa=1 shadow=0 tessellation=mesh elapsed_ms=48.8672"
+  },
+  "terrain-mesh-high": {
+    "reference": "off",
+    "changed_pixels": 80205,
+    "mean_absolute_channel_difference": 0.745072,
+    "statistics": "Frames=1 draws=38 triangles=75102 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=86.4509"
+  },
+  "texture-low": {
+    "reference": "off",
+    "changed_pixels": 0,
+    "mean_absolute_channel_difference": 0.0,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=74.8334"
+  },
+  "anisotropy-off": {
+    "reference": "off",
+    "changed_pixels": 11,
+    "mean_absolute_channel_difference": 5.4e-05,
+    "statistics": "Frames=1 draws=38 triangles=4766 post_passes=4 terrain_tiles=21 msaa=1 shadow=0 tessellation=mesh elapsed_ms=298.682"
+  }
+}

@@ -1,0 +1,9 @@
+prefix=${pcfiledir}/../..
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+Name: JSD Game Engine
+Description: Native C++20 graphics and game runtime
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -ljsd-game-engine -Wl,-rpath,${libdir} -Wl,-l:libSDL2-2.0.so.0 -ldl -pthread
+Libs.private: -lJolt
+Cflags: -I${includedir} -std=c++20 -pthread

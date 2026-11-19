@@ -1,0 +1,27 @@
+#pragma once
+#include "sdl.hpp"
+#include <string>
+
+namespace rf {
+class Platform {
+    void *sdlContext = nullptr;
+    void *eglLib = nullptr;
+    void *glLib = nullptr;
+    void *display = nullptr;
+    void *surface = nullptr;
+    void *context = nullptr;
+
+  public:
+    SDL_Window *window = nullptr;
+    bool offscreen = false;
+    int width = 1280, height = 720;
+    Platform(bool headless = false, int w = 1280, int h = 720);
+    ~Platform();
+    Platform(const Platform &) = delete;
+    Platform &operator=(const Platform &) = delete;
+    void *resolve(const char *name) const;
+    void present();
+    void captureMouse(bool capture);
+    void dimensions();
+};
+} // namespace rf

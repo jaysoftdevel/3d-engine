@@ -1,0 +1,4 @@
+Name: Frontier Engine compatibility
+Description: Source compatibility alias for JSD Game Engine
+Version: @PROJECT_VERSION@
+Requires: jsd-game-engine

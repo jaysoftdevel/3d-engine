@@ -1,0 +1,50 @@
+jsd04-legacy-game-tests.log
+PASS seed reproduces world deposits
+PASS starter landing area is level
+PASS first-person spawn can target the entrance door
+PASS player can physically enter the open chamber
+PASS open outer door handle remains targetable from chamber
+PASS chamber pressure panel is targetable
+PASS inner door becomes targetable inside chamber
+PASS complete first-person airlock sequence reaches breathable room
+PASS D strafes toward camera right in the +Z starting view
+PASS starter grid supplies connected life support
+PASS isolated oxygenator receives no phantom power
+PASS airlock refuses inner door while outer door is open
+PASS airlock refuses unequal pressure
+PASS sealed airlock pressurizes over time
+PASS equalized chamber permits inner door
+PASS pressurized habitat reports breathable air
+PASS eating consumes inventory and restores nutrition
+PASS sealed helmet prevents eating
+PASS mining depletes a deposit and adds ore
+PASS same rock cannot duplicate research samples
+PASS smelter accepts batch with reserved ingredients
+PASS queued ingredients deducted exactly once
+PASS finished output stays at machine until collected
+PASS collecting transfers output once
+PASS night with empty batteries shuts down consumers
+PASS research follows prerequisites and unlocks cultivation
+PASS research spends data and retains unique samples
+PASS planter consumes seed and water
+PASS powered crop grows in breathable habitat
+PASS harvest yields food and replanting seeds
+PASS construction rejects overlap with existing habitat
+PASS valid construction creates persistent blueprint
+PASS blueprint assembles into functioning structure
+PASS nearby machines connect with power cable
+PASS duplicate cables do not consume wire
+PASS A-star finds route around the habitat footprint
+PASS rover path waypoints avoid structure colliders
+PASS checkpoint writes atomically
+PASS checkpoint validates and reloads
+PASS roundtrip preserves inventory, deposits, construction, graph and research
+PASS corrupted checkpoint is rejected transactionally
+PASS nonfinite survival state cannot enter live simulation
+PASS powered return vehicle consumes propellant and completes expedition
+43 simulation/persistence checks passed.
+
+
+jsd04-legacy-game-render.log
+Rendered 3 frames / 43.874 ms average / 88 draw calls / 18554 triangles
+

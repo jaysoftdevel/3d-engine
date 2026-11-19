@@ -1,0 +1,102 @@
+jsd04-legacy-shared.log
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/scratch/f8542ff39916/jsd-workspace/jsd-game-engine/build-legacy-shared
+[ 50%] Building CXX object CMakeFiles/external-consumer.dir/main.cpp.o
+[100%] Linking CXX executable external-consumer
+[100%] Built target external-consumer
+External consumer linked Frontier 0.4.0
+
+
+jsd04-legacy-static.log
+[ 50%] Linking CXX executable external-consumer
+[100%] Built target external-consumer
+External consumer linked Frontier 0.4.0
+
+
+jsd04-static-build.log
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/scratch/f8542ff39916/jsd-workspace/sample-game/build-static
+[ 33%] Linking CXX executable sample-game
+[100%] Built target sample-game
+
+
+jsd04-static-render.log
+SUNDOG scene: 1364 objects / 52 meshes / original PBR assets
+Frame 2 t=40.0346 / 2061785 triangles / 241 draws / 443 sprites / 565 live particles
+SUNDOG / JSD 0.4.0 / llvmpipe (LLVM 19.1.7, 256 bits) / frames=2 time=40.0346 render=640x360 particles=565 elapsed=2.68681s
+
+
+jsd04-source-build.log
+-- Configuring done (0.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: /workspace/scratch/f8542ff39916/jsd-workspace/sample-game/build-source
+[ 86%] Built target Jolt
+[ 86%] Building CXX object engine-build/CMakeFiles/jsd-game-engine.dir/src/renderer.cpp.o
+[ 86%] Building CXX object engine-build/CMakeFiles/jsd-game-engine.dir/src/advanced.cpp.o
+[ 86%] Building CXX object engine-build/CMakeFiles/jsd-game-engine.dir/src/cinematic.cpp.o
+[ 86%] Linking CXX shared library libjsd-game-engine.so
+[ 97%] Built target jsd-game-engine
+[ 98%] Linking CXX executable sample-game
+[100%] Built target sample-game
+
+
+jsd04-source-render.log
+SUNDOG scene: 1364 objects / 52 meshes / original PBR assets
+Frame 2 t=56.0381 / 2249041 triangles / 240 draws / 103 sprites / 103 live particles
+SUNDOG / JSD 0.4.0 / llvmpipe (LLVM 19.1.7, 256 bits) / frames=2 time=56.0381 render=640x360 particles=103 elapsed=1.80238s
+
+
+jsd04-archive-consumer.log
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/scratch/f8542ff39916/.jsd04-archive-check/consumer-build
+[ 50%] Building CXX object CMakeFiles/external-consumer.dir/main.cpp.o
+[100%] Linking CXX executable external-consumer
+[100%] Built target external-consumer
+External consumer linked Frontier 0.4.0
+
+
+jsd04-archive-prebuilt.log
+SUNDOG scene: 1364 objects / 52 meshes / original PBR assets
+Frame 4 t=40.068 / 2062189 triangles / 241 draws / 445 sprites / 567 live particles
+SUNDOG / JSD 0.4.0 / llvmpipe (LLVM 19.1.7, 256 bits) / frames=4 time=40.068 render=960x540 particles=567 elapsed=4.26809s
+
+
+jsd04-archive-build.log
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/scratch/f8542ff39916/.jsd04-archive-check/sample-game/build
+[ 33%] Building CXX object CMakeFiles/sample-game.dir/src/main.cpp.o
+[ 66%] Building CXX object CMakeFiles/sample-game.dir/src/showcase.cpp.o
+[100%] Linking CXX executable sample-game
+[100%] Built target sample-game
+-- Install configuration: "Release"
+-- Installing: /workspace/scratch/f8542ff39916/.jsd04-archive-check/sample-game/bin/sample-game
+-- Set non-toolchain portion of runtime path of "/workspace/scratch/f8542ff39916/.jsd04-archive-check/sample-game/bin/sample-game" to "$ORIGIN/../../jsd-game-engine/lib"
+
+
+jsd04-archive-rebuilt.log
+SUNDOG scene: 1364 objects / 52 meshes / original PBR assets
+Frame 2 t=28.033 / 2278351 triangles / 245 draws / 421 sprites / 550 live particles
+SUNDOG / JSD 0.4.0 / llvmpipe (LLVM 19.1.7, 256 bits) / frames=2 time=28.033 render=640x360 particles=550 elapsed=1.63029s
+
