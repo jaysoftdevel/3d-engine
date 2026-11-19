@@ -1,0 +1,35 @@
+{
+  "release": "0.4.4-source",
+  "distribution": "Source and runtime/test input data only; no compiled code or caches",
+  "top_level_directories": [
+    "jsd-game-engine"
+  ],
+  "showcase": {
+    "source": "examples/showcase",
+    "option": "JSD_BUILD_SHOWCASE",
+    "default": "OFF",
+    "target": "jsd-showcase",
+    "installed_assets": "share/jsd-game-engine/showcase/assets"
+  },
+  "dependencies": {
+    "SDL2": "2.32.4, compiled from bundled Linux source",
+    "Jolt": "5.7.0, compiled from bundled source"
+  },
+  "engine_core_compilation": "One PIC object set reused by shared/static engine libraries",
+  "clean_archive_engine_build_tests_and_lab": true,
+  "default_off_has_no_showcase_target_or_installed_assets": true,
+  "engine_tests_read_showcase_assets": false,
+  "cpu_checks": 62,
+  "native_checks": 93,
+  "forced_gl33_checks": 92,
+  "showcase_enabled_build_and_validation": true,
+  "showcase_ctest_smoke": true,
+  "showcase_build_tree_source_asset_fallback": true,
+  "showcase_relocated_install_without_source_assets": true,
+  "showcase_launcher_validation": true,
+  "invalid_explicit_asset_override_rejected": true,
+  "unchanged_showcase_runtime_hashes": 25,
+  "code_downloads_during_build": false,
+  "OS_prerequisites": "Provisioned toolchain and OS headers; package-manager installer not executed as administrator",
+  "graphics_validation_backend": "Mesa llvmpipe software OpenGL; no hardware performance certification"
+}
