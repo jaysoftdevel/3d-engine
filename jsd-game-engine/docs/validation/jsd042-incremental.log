@@ -1,0 +1,770 @@
+Configuring JSD 0.4.2: engine, Jolt and SDL2 from source (Release).
+-- dynamic libasound -> libasound.so.2
+-- Checking for module 'jack'
+--   Package 'jack', required by 'virtual:world', not found
+-- Checking for module 'libpipewire-0.3>=0.3.20'
+--   Package 'libpipewire-0.3', required by 'virtual:world', not found
+-- dynamic libpulse -> libpulse.so.0
+-- Checking for module 'esound'
+--   Package 'esound', required by 'virtual:world', not found
+-- Checking for module 'sndio'
+--   Package 'sndio', required by 'virtual:world', not found
+-- Checking for module 'bcm_host'
+--   Package 'bcm_host', required by 'virtual:world', not found
+-- Checking for module 'brcmegl'
+--   Package 'brcmegl', required by 'virtual:world', not found
+-- dynamic libX11 -> libX11.so.6
+-- dynamic libXext -> libXext.so.6
+-- dynamic libXcursor -> libXcursor.so.1
+-- dynamic libXi -> libXi.so.6
+-- dynamic libXfixes -> libXfixes.so.3
+-- dynamic libXrandr -> libXrandr.so.2
+-- dynamic libXrender -> libXrender.so.1
+-- dynamic libXss -> libXss.so.1
+-- Checking for module 'egl'
+--   Package 'egl', required by 'virtual:world', not found
+-- Checking for modules 'libdrm;gbm;egl'
+--   Package 'libdrm', required by 'virtual:world', not found
+--   Package 'gbm', required by 'virtual:world', not found
+--   Package 'egl', required by 'virtual:world', not found
+-- Checking for modules 'wayland-client>=1.18;wayland-egl;wayland-cursor;egl;xkbcommon>=0.5.0'
+--   Package 'libffi', required by 'wayland-client', not found
+--   Package 'libffi', required by 'wayland-client', not found
+--   Package 'egl', required by 'virtual:world', not found
+-- Checking for one of the modules 'dbus-1;dbus'
+-- Checking for one of the modules 'ibus-1.0;ibus'
+-- Checking for modules 'libunwind;libunwind-generic'
+--   Package 'libunwind', required by 'virtual:world', not found
+--   Package 'libunwind-generic', required by 'virtual:world', not found
+CMake Deprecation Warning at third_party/SDL2/CMakeLists.txt:3288 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- 
+-- SDL2 was configured with the following options:
+-- 
+-- Platform: Linux-6.18.57
+-- 64-bit:   TRUE
+-- Compiler: /usr/bin/cc
+-- Revision: SDL-release-2.32.4-0-g2359383fc
+-- 
+-- Subsystems:
+--   Atomic:	ON
+--   Audio:	ON
+--   Video:	ON
+--   Render:	ON
+--   Events:	ON
+--   Joystick:	ON
+--   Haptic:	ON
+--   Hidapi:	ON
+--   Power:	ON
+--   Threads:	ON
+--   Timers:	ON
+--   File:	ON
+--   Loadso:	ON
+--   CPUinfo:	ON
+--   Filesystem:	ON
+--   Sensor:	ON
+--   Locale:	ON
+--   Misc:	ON
+-- 
+-- Options:
+--   SDL2_DISABLE_INSTALL        (Wanted: OFF): OFF
+--   SDL2_DISABLE_SDL2MAIN       (Wanted: ON): OFF
+--   SDL2_DISABLE_UNINSTALL      (Wanted: ON): OFF
+--   SDL_3DNOW                   (Wanted: OFF): OFF
+--   SDL_ALSA                    (Wanted: ON): ON
+--   SDL_ALSA_SHARED             (Wanted: ON): ON
+--   SDL_ALTIVEC                 (Wanted: ON): OFF
+--   SDL_ARMNEON                 (Wanted: OFF): OFF
+--   SDL_ARMSIMD                 (Wanted: OFF): OFF
+--   SDL_ARTS                    (Wanted: ON): OFF
+--   SDL_ARTS_SHARED             (Wanted: ON): OFF
+--   SDL_ASAN                    (Wanted: OFF): OFF
+--   SDL_ASSEMBLY                (Wanted: ON): ON
+--   SDL_ASSERTIONS              (Wanted: auto): auto
+--   SDL_BACKGROUNDING_SIGNAL    (Wanted: OFF): OFF
+--   SDL_CCACHE                  (Wanted: ON): OFF
+--   SDL_CLOCK_GETTIME           (Wanted: ON): ON
+--   SDL_COCOA                   (Wanted: OFF): OFF
+--   SDL_DBUS                    (Wanted: ON): OFF
+--   SDL_DIRECTFB                (Wanted: OFF): OFF
+--   SDL_DIRECTFB_SHARED         (Wanted: OFF): OFF
+--   SDL_DIRECTX                 (Wanted: OFF): OFF
+--   SDL_DISKAUDIO               (Wanted: ON): ON
+--   SDL_DUMMYAUDIO              (Wanted: ON): ON
+--   SDL_DUMMYVIDEO              (Wanted: ON): ON
+--   SDL_ESD                     (Wanted: ON): OFF
+--   SDL_ESD_SHARED              (Wanted: ON): OFF
+--   SDL_FOREGROUNDING_SIGNAL    (Wanted: OFF): OFF
+--   SDL_FUSIONSOUND             (Wanted: OFF): OFF
+--   SDL_FUSIONSOUND_SHARED      (Wanted: OFF): OFF
+--   SDL_GCC_ATOMICS             (Wanted: ON): ON
+--   SDL_HIDAPI                  (Wanted: ON): ON
+--   SDL_HIDAPI_JOYSTICK         (Wanted: ON): ON
+--   SDL_HIDAPI_LIBUSB           (Wanted: OFF): OFF
+--   SDL_IBUS                    (Wanted: ON): OFF
+--   SDL_INSTALL_TESTS           (Wanted: OFF): OFF
+--   SDL_JACK                    (Wanted: ON): OFF
+--   SDL_JACK_SHARED             (Wanted: ON): OFF
+--   SDL_KMSDRM                  (Wanted: ON): OFF
+--   SDL_KMSDRM_SHARED           (Wanted: ON): OFF
+--   SDL_LASX                    (Wanted: OFF): OFF
+--   SDL_LIBC                    (Wanted: ON): ON
+--   SDL_LIBICONV                (Wanted: OFF): OFF
+--   SDL_LIBSAMPLERATE           (Wanted: ON): OFF
+--   SDL_LIBSAMPLERATE_SHARED    (Wanted: ON): OFF
+--   SDL_LIBUDEV                 (Wanted: ON): OFF
+--   SDL_LSX                     (Wanted: OFF): OFF
+--   SDL_METAL                   (Wanted: OFF): OFF
+--   SDL_MMX                     (Wanted: ON): ON
+--   SDL_NAS                     (Wanted: ON): OFF
+--   SDL_NAS_SHARED              (Wanted: ON): OFF
+--   SDL_OFFSCREEN               (Wanted: ON): ON
+--   SDL_OPENGL                  (Wanted: ON): ON
+--   SDL_OPENGLES                (Wanted: ON): ON
+--   SDL_OSS                     (Wanted: ON): ON
+--   SDL_PIPEWIRE                (Wanted: ON): OFF
+--   SDL_PIPEWIRE_SHARED         (Wanted: ON): OFF
+--   SDL_PTHREADS                (Wanted: ON): ON
+--   SDL_PTHREADS_SEM            (Wanted: ON): ON
+--   SDL_PULSEAUDIO              (Wanted: ON): ON
+--   SDL_PULSEAUDIO_SHARED       (Wanted: ON): ON
+--   SDL_RENDER_D3D              (Wanted: OFF): OFF
+--   SDL_RENDER_METAL            (Wanted: OFF): OFF
+--   SDL_RPATH                   (Wanted: ON): ON
+--   SDL_RPI                     (Wanted: ON): OFF
+--   SDL_SNDIO                   (Wanted: ON): OFF
+--   SDL_SNDIO_SHARED            (Wanted: ON): OFF
+--   SDL_SSE                     (Wanted: ON): ON
+--   SDL_SSE2                    (Wanted: ON): ON
+--   SDL_SSE3                    (Wanted: ON): ON
+--   SDL_SSEMATH                 (Wanted: ON): ON
+--   SDL_STATIC_PIC              (Wanted: OFF): OFF
+--   SDL_SYSTEM_ICONV            (Wanted: ON): ON
+--   SDL_TESTS                   (Wanted: OFF): OFF
+--   SDL_VENDOR_INFO             (Wanted: ): OFF
+--   SDL_VIRTUAL_JOYSTICK        (Wanted: ON): ON
+--   SDL_VIVANTE                 (Wanted: ON): OFF
+--   SDL_VULKAN                  (Wanted: ON): ON
+--   SDL_WASAPI                  (Wanted: OFF): OFF
+--   SDL_WAYLAND                 (Wanted: ON): OFF
+--   SDL_WAYLAND_LIBDECOR        (Wanted: ON): OFF
+--   SDL_WAYLAND_LIBDECOR_SHARED (Wanted: ON): OFF
+--   SDL_WAYLAND_QT_TOUCH        (Wanted: ON): OFF
+--   SDL_WAYLAND_SHARED          (Wanted: ON): OFF
+--   SDL_X11                     (Wanted: ON): ON
+--   SDL_X11_SHARED              (Wanted: ON): ON
+--   SDL_X11_XCURSOR             (Wanted: ON): ON
+--   SDL_X11_XDBE                (Wanted: ON): ON
+--   SDL_X11_XFIXES              (Wanted: ON): ON
+--   SDL_X11_XINPUT              (Wanted: ON): ON
+--   SDL_X11_XRANDR              (Wanted: ON): ON
+--   SDL_X11_XSCRNSAVER          (Wanted: ON): ON
+--   SDL_X11_XSHAPE              (Wanted: ON): ON
+--   SDL_XINPUT                  (Wanted: OFF): OFF
+-- 
+--  CFLAGS:        -I/workspace/scratch/f8542ff39916/.jsd042-dev-packages/prefix/usr/include -idirafter "/workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/third_party/SDL2/src/video/khronos" -DHAVE_LINUX_VERSION_H
+--  EXTRA_CFLAGS:   -Wall -Wundef -fno-strict-aliasing -Wdeclaration-after-statement -fvisibility=hidden -Wshadow -Wno-unused-local-typedefs -mmmx -msse -msse2 -msse3  -isystem/usr/include -D_REENTRANT  -isystem/workspace/scratch/f8542ff39916/.jsd042-dev-packages/prefix/usr/include
+--  EXTRA_LDFLAGS: -pthread -Wl,--no-undefined
+--  EXTRA_LIBS:    m
+-- 
+--  Build Shared Library: ON
+--  Build Static Library: OFF
+-- 
+-- If something was not detected, although the libraries
+-- were installed, then make sure you have set the
+-- CFLAGS and LDFLAGS environment variables correctly.
+-- 
+-- Configuring done (0.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/build/release
+[ 18%] Built target sdl_headers_copy
+[ 49%] Built target Jolt
+[ 94%] Built target SDL2
+[ 99%] Built target jsd-engine-objects
+[ 99%] Built target jsd-game-engine-static
+[ 99%] Built target jsd-game-engine
+[100%] Built target jsd-graphics-lab
+[100%] Built target jsd-engine-tests
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libSDL2-2.0.so.0.3200.4
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libSDL2-2.0.so.0
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libSDL2-2.0.so
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/SDL2/SDL2Targets.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/SDL2/SDL2Targets-release.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/SDL2/SDL2Config.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/SDL2/SDL2ConfigVersion.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/SDL2/sdlfind.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_assert.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_atomic.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_audio.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_bits.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_blendmode.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_clipboard.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_copying.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_cpuinfo.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_egl.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_endian.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_error.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_events.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_filesystem.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_gamecontroller.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_gesture.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_guid.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_haptic.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_hidapi.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_hints.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_joystick.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_keyboard.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_keycode.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_loadso.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_locale.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_log.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_main.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_messagebox.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_metal.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_misc.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_mouse.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_mutex.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_name.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_opengl.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_opengl_glext.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_opengles.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_opengles2.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_opengles2_gl2.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_opengles2_gl2ext.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_opengles2_gl2platform.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_opengles2_khrplatform.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_pixels.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_platform.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_power.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_quit.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_rect.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_render.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_rwops.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_scancode.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_sensor.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_shape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_stdinc.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_surface.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_system.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_syswm.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_assert.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_common.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_compare.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_crc32.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_font.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_fuzzer.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_harness.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_images.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_log.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_md5.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_memory.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_test_random.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_thread.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_timer.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_touch.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_types.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_version.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_video.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_vulkan.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/begin_code.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/close_code.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_revision.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/SDL2/SDL_config.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/licenses/SDL2/LICENSE.txt
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/pkgconfig/sdl2.pc
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libSDL2.so
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/bin/sdl2-config
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/aclocal/sdl2.m4
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/bin/jsd-graphics-lab
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/bin/jsd-engine-tests
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libjsd-game-engine.so.0.4.2
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libjsd-game-engine.so.0
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libjsd-game-engine.so
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libjsd-game-engine.a
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/libJolt.a
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/LSANSuppressions.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/FPControlWord.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/ScopeExit.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/FixedSizeFreeList.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/HashCombine.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/UnorderedMapFwd.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/LockFreeHashMap.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Prefetch.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/TSANSuppressions.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/BinaryHeap.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/STLAlignedAllocator.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/STLAllocator.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Memory.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Color.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/StringTools.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/StreamWrapper.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/FixedSizeFreeList.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Semaphore.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/StreamIn.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/UnorderedMap.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/StaticArray.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/FPFlushDenormals.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/JobSystemWithBarrier.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Mutex.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/QuickSort.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/InsertionSort.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Core.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/FPException.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/JobSystemThreadPool.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/StreamUtils.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/UnorderedSet.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Profiler.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/MutexArray.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/TempAllocator.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Factory.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/IncludeWindows.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/RTTI.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/ByteBuffer.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/ARMNeon.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Profiler.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Result.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/JobSystem.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/StreamOut.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/STLTempAllocator.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/UnorderedSetFwd.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/STLLocalAllocator.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Array.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/HashTable.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/RISCVVector.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/LockFreeHashMap.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/NonCopyable.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/TickCounter.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Reference.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/IssueReporting.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/StridedPtr.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/JobSystem.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/Atomics.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/LinearCurve.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/ObjectToIDMap.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Core/JobSystemSingleThreaded.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/ObjectStreamOut.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/SerializableAttribute.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/TypeDeclarations.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/ObjectStreamIn.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/ObjectStreamTextOut.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/ObjectStreamBinaryIn.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/ObjectStreamBinaryOut.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/ObjectStreamTextIn.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/ObjectStream.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/GetPrimitiveTypeOfType.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/SerializableObject.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/ObjectStreamTypes.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/SerializableAttributeEnum.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ObjectStream/SerializableAttributeTyped.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Float3.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/UVec4.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Swizzle.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/HalfFloat.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/DynMatrix.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/GaussianElimination.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Vec3.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/MathTypes.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/UVec4.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Trigonometry.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Vector.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Vec4.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Vec3.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/DVec3.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/EigenValueSymmetric.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Vec4.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Quat.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Double3.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/DMat44.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/BVec16.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Quat.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Math.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/DMat44.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Float4.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/FindRoot.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Mat44.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Real.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Float2.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Mat44.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/Matrix.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/DVec3.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Math/BVec16.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/RayCapsule.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/IndexedTriangle.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/RayCylinder.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/GJKClosestPoint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/MortonCode.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/Ellipse.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/ClosestPoint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/RayTriangle.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/Plane.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/AABox.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/ConvexHullBuilder.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/Indexify.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/EPAPenetrationDepth.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/ClipPoly.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/Triangle.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/Sphere.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/AABox4.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/RaySphere.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/EPAConvexHullBuilder.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/ConvexHullBuilder2D.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/OrientedBox.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/ConvexSupport.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Geometry/RayAABox.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/ComputeSystem.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/DX12
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/DX12/ComputeBufferDX12.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/DX12/ComputeQueueDX12.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/DX12/ComputeSystemDX12.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/DX12/ComputeSystemDX12Impl.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/DX12/ComputeShaderDX12.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/DX12/IncludeDX12.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/MTL
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/MTL/ComputeSystemMTL.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/MTL/ComputeShaderMTL.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/MTL/ComputeQueueMTL.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/MTL/ComputeBufferMTL.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/MTL/ComputeSystemMTLImpl.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/ComputeQueue.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/WrapShaderBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/HLSLToCPP.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/WrapShaderEnd.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/ComputeShaderCPU.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/WrapShaderBegin.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/ComputeSystemCPU.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/ComputeQueueCPU.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/ComputeBufferCPU.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/CPU/ShaderWrapper.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/ComputeShader.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK/ComputeSystemVKImpl.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK/ComputeSystemVKWithAllocator.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK/IncludeVK.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK/ComputeBufferVK.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK/ComputeSystemVK.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK/ComputeShaderVK.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK/ComputeQueueVK.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/VK/BufferVK.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Compute/ComputeBuffer.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Jolt.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/PhysicsScene.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Hair
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Hair/Hair.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Hair/RegisterHair.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Hair/HairSettings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Hair/HairShaders.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/PhysicsSettings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ContactConstraintManager.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/RackAndPinionConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/GearConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/AngularFrictionConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/HingeRotationConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/AxisConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/IndependentAxisConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/PointConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/SwingTwistConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/DualAxisConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/SpringPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/RotationQuatConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/ContactConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/RotationEulerConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintPart/AngleConstraintPart.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/PulleyConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/HingeConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/PathConstraintPathHermite.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/MotorSettings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/SpringSettings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/PointConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/CalculateSolverSteps.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/FixedConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/PathConstraintPath.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/RackAndPinionConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConstraintManager.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/DistanceConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/ConeConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/PathConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/SliderConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/TwoBodyConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/SwingTwistConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/Constraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/SixDOFConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Constraints/GearConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/PhysicsStepListener.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/EActivation.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CastResult.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/RayCast.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ActiveEdgeMode.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ObjectLayer.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/EstimateCollisionResponse.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/GroupFilterTable.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ActiveEdges.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ContactListener.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ShapeCast.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollidePointResult.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollideSoftBodyVerticesVsTriangles.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CastSphereVsTriangles.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollideSoftBodyVertexIterator.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ShapeFilter.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/BroadPhaseLayerInterfaceMask.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/BroadPhaseQuadTree.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/ObjectVsBroadPhaseLayerFilterTable.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/QuadTree.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/BroadPhaseQuery.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/BroadPhaseBruteForce.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/ObjectVsBroadPhaseLayerFilterMask.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/BroadPhaseLayerInterfaceTable.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/BroadPhase.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BroadPhase/BroadPhaseLayer.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/PhysicsMaterialSimple.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/PhysicsMaterial.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollisionCollectorImpl.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/SimShapeFilterWrapper.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/TransformedShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollisionGroup.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/BackFaceMode.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ObjectLayerPairFilterTable.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/SortReverseAndStore.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollideSphereVsTriangles.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CastConvexVsTriangles.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/InternalEdgeRemovingCollector.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/NarrowPhaseStats.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollideConvexVsTriangles.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollideShapeVsShapePerLeaf.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ObjectLayerPairFilterMask.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/AABoxCast.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollisionDispatch.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/NarrowPhaseQuery.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/PolyhedronSubmergedVolumeCalculator.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/EmptyShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/SubShapeID.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/MutableCompoundShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/SubShapeIDPair.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/BoxShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/CompoundShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/DecoratedShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/ScaleHelpers.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/CompoundShapeVisitors.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/TriangleShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/ConvexShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/OffsetCenterOfMassShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/ScaledShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/TaperedCylinderShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/HeightFieldShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/StaticCompoundShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/Shape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/PlaneShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/CapsuleShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/ConvexHullShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/SphereShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/CylinderShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/TaperedCapsuleShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/MeshShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/Shape/GetTrianglesContext.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollectFacesMode.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/SimShapeFilter.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollideShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/ManifoldBetweenTwoFaces.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/CollisionCollector.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Collision/GroupFilter.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/IslandBuilder.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/LargeIslandSplitter.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/EPhysicsUpdateError.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/StateRecorderImpl.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Ragdoll
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Ragdoll/Ragdoll.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/DeterminismLog.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/VehicleAntiRollBar.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/VehicleEngine.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/VehicleTransmission.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/MotorcycleController.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/VehicleConstraint.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/VehicleDifferential.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/VehicleController.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/VehicleCollisionTester.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/Wheel.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/WheeledVehicleController.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/TrackedVehicleController.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Vehicle/VehicleTrack.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Character
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Character/CharacterBase.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Character/CharacterID.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Character/Character.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Character/CharacterVirtual.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/PhysicsSystem.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/PhysicsUpdateContext.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/Body.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyFilter.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyID.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/MotionProperties.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/MotionProperties.inl
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyPair.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/MotionQuality.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyManager.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyCreationSettings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyLock.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyActivationListener.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyAccess.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/Body.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyInterface.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/AllowedDOFs.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyLockMulti.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyType.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/MotionType.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/BodyLockInterface.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/Body/MassProperties.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/PhysicsLock.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody/SoftBodyUpdateContext.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody/SoftBodyContactListener.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody/SoftBodyManifold.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody/SoftBodyVertex.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody/SoftBodyShape.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody/SoftBodyMotionProperties.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody/SoftBodySharedSettings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/SoftBody/SoftBodyCreationSettings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Physics/StateRecorder.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/ConfigurationString.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairWrapper.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairGridAccumulateBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairCalculateRenderPositionsBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/ShaderVec3.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairUpdateVelocity.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairStructs.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/ShaderMath.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/ShaderMat44.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairIntegrate.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairGridClearBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairUpdateVelocityBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairUpdateRootsBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/TestComputeBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairSkinVerticesBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairUpdateVelocityIntegrateBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/TestCompute2Bindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairTeleportBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairCommon.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairUpdateStrandsBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairIntegrateBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairSkinRootsBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/ShaderQuat.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/ShaderPlane.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairGridNormalizeBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairCalculateRenderPositions.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/ShaderCore.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairApplyGlobalPose.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairApplyGlobalPoseBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairCalculateCollisionPlanesBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Shaders/HairApplyDeltaTransformBindings.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/RegisterTypes.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Skeleton
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Skeleton/Skeleton.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Skeleton/SkeletonPose.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Skeleton/SkeletonMapper.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Skeleton/SkeletalAnimation.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Renderer
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Renderer/DebugRendererPlayback.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Renderer/DebugRendererRecorder.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Renderer/DebugRendererSimple.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/Renderer/DebugRenderer.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/AABBTree
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/AABBTree/AABBTreeToBuffer.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/AABBTree/NodeCodec
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/AABBTree/NodeCodec/NodeCodecQuadTreeHalfFloat.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/AABBTree/AABBTreeBuilder.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/AABBTree/TriangleCodec
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/AABBTree/TriangleCodec/TriangleCodecIndexed8BitPackSOA4Flags.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/TriangleSplitter
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/TriangleSplitter/TriangleSplitterBinning.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/TriangleSplitter/TriangleSplitter.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/Jolt/TriangleSplitter/TriangleSplitterMean.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1/platform
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1/platform/sdl.hpp
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1/platform/gl.hpp
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1/platform/platform.hpp
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1/engine
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1/engine/jobs.hpp
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1/engine/render.hpp
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/include/frontier-compat/red_frontier_0_1/engine/math.hpp
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/JSDGameEngine/JSDTargets.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/JSDGameEngine/JSDTargets-release.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/JSDGameEngine/JSDGameEngineConfig.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/JSDGameEngine/JSDGameEngineConfigVersion.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/FrontierEngine/FrontierEngineConfig.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/cmake/FrontierEngine/FrontierEngineConfigVersion.cmake
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/pkgconfig/sdl2.pc
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/pkgconfig/jsd-game-engine.pc
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/lib/pkgconfig/frontier-engine.pc
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs
+-- Installing: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/THIRD_PARTY.md
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/sanitizer-cpu.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/engine-gl33.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/performance-40.csv
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/legacy-game.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/sanitizer-graphics.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/engine-cpu.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/showcase.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/performance-16.csv
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/render-matrix.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/consumers.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/engine-native.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/performance-55.csv
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/validation/performance.log
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/VALIDATION.md
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/FEATURES.md
+-- Installing: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/INTEGRATION.md
+-- Installing: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/BUILDING.md
+-- Installing: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/RELEASE_NOTES.md
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/RENDER_MATRIX.json
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/PERFORMANCE.json
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/PARTICLES.md
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/docs/PERFORMANCE.md
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses/DejaVu-copyright.txt
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses/SDL2-copyright.txt
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses/libstdc++-copyright.txt
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/LICENSE.txt
+-- Installing: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/README.md
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses/Jolt-LICENSE.txt
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses/SMAA-LICENSE.txt
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses/cgltf.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses/stb_image.h
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/share/jsd-game-engine/licenses/SDL2-LICENSE.txt
+Built JSD 0.4.2 and bundled dependencies from source; SDK: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /workspace/scratch/f8542ff39916/jsd-source-workspace/sample-game/build/release
+[100%] Built target sample-game
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/scratch/f8542ff39916/jsd-source-workspace/sample-game/bin/sample-game
+Renderer: llvmpipe (LLVM 19.1.7, 256 bits) / offscreen / uncapped requested
+SUNDOG scene: 1364 objects / 52 meshes / original PBR assets
+Frame 1 t=16.0165 / 2184818 triangles / 240 draws / 266 sprites / 266 live particles
+SUNDOG / JSD 0.4.2 / llvmpipe (LLVM 19.1.7, 256 bits) / frames=1 time=16.0165 render=640x360 particles=266 elapsed=0.710812s

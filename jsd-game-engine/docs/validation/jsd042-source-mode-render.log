@@ -1,0 +1,4 @@
+Renderer: llvmpipe (LLVM 19.1.7, 256 bits) / offscreen / uncapped requested
+SUNDOG scene: 1364 objects / 52 meshes / original PBR assets
+Frame 2 t=55.0378 / 2225748 triangles / 240 draws / 81 sprites / 81 live particles
+SUNDOG / JSD 0.4.2 / llvmpipe (LLVM 19.1.7, 256 bits) / frames=2 time=55.0378 render=640x360 particles=81 elapsed=1.16777s

@@ -1,0 +1,19 @@
+{
+  "release": "0.4.2-source",
+  "distribution": "Source and runtime data only; no compiled code or caches",
+  "dependencies": {
+    "SDL2": "2.32.4, compiled from bundled Linux source",
+    "Jolt": "5.7.0, compiled from bundled source"
+  },
+  "engine_core_compilation": "One PIC object set reused by shared/static engine libraries",
+  "native_checks": 93,
+  "forced_gl33_checks": 92,
+  "incremental_unchanged_cpp_compilations": 0,
+  "incremental_modified_cpp_compilations": 1,
+  "compile_failure_prevents_stale_launch": true,
+  "source_built_sdk_shared_static_relocation": true,
+  "fresh_archive_run_with_spaces": true,
+  "fresh_direct_cmake_defaults_to_source": true,
+  "code_downloads_during_build": false,
+  "OS_prerequisites": "Externally supplied/provisioned on validation host; package-manager installer not executed as administrator"
+}

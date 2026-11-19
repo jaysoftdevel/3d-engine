@@ -1,0 +1,10 @@
+Poly Haven showcase assets — CC0 1.0 Universal
+
+The rock scans, gravelly sand maps and kloofendal sky in this directory
+come from Poly Haven and are made available under CC0 1.0 Universal.
+https://polyhaven.com/license
+https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+The sources, creators, modifications, download URLs and SHA-256 hashes
+are recorded in SOURCES.json. Poly Haven does not endorse this project.
+The benchmark reference and its proprietary content are not bundled.

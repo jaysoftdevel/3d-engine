@@ -1,0 +1,50 @@
+{
+  "environment": "Debian13 x86-64, GCC14.2, Mesa25.0.7 llvmpipe LLVM19.1.7, LP_NUM_THREADS=4",
+  "resolution": [
+    960,
+    540
+  ],
+  "frames_per_scene": 36,
+  "capture_simulation_fps": 60,
+  "preset": "high, identical geometry/effects; no UI, readback or validation in timed loop",
+  "baseline_version": "0.4.0",
+  "updated_version": "0.4.1",
+  "method": "Sequential runs, includes first-frame terrain/driver warmup; native hardware GPU unavailable. Diagnostic CSV is buffered and enabled only for updated build. Software-driver result; no hardware performance forecast.",
+  "scenes": [
+    {
+      "scene_time": 16,
+      "old_frame_ms": 589.3972222222222,
+      "new_frame_ms": 568.1138888888889,
+      "frame_time_reduction_percent": 3.6110338717050827,
+      "throughput_increase_percent": 3.7463145593851
+    },
+    {
+      "scene_time": 40,
+      "old_frame_ms": 558.1805555555555,
+      "new_frame_ms": 496.78333333333336,
+      "frame_time_reduction_percent": 10.999527233820194,
+      "throughput_increase_percent": 12.358953713333554
+    },
+    {
+      "scene_time": 55,
+      "old_frame_ms": 554.3555555555556,
+      "new_frame_ms": 500.65277777777777,
+      "frame_time_reduction_percent": 9.687424837649328,
+      "throughput_increase_percent": 10.726551446722343
+    }
+  ],
+  "combined_throughput_increase_percent": 8.711528429838289,
+  "image_comparison": {
+    "dimensions": [
+      1280,
+      720
+    ],
+    "mission_time": 40,
+    "frame": 12,
+    "mean_absolute_8bit_channel_difference": 0.00010452835648148149,
+    "maximum_8bit_channel_difference": 2.0,
+    "changed_pixels": 284,
+    "total_pixels": 921600,
+    "psnr_db": 87.90851092680802
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": "2.32.4",
+  "url": "https://www.libsdl.org/release/SDL2-2.32.4.tar.gz",
+  "original_archive_sha256": "f15b478253e1ff6dac62257ded225ff4e7d0c5230204ac3450f1144ee806f934",
+  "license": "Zlib",
+  "changes": [
+    "Omitted precompiled Android Gradle wrapper JAR; Linux C/C++ source unchanged.",
+    "Made sdl2.pc.in prefix/lib/include paths relative for relocatable SDKs; C/C++ source unchanged.",
+    "Omitted unused Windows Direct3D and Apple Metal renderer directories, including embedded precompiled shader blobs; Linux rendering source retained."
+  ]
+}
