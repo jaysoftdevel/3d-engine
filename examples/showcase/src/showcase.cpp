@@ -782,7 +782,7 @@ unsigned Showcase::activeParticles() const {
          sparks.active().size() + sand.active().size() + gravel.active().size();
 }
 void Showcase::render(const g::Camera &camera, bool hud, bool particles,
-                      double fps) {
+                      double fps, const std::function<void()> &overlay) {
   g::Environment env;
   env.sunDirection = sceneSun;
   env.imageRotation = skyRotation;
@@ -879,7 +879,7 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
     graphics.rect(0, 687, 1280, 33, {.012f, .02f, .022f, 1});
     graphics.text(35, 13, "JSD / REALTIME EXPEDITION", 1.1f,
                   {.7f, .73f, .69f, 1});
-    graphics.text(950, 13, "SPACE PAUSE / TAB EXPLORE", 1.1f,
+    graphics.text(850, 13, "C SETTINGS / SPACE PAUSE / TAB EXPLORE", 1.1f,
                   {.56f, .6f, .57f, 1});
     float fade = 1 - smooth(3.5f, 6, elapsed);
     if (fade > 0)
@@ -906,6 +906,8 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
       std::snprintf(label, sizeof(label), "-- FPS");
     graphics.text(18, 698, label, 1.6f, {.79f, .94f, .81f, 1});
   }
+  if (overlay)
+    overlay();
   graphics.end();
 }
 } // namespace sundog

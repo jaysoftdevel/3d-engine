@@ -17,6 +17,7 @@ The sample starts in borderless fullscreen at the desktop drawable resolution, w
 | Control | Action |
 | --- | --- |
 | Space | Pause/resume simulation |
+| C | Show/hide graphics settings; click values to cycle, click the header for page two |
 | Tab | Toggle free camera and mouse capture |
 | WASD + mouse | Move/look in free camera |
 | R | Restart mission, physics, particles and temporal history |
@@ -37,7 +38,7 @@ The sample starts in borderless fullscreen at the desktop drawable resolution, w
 
 `--time SECONDS` pre-rolls simulation to a mission time. `--fps` controls fixed offline capture cadence; use 24, 30 or 60. `--sequence` writes PPM frames for external encoding. `--capture` saves the final frame. These offline captures are not real-time FPS measurements. `run-showcase.sh` changes to the engine root, so relative output paths resolve there.
 
-`--quality low|high|ultra` selects rendering quality. `--settings FILE.ini` loads all engine graphics settings after preset selection. Use the engine's `./run.sh` to edit/save them. `--assets PATH` selects an asset root; `--no-audio`, `--no-ui`, `--free-camera` and `--no-particles` support inspection. `--validate` checks GL errors and finite HDR/render buffers each frame. `--debug-dir DIRECTORY` writes diagnostic buffers. `--help` lists options.
+`--quality low|high|ultra` selects rendering quality. `--settings FILE.ini` loads all engine graphics settings after preset selection. Press `C` to edit the same two-page settings panel used by the graphics lab. Settings take effect immediately. The panel background is 30% transparent (70% opacity), with opaque text for readability. Opening it releases the mouse and suspends free-camera movement; closing it restores capture if free camera is active and the window has focus. The mission continues unless paused with Space. The panel is independent of the F1 mission HUD toggle. Use the engine's `./run.sh --write-settings FILE.ini` to save a configuration. `--assets PATH` selects an asset root; `--no-audio`, `--no-ui`, `--free-camera` and `--no-particles` support inspection. `--validate` checks GL errors and finite HDR/render buffers each frame. `--debug-dir DIRECTORY` writes diagnostic buffers. `--help` lists options.
 
 Interactive fullscreen uses the desktop resolution; `--width`/`--height` control windowed/offscreen dimensions (default 1920x1080). `--windowed` restores a resizable window. `--no-vsync` requests uncapped presentation (the default); `--vsync` requests synchronized presentation. The driver/compositor can override a swap-interval request. `--no-fps` hides only the FPS counter; `--no-ui` hides both HUD and FPS. During initial timing warmup the counter displays `-- FPS`. Its number is measured throughput, including presentation, and is independent of `--fps`, which controls simulation/capture cadence.
 

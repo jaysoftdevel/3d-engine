@@ -11,6 +11,7 @@ cd jsd-game-engine
 ./run.sh                    # build engine/dependencies and launch engine graphics lab
 ./build.sh                  # build only
 ./build.sh debug            # debug source build
+./build.sh clean            # remove all build modes, prebuilds and installed SDK outputs
 ./test.sh                   # complete engine-only regression/render checks
 ```
 
@@ -42,7 +43,9 @@ Generated output locations:
 | jsd-game-engine/bin/jsd-showcase | Optional showcase executable |
 | jsd-game-engine/share/jsd-game-engine/showcase | Optional showcase assets and notices |
 
-These products are not in the release archive. Remove build directories and generated SDK outputs for a fully clean rebuild; keep the source include/frontier and include/jsd directories.
+These products are not in the release archive. Run `./build.sh clean` (also accepted as `--clean`) for a fully clean rebuild. It removes the complete `build` tree, local `prebuild`, `prebuilds`, `prebuilt` and `prebuilts` directories, generated `bin`, `lib`, `lib64` and `share` outputs, and installed SDL/Jolt headers. Engine source headers, bundled dependency source and source assets are preserved. The next normal build compiles the engine and dependencies again.
+
+Cleaning runs without CMake, compilers or dependency installation and can be repeated on an already clean tree. It also removes the directory selected by `JSD_BUILD_DIR` and the engine/SDL/Jolt SDK files under `JSD_INSTALL_PREFIX`; use the same overrides used for the build. Unrelated files in an external install prefix are preserved. Project/source directories and their ancestors are rejected as custom build directories. `clean` is a standalone command and accepts no build mode or CMake arguments.
 
 ## OS prerequisites
 

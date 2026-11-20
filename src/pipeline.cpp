@@ -211,6 +211,8 @@ void Renderer::Impl::common(unsigned p, const Mat4 &m) {
     vector(p, "windVector", environment.atmosphere.wind);
     integer(p, "giMode", int(settings().globalIllumination));
     sampler(p, "shadowMap", shadowDepth, 4);
+    sampler(p, "shadowPcf", shadowDepth, 13);
+    gl.BindSampler(13, shadowSampler);
     matrix(p, "previousVP", previousVP);
     matrix(p, "view", view);
     matrix(p, "previousView", previousView);
@@ -304,15 +306,18 @@ void Renderer::Impl::mesh(const GpuMesh &m, std::span<const GpuInstance> batch, 
             gl.DrawElementsInstanced(0x000E, m.count, 0x1405, nullptr, batch.size());
         else
             gl.DrawArraysInstanced(0x000E, 0, m.count, batch.size());
-        stats.triangles += m.count / 4 * stats.terrainSubdivisions * stats.terrainSubdivisions * 2;
+        if (countDraws)
+            stats.triangles += m.count / 4 * stats.terrainSubdivisions * stats.terrainSubdivisions * 2;
     } else {
         if (m.ibo)
             gl.DrawElementsInstanced(GL_TRIANGLES, m.count, 0x1405, nullptr, batch.size());
         else
             gl.DrawArraysInstanced(GL_TRIANGLES, 0, m.count, batch.size());
-        stats.triangles += m.count / 3 * batch.size();
+        if (countDraws)
+            stats.triangles += m.count / 3 * batch.size();
     }
-    stats.drawCalls++;
+    if (countDraws)
+        stats.drawCalls++;
 }
 void Renderer::Impl::prepareCommands() {
     prepared.clear();
@@ -379,7 +384,8 @@ void Renderer::Impl::prepareCommands() {
         return prepared[a].sortDistanceSquared > prepared[b].sortDistanceSquared;
     });
 }
-void Renderer::Impl::drawCommands(unsigned p, const Mat4 &matrix, bool shadow, bool transparent) {
+void Renderer::Impl::drawCommands(unsigned p, const Mat4 &matrix, bool shadow, bool transparent,
+                                  bool depthOnly) {
     common(p, matrix);
     std::array<std::array<float, 4>, 6> planes;
     int count = 0;
@@ -393,9 +399,16 @@ void Renderer::Impl::drawCommands(unsigned p, const Mat4 &matrix, bool shadow, b
         }
     const PreparedDraw *first = nullptr;
     instanceScratch.clear();
+    // After the depth prepass, opaque surfaces only shade the visible fragment; masked ones still resolve alpha.
+    const bool lateDepth = depthPrepassed && p == sceneProgram && !transparent;
     auto flush = [&] {
         if (!first)
             return;
+        if (lateDepth) {
+            bool opaque = first->source->material.alphaMode == AlphaMode::Opaque;
+            gl.DepthFunc(opaque ? 0x0202 : 0x0201);
+            gl.DepthMask(!opaque);
+        }
         material(p, first->source->material);
         if (transparent && p == sceneProgram)
             gl.BlendFunc(GL_SRC_ALPHA, first->source->material.alphaMode == AlphaMode::Additive
@@ -407,6 +420,8 @@ void Renderer::Impl::drawCommands(unsigned p, const Mat4 &matrix, bool shadow, b
     for (auto index : transparent ? transparentOrder : opaqueOrder) {
         const auto &draw = prepared[index];
         if (shadow && !draw.source->material.castShadow)
+            continue;
+        if (depthOnly && draw.source->material.alphaMode != AlphaMode::Opaque)
             continue;
         float range = settings().viewDistance + draw.radius;
         if (draw.distanceSquared > range * range)
@@ -420,7 +435,13 @@ void Renderer::Impl::drawCommands(unsigned p, const Mat4 &matrix, bool shadow, b
             }
         if (outside)
             continue;
-        if (first && first->key != draw.key) {
+        // Opaque depth-only draws depend on geometry and wind alone, so batches merge across material differences.
+        bool same = first && (first->key == draw.key ||
+                              ((depthOnly || shadow) && first->key[0] == draw.key[0] &&
+                               first->key[21] == draw.key[21] &&
+                               first->source->material.alphaMode == AlphaMode::Opaque &&
+                               draw.source->material.alphaMode == AlphaMode::Opaque));
+        if (first && !same) {
             flush();
             first = nullptr;
         }
@@ -429,6 +450,17 @@ void Renderer::Impl::drawCommands(unsigned p, const Mat4 &matrix, bool shadow, b
         instanceScratch.push_back(draw.instance);
     }
     flush();
+    if (lateDepth) {
+        gl.DepthFunc(0x0201);
+        gl.DepthMask(1);
+    }
+}
+void Renderer::Impl::projectionTerms(unsigned p, bool xy) {
+    // Perspective depth reconstruction needs only these projection entries, not a full inverse matrix multiply.
+    if (xy)
+        gl.Uniform4f(uniform(p, "projectionXY"), projection.m[0], projection.m[5], projection.m[8],
+                     projection.m[9]);
+    gl.Uniform2f(uniform(p, "depthTerms"), projection.m[10], projection.m[14]);
 }
 void Renderer::Impl::fullscreen(unsigned p, unsigned fbo) {
     gl.BindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -586,6 +618,16 @@ void Renderer::Impl::pipeline() {
         gl.Enable(0x809D);
     else
         gl.Disable(0x809D);
+    depthPrepassed = !settings().wireframe && !customMaterialShader;
+    if (depthPrepassed) {
+        gl.DrawBuffer(0);
+        countDraws = false;
+        drawCommands(shadowProgram, vp, false, false, true);
+        if (terrainRequested)
+            drawTerrain(false, true);
+        countDraws = true;
+        gl.DrawBuffers(4, outputs);
+    }
     drawCommands(sceneProgram, vp, false);
     if (terrainRequested)
         drawTerrain(false);
@@ -636,15 +678,23 @@ void Renderer::Impl::pipeline() {
         gl.UseProgram(aoProgram);
         sampler(aoProgram, "depthMap", sceneDepth, 0);
         sampler(aoProgram, "normalMap", sceneNormal, 1);
-        matrix(aoProgram, "projection", projection);
-        matrix(aoProgram, "invProjection", invProjection);
+        projectionTerms(aoProgram);
+        const int aoSamples = std::array{0, 8, 16, 32, 48}[int(settings().ambientOcclusion)];
+        std::array<float, 48 * 4> aoTable{};
+        for (int i = 0; i < aoSamples; i++) {
+            float f = (i + .5f) / aoSamples, z = .2f + .8f * f;
+            aoTable[i * 4] = z;
+            aoTable[i * 4 + 1] = std::sqrt(1 - z * z);
+            aoTable[i * 4 + 2] = .15f + .85f * f * f;
+        }
+        gl.Uniform4fv(uniform(aoProgram, "sampleTable"), 48, aoTable.data());
         matrix(aoProgram, "view", view);
-        integer(aoProgram, "samples", std::array{0, 8, 16, 32, 48}[int(settings().ambientOcclusion)]);
+        integer(aoProgram, "samples", aoSamples);
         scalar(aoProgram, "radius", 1.5f);
         fullscreen(aoProgram, aoRaw.fbo);
         gl.UseProgram(aoBlurProgram);
         sampler(aoBlurProgram, "depthMap", sceneDepth, 1);
-        matrix(aoBlurProgram, "invProjection", invProjection);
+        projectionTerms(aoBlurProgram, false);
         sampler(aoBlurProgram, "source", aoRaw.texture, 0);
         gl.Uniform2f(uniform(aoBlurProgram, "direction"), 1.f / width, 0);
         fullscreen(aoBlurProgram, aoA.fbo);
@@ -664,8 +714,7 @@ void Renderer::Impl::pipeline() {
     sampler(lightingProgram, "normalMap", sceneNormal, 2);
     sampler(lightingProgram, "surfaceMap", sceneSurface, 3);
     sampler(lightingProgram, "aoMap", aoB.texture, 4);
-    matrix(lightingProgram, "projection", projection);
-    matrix(lightingProgram, "invProjection", invProjection);
+    projectionTerms(lightingProgram);
     matrix(lightingProgram, "view", view);
     integer(lightingProgram, "aoEnabled", aoB.fbo != 0);
     integer(lightingProgram, "giSamples",
@@ -726,6 +775,7 @@ void Renderer::Impl::pipeline() {
     gl.Uniform2f(uniform(tonemapProgram, "pixel"), 1.f / width, 1.f / height);
     fullscreen(tonemapProgram, display.fbo);
     antialias(display.texture);
+    gl.BindSampler(13, 0);
     gl.BindFramebuffer(GL_FRAMEBUFFER, 0);
     gl.Viewport(0, 0, outputWidth, outputHeight);
     previousVP = vp;

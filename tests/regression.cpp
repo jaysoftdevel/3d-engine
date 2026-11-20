@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <sstream>
 #include <unistd.h>
 using namespace rf;
 using namespace rf::gfx;
@@ -217,6 +218,50 @@ int main(int argc, char **argv) {
             auto sharp = movingFrame(Quality::Off, "jsd-sharp-"),
                  blurred = movingFrame(Quality::High, "jsd-blur-");
             test(sharp != blurred, "object motion vectors produce visible motion blur");
+            auto overlapCenter = [&](bool nearFirst) {
+                auto option = GraphicsSettings::legacy();
+                option.viewDistance = 64;
+                renderer.setSettings(option);
+                renderer.begin({{0, 1, -6}, {0, 0, 1}, 60, .08f});
+                auto box = [&](float z, Color color) {
+                    Draw draw;
+                    draw.mesh = motionBox;
+                    draw.transform = {{0, 1, z}, {2, 2, .5f}, 0};
+                    draw.material.albedo = color;
+                    renderer.submit(draw);
+                };
+                Color red{.9f, .05f, .05f, 1}, green{.05f, .9f, .05f, 1};
+                if (nearFirst) {
+                    box(0, red);
+                    box(4, green);
+                } else {
+                    box(4, green);
+                    box(0, red);
+                }
+                renderer.end();
+                renderer.check();
+                auto file = std::filesystem::temp_directory_path() /
+                            ("jsd-overlap-" + std::to_string(::getpid()) + ".ppm");
+                renderer.screenshot(file);
+                std::ifstream input(file, std::ios::binary);
+                std::string bytes((std::istreambuf_iterator<char>(input)), {});
+                std::filesystem::remove(file);
+                int width = 0, height = 0;
+                std::istringstream header(bytes);
+                std::string magic;
+                int range = 0;
+                header >> magic >> width >> height >> range;
+                size_t offset = size_t(header.tellg()) + 1 + (size_t(height / 2) * width + width / 2) * 3;
+                std::array<int, 3> center{};
+                if (offset + 2 < bytes.size())
+                    center = {uint8_t(bytes[offset]), uint8_t(bytes[offset + 1]), uint8_t(bytes[offset + 2])};
+                return center;
+            };
+            for (bool nearFirst : {true, false}) {
+                auto center = overlapCenter(nearFirst);
+                test(center[0] > center[1] * 2,
+                     "depth prepass keeps the nearest opaque surface regardless of draw order");
+            }
             cinematicGraphicsTests(test, renderer);
             renderer.destroyMesh(motionBox);
             renderer.destroyTexture(texture);

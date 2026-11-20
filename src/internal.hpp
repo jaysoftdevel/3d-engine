@@ -78,7 +78,7 @@ struct Renderer::Impl {
     unsigned aoProgram = 0, aoBlurProgram = 0, lightingProgram = 0, dofProgram = 0, tonemapProgram = 0,
              copyProgram = 0, fxaaProgram = 0, uiProgram = 0;
     unsigned smaaEdgeProgram = 0, smaaWeightProgram = 0, smaaBlendProgram = 0, smaaArea = 0, smaaSearch = 0;
-    unsigned instanceBuffer = 0, fullscreenVao = 0, uiVao = 0, uiVbo = 0;
+    unsigned instanceBuffer = 0, fullscreenVao = 0, uiVao = 0, uiVbo = 0, shadowSampler = 0;
     unsigned sceneFbo = 0, sceneColor = 0, sceneNormal = 0, sceneSurface = 0, sceneDepth = 0, msaaFbo = 0;
     std::array<unsigned, 5> msaaBuffers{};
     unsigned shadowFbo = 0, shadowDepth = 0;
@@ -91,7 +91,7 @@ struct Renderer::Impl {
     Environment environment;
     Mat4 view, projection, vp, invProjection, lightVP;
     Mat4 previousVP = Mat4::identity(), previousView = Mat4::identity();
-    std::map<uint64_t, Mat4> previousModels;
+    std::unordered_map<uint64_t, Mat4> previousModels;
     struct StringHash {
         using is_transparent = void;
         size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
@@ -191,7 +191,8 @@ struct Renderer::Impl {
     void material(unsigned program, const Material &);
     void mesh(const GpuMesh &, std::span<const GpuInstance>, bool patches = false);
     void fullscreen(unsigned program, unsigned fbo);
-    void drawCommands(unsigned program, const Mat4 &matrix, bool shadow, bool transparent = false);
+    void drawCommands(unsigned program, const Mat4 &matrix, bool shadow, bool transparent = false,
+                      bool depthOnly = false);
     void prepareCommands();
     bool visible(const GpuMesh &, const Transform &, const Mat4 &, const Mat4 *model = nullptr) const;
     Mat4 model(const Transform &) const;
@@ -204,7 +205,9 @@ struct Renderer::Impl {
     void temporalResolve(unsigned source);
     void bind(unsigned program, const char *name, unsigned texture, int unit, unsigned target);
     void streamTerrain();
-    void drawTerrain(bool shadow);
+    void drawTerrain(bool shadow, bool depthOnly = false);
+    void projectionTerms(unsigned program, bool xy = true);
+    bool depthPrepassed = false, countDraws = true, customMaterialShader = false;
     void pipeline();
     void drawUi();
     void initializeSmaa();

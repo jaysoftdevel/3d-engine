@@ -27,10 +27,10 @@ void main(){vec2 corners[6]=vec2[](vec2(-1,-1),vec2(1,-1),vec2(1,1),vec2(-1,-1),
 inline const char *particleFragment = R"GLSL(#version 330 core
 in vec2 uv;in vec4 tint,options;in float linearDepth;in vec3 world;
 uniform sampler2D depthMap;uniform sampler3D noiseVolume;uniform vec2 viewport;
-uniform mat4 invProjection;uniform vec3 eye,sun,sunColor,skyColor;uniform float sunIntensity;
+uniform vec2 depthTerms;uniform vec3 eye,sun,sunColor,skyColor;uniform float sunIntensity;
 layout(location=0)out vec4 color;layout(location=1)out vec4 reactive;
-void main(){float radius=length(uv);if(radius>1.)discard;int style=int(options.w+.5);float alpha=exp(-radius*radius*3.2)*(1.-smoothstep(.72,1.,radius));if(style<2){vec3 q=vec3(uv*1.15+world.xz*.017,options.z*.19);float noise=texture(noiseVolume,q*.46).g*.6+texture(noiseVolume,q*1.4).r*.4;alpha*=smoothstep(.16,.76,noise);if(style==1)alpha*=1.4;}if(style==2)alpha=(1.-smoothstep(.05,1.,abs(uv.y)))*(1.-smoothstep(.35,1.,abs(uv.x)));if(style==3)alpha=(1.-smoothstep(.35,1.,radius));
-vec2 screen=gl_FragCoord.xy/viewport;float depth=texture(depthMap,screen).r;vec4 p=invProjection*vec4(screen*2.-1.,depth*2.-1.,1);float scene=-p.z/p.w;alpha*=clamp((scene-linearDepth)/max(options.y,.001),0.,1.)*tint.a;if(alpha<.002)discard;vec3 radiance=tint.rgb;if(style<2){float phase=.12+.4*pow(max(dot(normalize(world-eye),sun),0.),8.);radiance*=skyColor*.8+sunColor*sunIntensity*phase;}color=vec4(radiance*alpha,style==2?0.:alpha);reactive=vec4(0,0,0,1);}
+void main(){float radius=length(uv);if(radius>1.)discard;vec2 screen=gl_FragCoord.xy/viewport;float scene=depthTerms.y/(texture(depthMap,screen).r*2.-1.+depthTerms.x);float fade=clamp((scene-linearDepth)/max(options.y,.001),0.,1.)*tint.a;if(fade<.0014)discard;int style=int(options.w+.5);float alpha=exp(-radius*radius*3.2)*(1.-smoothstep(.72,1.,radius));if(style<2){vec3 q=vec3(uv*1.15+world.xz*.017,options.z*.19);float noise=texture(noiseVolume,q*.46).g*.6+texture(noiseVolume,q*1.4).r*.4;alpha*=smoothstep(.16,.76,noise);if(style==1)alpha*=1.4;}if(style==2)alpha=(1.-smoothstep(.05,1.,abs(uv.y)))*(1.-smoothstep(.35,1.,abs(uv.x)));if(style==3)alpha=(1.-smoothstep(.35,1.,radius));
+alpha*=fade;if(alpha<.002)discard;vec3 radiance=tint.rgb;if(style<2){float phase=.12+.4*pow(max(dot(normalize(world-eye),sun),0.),8.);radiance*=skyColor*.8+sunColor*sunIntensity*phase;}color=vec4(radiance*alpha,style==2?0.:alpha);reactive=vec4(0,0,0,1);}
 )GLSL";
 inline const char *imageVertex = R"GLSL(#version 330 core
 uniform vec4 rectangle;out vec2 uv;void main(){vec2 p[6]=vec2[](vec2(0,0),vec2(1,0),vec2(1,1),vec2(0,0),vec2(1,1),vec2(0,1));uv=p[gl_VertexID];vec2 position=rectangle.xy+uv*rectangle.zw;gl_Position=vec4(position.x/640.-1.,1.-position.y/360.,0,1);}

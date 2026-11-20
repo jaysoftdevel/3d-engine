@@ -277,6 +277,8 @@ bool Renderer::reloadMaterialShaders(const std::string &vs, const std::string &f
         impl->uniforms.erase(impl->sceneProgram);
         impl->gl.DeleteProgram(impl->sceneProgram);
         impl->sceneProgram = next;
+        // Replacement vertex stages can move geometry, so their depth cannot be prepassed with the built-in shader.
+        impl->customMaterialShader = true;
         impl->historyValid = false;
         return true;
     } catch (const std::exception &e) {

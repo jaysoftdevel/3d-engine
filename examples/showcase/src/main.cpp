@@ -1,4 +1,5 @@
 #include "showcase.hpp"
+#include "../../graphics_settings.hpp"
 #include <chrono>
 #include <fstream>
 #include <iomanip>
@@ -76,7 +77,7 @@ int main(int argc, char **argv) {
                      "showcase\n64-second "
                      "autonomous recovery mission; loops automatically.\nSPACE "
                      "pause; TAB explore "
-                     "camera; WASD/mouse fly; R restart; F1 HUD; ESC "
+                     "camera; WASD/mouse fly; C graphics settings; R restart; F1 HUD; ESC "
                      "exit.\n--offscreen --frames N "
                      "--time SECONDS --fps N --width N --height N\n--capture "
                      "FILE.ppm --sequence "
@@ -182,7 +183,9 @@ int main(int argc, char **argv) {
     auto camera = scene.camera();
     float yaw = std::atan2(camera.direction.x, camera.direction.z),
           pitch = std::asin(camera.direction.y);
-    bool running = true, captured = false;
+    bool running = true, captured = false, showGraphicsSettings = false;
+    rf::examples::GraphicsSettingsOverlay graphicsOverlay;
+    int mouseX = 0, mouseY = 0;
     int frame = 0;
     FrameRateCounter frameRate;
     std::ofstream profileFile;
@@ -207,16 +210,27 @@ int main(int argc, char **argv) {
                          std::chrono::duration<float>(now - previous).count());
       previous = now;
       input.beginFrame();
+      bool settingsClick = false, settingsToggled = false;
       if (!offscreen) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
           input.event(event);
+          if (event.type == vl::sdl::mouseMotion) {
+            mouseX = event.motion.x;
+            mouseY = event.motion.y;
+          }
+          if (event.type == vl::sdl::mouseDown && event.button.button == 1) {
+            mouseX = event.button.x;
+            mouseY = event.button.y;
+            settingsClick = true;
+          }
           if (event.type == vl::sdl::quit)
             running = false;
           if (event.type == vl::sdl::window &&
               event.window.event == vl::sdl::focusLost) {
             captured = false;
             platform.captureMouse(false);
+            settingsClick = false;
           }
         }
         if (input.pressed(41))
@@ -225,6 +239,15 @@ int main(int argc, char **argv) {
           paused = !paused;
         if (input.pressed(58))
           hud = !hud;
+        if (input.pressed(vl::sdl::key::c)) {
+          showGraphicsSettings = !showGraphicsSettings;
+          settingsToggled = true;
+          settingsClick = false;
+          captured = freeCamera && !showGraphicsSettings &&
+                     (SDL_GetWindowFlags(platform.window) & vl::sdl::inputFocus);
+          platform.captureMouse(captured);
+          SDL_GetMouseState(&mouseX, &mouseY);
+        }
         if (input.pressed(vl::sdl::key::f11)) {
           if (!platform.setFullscreen(!platform.isFullscreen()))
             std::cerr << "Fullscreen change failed: " << SDL_GetError() << '\n';
@@ -234,7 +257,7 @@ int main(int argc, char **argv) {
           scene.reset();
         if (input.pressed(43)) {
           freeCamera = !freeCamera;
-          captured = freeCamera;
+          captured = freeCamera && !showGraphicsSettings;
           platform.captureMouse(captured);
           camera = scene.camera();
           yaw = std::atan2(camera.direction.x, camera.direction.z);
@@ -245,9 +268,9 @@ int main(int argc, char **argv) {
         fixed.advance(dt, [&](float h) { scene.update(h); });
       if (!freeCamera)
         camera = scene.camera();
-      else {
+      else if (!showGraphicsSettings) {
         auto [dx, dy] = input.mouseDelta();
-        if (captured) {
+        if (captured && !settingsToggled) {
           yaw -= dx * .002;
           pitch = rf::clamp(pitch - dy * .002f, -1.45f, 1.45f);
         }
@@ -260,7 +283,16 @@ int main(int argc, char **argv) {
         if (input.down(224))
           camera.position.y -= dt * 6;
       }
-      scene.render(camera, hud, particles, showFps ? frameRate.fps() : -1);
+      scene.render(camera, hud, particles, showFps ? frameRate.fps() : -1, [&] {
+        if (showGraphicsSettings) {
+          int windowWidth = width, windowHeight = height;
+          if (!offscreen)
+            SDL_GetWindowSize(platform.window, &windowWidth, &windowHeight);
+          graphicsOverlay.draw(renderer, settings, settingsClick,
+              mouseX * 1280.f / std::max(1, windowWidth),
+              mouseY * 720.f / std::max(1, windowHeight), true);
+        }
+      });
       if (validate) {
         renderer.check();
         renderer.validateFrame();

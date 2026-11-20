@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <filesystem>
+#include <functional>
 #include <jsd/engine.hpp>
 #include <map>
 namespace sundog {
@@ -65,7 +66,7 @@ public:
   void update(float seconds);
   void reset();
   void render(const g::Camera &, bool hud = true, bool particles = true,
-              double fps = -1);
+              double fps = -1, const std::function<void()> &overlay = {});
   g::Camera camera() const;
   float time() const { return elapsed; }
   unsigned activeParticles() const;

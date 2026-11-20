@@ -86,7 +86,7 @@ void Renderer::Impl::drawParticles() {
     gl.UseProgram(particleProgram);
     matrix(particleProgram, "vp", vp);
     matrix(particleProgram, "view", view);
-    matrix(particleProgram, "invProjection", invProjection);
+    projectionTerms(particleProgram, false);
     vector(particleProgram, "right", {view.m[0], view.m[4], view.m[8]});
     vector(particleProgram, "up", {view.m[1], view.m[5], view.m[9]});
     vector(particleProgram, "eye", camera.position);

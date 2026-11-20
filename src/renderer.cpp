@@ -59,6 +59,17 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s) : context(std::move(c)) {
         gl.GetIntegerv(0x8E7E, &caps.maxTessellationLevel);
     report = resolveSettings(s, caps);
     gl.GenBuffers(1, &instanceBuffer);
+    // Hardware-compared bilinear taps at texel corners sum four exact nearest comparisons per fetch for PCF.
+    gl.GenSamplers(1, &shadowSampler);
+    for (auto [name, value] : std::array<std::pair<unsigned, int>, 6>{{{GL_TEXTURE_MIN_FILTER, 0x2601},
+                                                                      {GL_TEXTURE_MAG_FILTER, 0x2601},
+                                                                      {GL_TEXTURE_WRAP_S, 0x812D},
+                                                                      {GL_TEXTURE_WRAP_T, 0x812D},
+                                                                      {0x884C, 0x884E},
+                                                                      {0x884D, 0x0203}}})
+        gl.SamplerParameteri(shadowSampler, name, value);
+    const float shadowBorder[] = {1, 1, 1, 1};
+    gl.SamplerParameterfv(shadowSampler, 0x1004, shadowBorder);
     gl.GenVertexArrays(1, &fullscreenVao);
     sceneProgram = program(shader::meshVertex, shader::sceneFragment);
     shadowProgram = program(shader::shadowVertex, shader::shadowFragment);
@@ -114,6 +125,7 @@ Renderer::Impl::~Impl() {
     gl.DeleteTextures(1, &smaaArea);
     gl.DeleteTextures(1, &smaaSearch);
     gl.DeleteBuffers(1, &instanceBuffer);
+    gl.DeleteSamplers(1, &shadowSampler);
     gl.DeleteBuffers(1, &uiVbo);
     gl.DeleteVertexArrays(1, &uiVao);
     gl.DeleteVertexArrays(1, &fullscreenVao);

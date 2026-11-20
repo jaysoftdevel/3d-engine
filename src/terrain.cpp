@@ -151,14 +151,23 @@ void Renderer::Impl::streamTerrain() {
     stats.residentTerrainTiles = tiles.size();
     stats.pendingTerrainJobs = pending.size();
 }
-void Renderer::Impl::drawTerrain(bool shadow) {
+void Renderer::Impl::drawTerrain(bool shadow, bool depthOnly) {
     if (shadow && !terrainSpec.material.castShadow)
         return;
-    unsigned p = terrainHardware ? (shadow ? tessShadowProgram : tessProgram)
-                                 : (shadow ? shadowProgram : sceneProgram);
+    const bool opaque = terrainSpec.material.alphaMode == AlphaMode::Opaque;
+    if (depthOnly && !opaque)
+        return;
+    const bool lateDepth = depthPrepassed && opaque && !shadow && !depthOnly;
+    const bool depthProgram = shadow || depthOnly;
+    unsigned p = terrainHardware ? (depthProgram ? tessShadowProgram : tessProgram)
+                                 : (depthProgram ? shadowProgram : sceneProgram);
     const Mat4 &matrix = shadow ? lightVP : vp;
     common(p, matrix);
     material(p, terrainSpec.material);
+    if (lateDepth) {
+        gl.DepthFunc(0x0202);
+        gl.DepthMask(0);
+    }
     std::array<GpuInstance, 1> batch;
     batch[0].color=terrainSpec.material.albedo;
     for (auto &[key, tile] : tiles) {
@@ -176,8 +185,12 @@ void Renderer::Impl::drawTerrain(bool shadow) {
             gl.Uniform4f(uniform(p, "terrainTint"), c.r, c.g, c.b, c.a);
         }
         mesh(tile.mesh, batch, terrainHardware);
-        if (!shadow)
+        if (!shadow && !depthOnly)
             stats.visibleTerrainTiles++;
+    }
+    if (lateDepth) {
+        gl.DepthFunc(0x0201);
+        gl.DepthMask(1);
     }
 }
 } // namespace rf::gfx

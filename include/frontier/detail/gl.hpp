@@ -159,7 +159,12 @@ X(void,DeleteQueries,(GLsizei,const GLuint*)) \
 X(void,BeginQuery,(GLenum,GLuint)) \
 X(void,EndQuery,(GLenum)) \
 X(void,GetQueryObjectiv,(GLuint,GLenum,GLint*)) \
-X(void,GetQueryObjectui64v,(GLuint,GLenum,unsigned long long*))
+X(void,GetQueryObjectui64v,(GLuint,GLenum,unsigned long long*)) \
+X(void,GenSamplers,(GLsizei,GLuint*)) \
+X(void,DeleteSamplers,(GLsizei,const GLuint*)) \
+X(void,BindSampler,(GLuint,GLuint)) \
+X(void,SamplerParameteri,(GLuint,GLenum,GLint)) \
+X(void,SamplerParameterfv,(GLuint,GLenum,const float*))
 
 struct GL {
 #define VL_DECLARE(result, name, args) result(*name) args = nullptr;
