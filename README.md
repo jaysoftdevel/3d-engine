@@ -52,3 +52,9 @@ Frontier/JSD public headers, original settings and Frontier::Engine / JSD::GameE
 Validated on Linux x86-64, GCC14.2, CMake3.31.6 and Mesa EGL/OpenGL3.3/4.5. Desktop OpenGL3.3+ is required at runtime; GL4 enables hardware tessellation. Source builds use your own compiler/system ABI; the distribution imposes no prebuilt glibc/libstdc++ version floor. A C/C++20 toolchain and OS development headers are needed; see BUILDING.md. Other architectures/platforms are unvalidated.
 
 Original code/assets use LICENSE.txt; dependencies retain their own licenses. SDL2 source provenance and its omitted precompiled Android helper are recorded in third_party/SDL2/SOURCE.json. See [engine third-party notices](docs/THIRD_PARTY.md); optional showcase asset credits are in [examples/showcase/docs/CREDITS.md](examples/showcase/docs/CREDITS.md). The package audit rejects compiled-code signatures and library/object suffixes before release.
+
+Graphics controls now include Minimal, Low, Medium, High and Max presets in both examples. Press `C` in the showcase for the 30% transparent panel; depth of field uses autofocus when enabled. See [presets and autofocus](docs/GRAPHICS_PRESETS.md) and [processing measurements](docs/PROCESSING_VALIDATION.json).
+
+Rover wheel direction, circumference-based rotation and ground contact are corrected in the [rover physics update](docs/ROVER_PHYSICS.md).
+
+The [SI physics layer](docs/PHYSICS.md) now provides density-based mass/inertia, gravity, force/torque, stable damping/drag, fixed-step scheduling and swept cinematic motion. Rover/crane actors use collision-aware solver poses. [Physical camera and photometry](docs/OPTICS.md) add metre-based lenses, shutter/ISO exposure and lumen/lux lighting without changing legacy defaults.

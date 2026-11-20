@@ -1,0 +1,14 @@
+Internal ctest changing into directory: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check
+Test project /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check
+    Start 1: runtime-and-settings
+1/4 Test #1: runtime-and-settings .............   Passed    0.02 sec
+    Start 2: graphics
+2/4 Test #2: graphics .........................   Passed    3.18 sec
+    Start 3: rover-kinematics
+3/4 Test #3: rover-kinematics .................   Passed    0.01 sec
+    Start 4: showcase-smoke
+4/4 Test #4: showcase-smoke ...................   Passed    2.51 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   5.73 sec

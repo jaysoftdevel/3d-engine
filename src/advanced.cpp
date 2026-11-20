@@ -5,6 +5,28 @@
 namespace rf::gfx {
 using namespace vl;
 void Renderer::Impl::initializeAdvanced() {
+    focusProgram = program(shader::fullscreen, R"GLSL(#version 330 core
+in vec2 texcoord;out vec4 outputColor;
+uniform sampler2D depthMap,previous;
+uniform vec2 pixel,depthTerms;
+uniform float farDistance,dt,speed;
+uniform int valid;
+void main(){
+    float values[9];int index=0;
+    for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
+        float d=texture(depthMap,vec2(.5)+vec2(x,y)*pixel*3.).r;
+        values[index++]=d>=.999999?farDistance:clamp(depthTerms.y/(d*2.-1.+depthTerms.x),.2,farDistance);
+    }
+    for(int i=1;i<9;i++)for(int j=i;j>0;j--)
+        if(values[j]<values[j-1]){float temp=values[j];values[j]=values[j-1];values[j-1]=temp;}
+    float target=values[4],old=texture(previous,vec2(.5)).r;
+    float focus=target;
+    if(valid!=0){
+        float blend=1.-exp(-speed*dt);
+        focus=abs(target-old)<max(.01,old*.002)?old:mix(old,target,blend);
+    }
+    outputColor=vec4(focus,0,0,1);
+})GLSL");
     skyProgram = program(shader::fullscreen, advanced::sky);
     fogProgram = program(shader::fullscreen, advanced::fog);
     motionProgram = program(shader::fullscreen, advanced::motionBlur);
@@ -29,7 +51,7 @@ in vec2 texcoord;in vec4 tint;uniform sampler2D albedoMap;uniform int textured;l
 }
 void Renderer::Impl::releaseAdvanced() {
     for (unsigned p :
-         {skyProgram, fogProgram, motionProgram, reactiveProgram, taaProgram, upscaleProgram, bloomProgram,
+         {focusProgram, skyProgram, fogProgram, motionProgram, reactiveProgram, taaProgram, upscaleProgram, bloomProgram,
           bloomBlurProgram, exposureProgram, exposureAdaptProgram, iblProgram, brdfProgram})
         if (p)
             gl.DeleteProgram(p);
@@ -46,6 +68,9 @@ void Renderer::Impl::releaseAdvanced() {
     }
 }
 void Renderer::Impl::allocateAdvanced() {
+    if (settings().depthOfField != Quality::Off)
+        for (auto &buffer : focus) buffer = target(0x822E, 0x1903, 1, 1);
+    focusValid = false;
     if (settings().volumetricFog != Quality::Off)
         fogTarget = target();
     if (settings().motionBlur != Quality::Off)
@@ -78,9 +103,12 @@ void Renderer::Impl::allocateAdvanced() {
     }
 }
 void Renderer::Impl::bind(unsigned p, const char *name, unsigned texture, int unit, unsigned target) {
+    int location;
+    bool changed = updateUniform(p, name, 3, &unit, sizeof(unit), location);
+    if (location < 0) return;
     gl.ActiveTexture(GL_TEXTURE0 + unit);
     gl.BindTexture(target, texture);
-    integer(p, name, unit);
+    if (changed) gl.Uniform1i(location, unit);
 }
 void Renderer::Impl::bindAdvanced(unsigned p) {
     scalar(p, "environmentRotation", environment.imageRotation);
@@ -124,13 +152,13 @@ unsigned Renderer::Impl::postAdvanced(unsigned source) {
         sampler(motionProgram, "depthMap", sceneDepth, 2);
         sampler(motionProgram, "surfaceMap", sceneSurface, 3);
         integer(motionProgram, "samples", std::array{0, 5, 9, 13, 17}[int(settings().motionBlur)]);
-        scalar(motionProgram, "strength", settings().motionBlurStrength);
+        scalar(motionProgram, "strength", camera.optics ? std::clamp(camera.optics->shutterSeconds / std::max(.0001f, environment.deltaSeconds), 0.f, 2.f) : settings().motionBlurStrength);
         gl.Uniform2f(uniform(motionProgram, "size"), width, height);
         fullscreen(motionProgram, motionTarget.fbo);
         source = motionTarget.texture;
     }
 
-    if (settings().autoExposure) {
+    if (settings().autoExposure && !(camera.optics && camera.optics->physicalExposure)) {
         gl.UseProgram(exposureProgram);
         sampler(exposureProgram, "source", source, 0);
         gl.BindFramebuffer(GL_FRAMEBUFFER, luminance.fbo);
@@ -222,19 +250,25 @@ void Renderer::Impl::temporalResolve(unsigned source) {
 }
 void Renderer::resetHistory() {
     impl->historyValid = false;
+    impl->focusValid = false;
 }
 void Renderer::light(const Light &light) {
     if (impl->lights.size() >= 1024)
         throw std::runtime_error("local light budget exceeded");
     for (float f :
          {light.position.x, light.position.y, light.position.z, light.radius, light.intensity,
-          light.direction.x, light.direction.y, light.direction.z, light.innerCone, light.outerCone})
+          light.direction.x, light.direction.y, light.direction.z, light.innerCone, light.outerCone,
+          light.color.r, light.color.g, light.color.b})
         if (!std::isfinite(f))
             throw std::invalid_argument("nonfinite light");
-    if (light.radius <= 0 || light.intensity < 0 || light.innerCone < 0 ||
-        light.outerCone <= light.innerCone || light.outerCone >= pi)
+    if (light.radius <= 0 || light.intensity < 0 || !std::isfinite(light.sourceRadiusMetres) || light.sourceRadiusMetres <= 0 || light.innerCone < 0 ||
+        light.outerCone <= light.innerCone || light.outerCone >= pi ||
+        (light.falloff != LightFalloff::Legacy && light.falloff != LightFalloff::InverseSquare) ||
+        light.color.r < 0 || light.color.g < 0 || light.color.b < 0 ||
+        (light.type == LightType::Spot && length(light.direction) < 1e-8f))
         throw std::invalid_argument("invalid local light");
     impl->lights.push_back(light);
+    impl->physicalLighting |= light.falloff == LightFalloff::InverseSquare;
 }
 void Renderer::updateMesh(MeshId id, std::span<const Vertex> v) {
     auto it = impl->meshes.find(id.value);

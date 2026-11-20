@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include <utility>
 #include <chrono>
 #include <cstring>
 #include <stdexcept>
@@ -32,6 +33,9 @@ void Renderer::Impl::releaseTargets() {
         destroy(*t);
     for (auto &t : temporal)
         destroy(t);
+    for (auto &t : focus)
+        destroy(t);
+    focusValid = false;
     for (auto &t : exposure)
         destroy(t);
     destroy(luminance);
@@ -160,32 +164,58 @@ void Renderer::Impl::allocate() {
     }
     gl.BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
-int Renderer::Impl::uniform(unsigned p, std::string_view name) {
+Renderer::Impl::UniformState &Renderer::Impl::uniformState(unsigned p, std::string_view name) {
     auto &cache = uniforms[p];
     auto found = cache.find(name);
-    if (found != cache.end())
-        return found->second;
+    if (found != cache.end()) return found->second;
     std::string owned(name);
-    int location = gl.GetUniformLocation(p, owned.c_str());
-    cache.emplace(std::move(owned), location);
-    return location;
+    UniformState value;
+    value.location = gl.GetUniformLocation(p, owned.c_str());
+    return cache.emplace(std::move(owned), std::move(value)).first->second;
+}
+int Renderer::Impl::uniform(unsigned p, std::string_view name) { return uniformState(p, name).location; }
+bool Renderer::Impl::updateUniform(unsigned p, std::string_view name, unsigned type,
+                                  const void *data, size_t bytes, int &location) {
+    auto &state = uniformState(p, name);
+    location = state.location;
+    if (location < 0) return false;
+    unsigned char *cached = state.bytes.data();
+    if (bytes > state.bytes.size()) {
+        if (!state.matrix) state.matrix = std::make_unique<std::array<unsigned char, 64>>();
+        cached = state.matrix->data();
+    }
+    if (state.type == type && std::memcmp(cached, data, bytes) == 0) return false;
+    state.type = type;
+    std::memcpy(cached, data, bytes);
+    return true;
 }
 void Renderer::Impl::sampler(unsigned p, const char *name, unsigned tex, int unit) {
+    // Inactive shader inputs need neither a uniform update nor a resource binding.
+    int location;
+    bool changed = updateUniform(p, name, 3, &unit, sizeof(unit), location);
+    if (location < 0) return;
     gl.ActiveTexture(GL_TEXTURE0 + unit);
     gl.BindTexture(GL_TEXTURE_2D, tex);
-    gl.Uniform1i(uniform(p, name), unit);
+    if (changed) gl.Uniform1i(location, unit);
 }
 void Renderer::Impl::matrix(unsigned p, const char *name, const Mat4 &m) {
-    gl.UniformMatrix4fv(uniform(p, name), 1, 0, m.m.data());
+    int location;
+    if (updateUniform(p, name, 1, m.m.data(), sizeof(float) * 16, location))
+        gl.UniformMatrix4fv(location, 1, 0, m.m.data());
 }
-void Renderer::Impl::scalar(unsigned p, const char *name, float f) {
-    gl.Uniform1f(uniform(p, name), f);
+void Renderer::Impl::scalar(unsigned p, const char *name, float value) {
+    int location;
+    if (updateUniform(p, name, 2, &value, sizeof(value), location)) gl.Uniform1f(location, value);
 }
-void Renderer::Impl::integer(unsigned p, const char *name, int n) {
-    gl.Uniform1i(uniform(p, name), n);
+void Renderer::Impl::integer(unsigned p, const char *name, int value) {
+    int location;
+    if (updateUniform(p, name, 3, &value, sizeof(value), location)) gl.Uniform1i(location, value);
 }
-void Renderer::Impl::vector(unsigned p, const char *name, V3 v) {
-    gl.Uniform3f(uniform(p, name), v.x, v.y, v.z);
+void Renderer::Impl::vector(unsigned p, const char *name, V3 value) {
+    const float data[] = {value.x, value.y, value.z};
+    int location;
+    if (updateUniform(p, name, 4, data, sizeof(data), location))
+        gl.Uniform3f(location, value.x, value.y, value.z);
 }
 void Renderer::Impl::common(unsigned p, const Mat4 &m) {
     gl.UseProgram(p);
@@ -202,6 +232,7 @@ void Renderer::Impl::common(unsigned p, const Mat4 &m) {
     vector(p, "groundColor",
            {environment.groundColor.r, environment.groundColor.g, environment.groundColor.b});
     scalar(p, "sunIntensity", environment.sunIntensity);
+    integer(p, "physicalLighting", physicalLighting);
     scalar(p, "ambientIntensity", environment.ambientIntensity);
     scalar(p, "viewDistance", settings().viewDistance);
     scalar(p, "storm", environment.storm);
@@ -260,6 +291,7 @@ void Renderer::Impl::material(unsigned p, const Material &m) {
     scalar(p, "occlusionStrength", m.occlusionStrength);
 }
 Mat4 Renderer::Impl::model(const Transform &t) const {
+    if (t.yaw == 0 && t.pitch == 0 && t.roll == 0) return compose(t.position, Quat{}, t.scale);
     auto axis = [](V3 v, float a) {
         return Quat{v.x * std::sin(a * .5f), v.y * std::sin(a * .5f), v.z * std::sin(a * .5f),
                     std::cos(a * .5f)};
@@ -320,10 +352,11 @@ void Renderer::Impl::mesh(const GpuMesh &m, std::span<const GpuInstance> batch, 
         stats.drawCalls++;
 }
 void Renderer::Impl::prepareCommands() {
-    prepared.clear();
+    // Keep constructed storage across frames instead of initializing every instance twice.
     opaqueOrder.clear();
     transparentOrder.clear();
-    prepared.reserve(commands.size());
+    const auto started = std::chrono::steady_clock::now();
+    prepared.resize(commands.size());
     auto bits = [](float f) {
         unsigned u;
         std::memcpy(&u, &f, 4);
@@ -355,12 +388,17 @@ void Renderer::Impl::prepareCommands() {
                         bits(a.windStrength),
                         bits(a.occlusionStrength)};
     };
-    for (const auto &c : commands) {
-        auto mesh = meshes.find(c.mesh.value);
-        if (mesh == meshes.end())
+    const auto &meshLookup = std::as_const(meshes);
+    const auto &motionLookup = std::as_const(previousModels);
+    auto prepare = [&](size_t lo, size_t hi) {
+      for (size_t index = lo; index < hi; ++index) {
+        const auto &c = commands[index];
+        prepared[index].source = nullptr;
+        auto mesh = meshLookup.find(c.mesh.value);
+        if (mesh == meshLookup.end())
             continue;
         Mat4 x = c.modelMatrix ? *c.modelMatrix : model(c.transform);
-        auto old = previousModels.find(c.objectId);
+        auto old = motionLookup.find(c.objectId);
         auto center = transformPoint(x, mesh->second.center);
         float bound = 0;
         for (int col = 0; col < 3; col++)
@@ -368,13 +406,18 @@ void Renderer::Impl::prepareCommands() {
                 bound += x.m[col * 4 + row] * x.m[col * 4 + row];
         auto delta = center - camera.position;
         auto originDelta = transformPoint(x, {}) - camera.position;
-        size_t index = prepared.size();
-        prepared.push_back(
+        prepared[index] = 
             {&c, &mesh->second,
-             GpuInstance{x, historyValid && c.objectId && old != previousModels.end() ? old->second : x,
+             GpuInstance{x, historyValid && c.objectId && old != motionLookup.end() ? old->second : x,
                          c.material.albedo},
              key(c), center, mesh->second.radius * std::sqrt(bound), dot(delta, delta),
-             dot(originDelta, originDelta)});
+             dot(originDelta, originDelta)};
+      }
+    };
+    stats.preparationWorkers = jobs.parallelFor(commands.size(), 2048, prepare);
+    for (size_t index = 0; index < prepared.size(); ++index) {
+        if (!prepared[index].source) continue;
+        const auto &c = *prepared[index].source;
         bool blend = c.material.alphaMode == AlphaMode::Blend || c.material.alphaMode == AlphaMode::Additive;
         (blend ? transparentOrder : opaqueOrder).push_back(index);
     }
@@ -383,6 +426,8 @@ void Renderer::Impl::prepareCommands() {
     std::stable_sort(transparentOrder.begin(), transparentOrder.end(), [&](size_t a, size_t b) {
         return prepared[a].sortDistanceSquared > prepared[b].sortDistanceSquared;
     });
+    stats.preparationMilliseconds = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - started).count();
 }
 void Renderer::Impl::drawCommands(unsigned p, const Mat4 &matrix, bool shadow, bool transparent,
                                   bool depthOnly) {
@@ -529,8 +574,10 @@ void Renderer::Impl::pipeline() {
     stats.renderHeight = height;
     stats.outputWidth = outputWidth;
     stats.outputHeight = outputHeight;
-    if (frameIndex && (distance(lastEye, camera.position) > 10 || dot(lastDirection, camera.direction) < .5f))
+    if (frameIndex && (distance(lastEye, camera.position) > 10 || dot(lastDirection, camera.direction) < .5f)) {
         historyValid = false;
+        focusValid = false;
+    }
     bool query = false;
     unsigned qi = queryIndex % 3;
     if (settings().gpuProfiling) {
@@ -745,11 +792,40 @@ void Renderer::Impl::pipeline() {
     drawParticles();
     unsigned current = postAdvanced(lit.texture);
     if (dof.fbo) {
+        if (settings().autoFocus) {
+            unsigned next = 1 - focusIndex;
+            gl.UseProgram(focusProgram);
+            sampler(focusProgram, "depthMap", sceneDepth, 0);
+            sampler(focusProgram, "previous", focus[focusIndex].texture, 1);
+            projectionTerms(focusProgram, false);
+            gl.Uniform2f(uniform(focusProgram, "pixel"), 1.f / width, 1.f / height);
+            scalar(focusProgram, "farDistance", settings().viewDistance);
+            scalar(focusProgram, "dt", std::clamp(environment.deltaSeconds, 0.f, .25f));
+            scalar(focusProgram, "speed", settings().focusAdaptation);
+            integer(focusProgram, "valid", focusValid);
+            gl.BindFramebuffer(GL_FRAMEBUFFER, focus[next].fbo);
+            gl.Viewport(0, 0, 1, 1);
+            gl.BindVertexArray(fullscreenVao);
+            gl.DrawArrays(GL_TRIANGLES, 0, 3);
+            ++stats.drawCalls;
+            ++stats.postPasses;
+            focusIndex = next;
+            focusValid = true;
+        }
         gl.UseProgram(dofProgram);
         sampler(dofProgram, "source", current, 0);
         sampler(dofProgram, "depthMap", sceneDepth, 1);
-        matrix(dofProgram, "invProjection", invProjection);
+        projectionTerms(dofProgram, false);
+        sampler(dofProgram, "focusMap", focus[focusIndex].texture, 2);
+        integer(dofProgram, "autoFocus", settings().autoFocus);
         scalar(dofProgram, "focusDistance", settings().focusDistance);
+        integer(dofProgram, "physicalLens", camera.optics.has_value());
+        if (camera.optics) {
+            scalar(dofProgram, "lensFocalLength", camera.optics->focalLengthMetres);
+            scalar(dofProgram, "lensFNumber", camera.optics->fNumber);
+            scalar(dofProgram, "lensSensorHeight", camera.optics->sensorHeightMetres);
+            scalar(dofProgram, "imageHeight", height);
+        }
         scalar(dofProgram, "aperture", settings().aperture);
         scalar(dofProgram, "maxBlur", settings().maximumBlur);
         integer(dofProgram, "samples", std::array{0, 8, 16, 24, 32}[int(settings().depthOfField)]);
@@ -764,8 +840,9 @@ void Renderer::Impl::pipeline() {
     sampler(tonemapProgram, "bloomMap", bloomPyramid.empty() ? 0 : bloomPyramid.front().texture, 3);
     sampler(tonemapProgram, "exposureMap", exposure[exposureIndex].texture, 4);
     scalar(tonemapProgram, "bloomStrength", settings().bloom == Quality::Off ? 0 : settings().bloomStrength);
-    scalar(tonemapProgram, "exposureEV", settings().exposureCompensation);
-    integer(tonemapProgram, "autoExposure", settings().autoExposure);
+    scalar(tonemapProgram, "exposureEV", settings().exposureCompensation +
+        (camera.optics && camera.optics->physicalExposure ? float(std::log2(camera.optics->exposureMultiplier())) : 0));
+    integer(tonemapProgram, "autoExposure", settings().autoExposure && !(camera.optics && camera.optics->physicalExposure));
     integer(tonemapProgram, "toneMapper", int(settings().toneMapper));
     scalar(tonemapProgram, "contrast", settings().contrast);
     scalar(tonemapProgram, "saturation", settings().saturation);
@@ -784,7 +861,7 @@ void Renderer::Impl::pipeline() {
     lastDirection = camera.direction;
     previousModels.clear();
     for (const auto &c : prepared)
-        if (c.source->objectId)
+        if (c.source && c.source->objectId)
             previousModels[c.source->objectId] = c.instance.model;
     historyValid = true;
     frameIndex++;

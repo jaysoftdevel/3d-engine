@@ -1,5 +1,6 @@
 #pragma once
 #include "math.hpp"
+#include "optics.hpp"
 #include "platform.hpp"
 #include "settings.hpp"
 #include <functional>
@@ -60,6 +61,7 @@ enum class Primitive { Box, Rock, Cylinder };
 struct Camera {
     V3 position{12, 6, -20}, direction{-.3f, -.15f, 1};
     float fovDegrees = 70, nearPlane = .08f;
+    std::optional<CameraOptics> optics;
 };
 struct Atmosphere {
     bool enabled = false;
@@ -79,8 +81,10 @@ struct Environment {
     // Zero selects the legacy distance-based shadow extent. Nonzero improves local texel density.
     float shadowDistance = 0;
     float imageRotation = 0;
+    std::optional<float> sunIlluminanceLux;
 };
 enum class LightType { Point, Spot };
+enum class LightFalloff { Legacy, InverseSquare };
 struct Light {
     V3 position;
     float radius = 10;
@@ -89,7 +93,13 @@ struct Light {
     V3 direction{0, -1, 0};
     float innerCone = .3f, outerCone = .6f;
     LightType type = LightType::Point;
+    LightFalloff falloff = LightFalloff::Legacy;
+    float sourceRadiusMetres = .05f;
 };
+// Helpers accept luminous flux in lumens; returned intensity is candela.
+Light pointLightLumens(V3 position,float lumens,float rangeMetres,Color color={});
+Light spotLightLumens(V3 position,V3 direction,float lumens,float rangeMetres,
+                      float innerHalfAngleRadians,float outerHalfAngleRadians,Color color={});
 struct Terrain {
     bool enabled = true;
     unsigned seed = 101;
@@ -120,6 +130,8 @@ struct Statistics {
     double cpuMilliseconds = 0, gpuMilliseconds = 0;
     bool temporalHistoryValid = false;
     unsigned particleSprites = 0, particleDrawCalls = 0;
+    unsigned preparationWorkers = 1;
+    double preparationMilliseconds = 0;
 };
 
 class Renderer {

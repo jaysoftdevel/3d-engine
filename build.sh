@@ -63,7 +63,8 @@ case "${1:-}" in
             engine_clean_dirs+=("$engine_prefix/include/jsd" "$engine_prefix/include/frontier"
                 "$engine_prefix/include/frontier-compat"
                 "$engine_prefix/bin/jsd-graphics-lab" "$engine_prefix/bin/jsd-engine-tests"
-                "$engine_prefix/bin/jsd-showcase" "$engine_prefix/bin/sdl2-config"
+                "$engine_prefix/bin/jsd-showcase" "$engine_prefix/bin/jsd-physics-tests"
+                "$engine_prefix/bin/jsd-showcase-physics-tests" "$engine_prefix/bin/sdl2-config"
                 "$engine_prefix/share/jsd-game-engine" "$engine_prefix/share/licenses/SDL2"
                 "$engine_prefix/share/aclocal/sdl2.m4")
             for engine_libdir in "$engine_prefix/lib" "$engine_prefix/lib64"; do

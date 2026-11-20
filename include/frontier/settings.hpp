@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace rf::gfx {
@@ -10,6 +11,7 @@ enum class Quality { Off, Low, Medium, High, Ultra };
 enum class TextureQuality { Low, Medium, High, Ultra };
 enum class GlobalIllumination { Off, AmbientProbe, ScreenSpace };
 enum class TessellationBackend { Automatic, Mesh, Hardware };
+enum class GraphicsPreset { Minimal, Low, Medium, High, Max };
 
 struct GraphicsSettings {
     AntiAliasing antiAliasing = AntiAliasing::FXAA;
@@ -37,12 +39,17 @@ struct GraphicsSettings {
     float contrast = 1, saturation = 1, temperature = 0, vignette = 0;
     Quality motionBlur = Quality::Off, volumetricFog = Quality::Off;
     float motionBlurStrength = .5f, fogDensity = .015f, fogHeightFalloff = .12f;
+    bool autoFocus = true;
+    float focusAdaptation = 6;
     bool operator==(const GraphicsSettings &) const = default;
     static GraphicsSettings legacy();
     static GraphicsSettings low();
     static GraphicsSettings balanced();
     static GraphicsSettings high();
     static GraphicsSettings ultra();
+    static GraphicsSettings minimal();
+    static GraphicsSettings medium();
+    static GraphicsSettings max();
 };
 
 struct Capabilities {
@@ -64,6 +71,9 @@ const char *name(TextureQuality value);
 const char *name(GlobalIllumination value);
 const char *name(TessellationBackend value);
 const char *name(ToneMapper value);
+const char *name(GraphicsPreset value);
+GraphicsSettings graphicsPreset(GraphicsPreset);
+bool parseGraphicsPreset(std::string_view, GraphicsPreset &);
 bool saveSettings(const std::filesystem::path &, const GraphicsSettings &, std::string &error);
 bool loadSettings(const std::filesystem::path &, GraphicsSettings &, std::string &error);
 } // namespace rf::gfx

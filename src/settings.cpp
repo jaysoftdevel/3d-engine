@@ -8,6 +8,47 @@
 #include <stdexcept>
 
 namespace rf::gfx {
+const char *name(GraphicsPreset preset) {
+    static const char *names[] = {"minimal", "low", "medium", "high", "max"};
+    return names[std::clamp(int(preset), 0, 4)];
+}
+bool parseGraphicsPreset(std::string_view text, GraphicsPreset &preset) {
+    if (text == "legacy") text = "minimal";
+    if (text == "balanced") text = "medium";
+    if (text == "ultra") text = "max";
+    for (int i = 0; i < 5; ++i)
+        if (text == name(GraphicsPreset(i))) {
+            preset = GraphicsPreset(i);
+            return true;
+        }
+    return false;
+}
+GraphicsSettings GraphicsSettings::minimal() {
+    auto s = legacy();
+    s.textureQuality = TextureQuality::Low;
+    s.anisotropy = 1;
+    s.viewDistance = 80;
+    return s;
+}
+GraphicsSettings GraphicsSettings::medium() { return balanced(); }
+GraphicsSettings GraphicsSettings::max() {
+    auto s = ultra();
+    s.depthOfField = s.motionBlur = s.volumetricFog = s.edgeFusion = s.bloom = Quality::Ultra;
+    s.terrainTessellation = Quality::Ultra;
+    s.reflections = s.ambientOcclusion = s.illuminationQuality = Quality::Ultra;
+    return s;
+}
+GraphicsSettings graphicsPreset(GraphicsPreset preset) {
+    switch (preset) {
+    case GraphicsPreset::Minimal: return GraphicsSettings::minimal();
+    case GraphicsPreset::Low: return GraphicsSettings::low();
+    case GraphicsPreset::Medium: return GraphicsSettings::medium();
+    case GraphicsPreset::High: return GraphicsSettings::high();
+    case GraphicsPreset::Max: return GraphicsSettings::max();
+    }
+    return GraphicsSettings::medium();
+}
+
 const char *name(AntiAliasing q) {
     static const char *n[] = {"off", "fxaa", "smaa", "msaa", "taa"};
     return n[std::clamp(int(q), 0, 4)];
@@ -143,6 +184,7 @@ SettingsReport resolveSettings(GraphicsSettings requested, const Capabilities &c
     s.toneMapper = ToneMapper(std::clamp(int(s.toneMapper), 0, 2));
     number(s.viewDistance, 32, 800, 200);
     number(s.focusDistance, .2f, 800, 12);
+    number(s.focusAdaptation, .1f, 30, 6);
     number(s.aperture, .1f, 16, 2);
     number(s.maximumBlur, 0, 24, 8);
     int asked = s.msaaSamples;
@@ -204,6 +246,7 @@ bool saveSettings(const std::filesystem::path &p, const GraphicsSettings &s, std
         o << "motion_blur=" << name(s.motionBlur) << "\nmotion_blur_strength=" << s.motionBlurStrength
           << "\nvolumetric_fog=" << name(s.volumetricFog) << "\nfog_density=" << s.fogDensity
           << "\nfog_height_falloff=" << s.fogHeightFalloff << '\n';
+        o << "auto_focus=" << s.autoFocus << "\nfocus_adaptation=" << s.focusAdaptation << '\n';
         o.close();
         if (!o)
             throw std::runtime_error("Settings write failed");
@@ -271,6 +314,12 @@ bool loadSettings(const std::filesystem::path &p, GraphicsSettings &result, std:
                 s.anisotropy = integer(v);
             else if (key == "view_distance")
                 s.viewDistance = real(v);
+            else if (key == "auto_focus") {
+                int value = integer(v);
+                if (value != 0 && value != 1) throw std::runtime_error("invalid autofocus boolean");
+                s.autoFocus = value;
+            } else if (key == "focus_adaptation")
+                s.focusAdaptation = real(v);
             else if (key == "focus_distance")
                 s.focusDistance = real(v);
             else if (key == "aperture")

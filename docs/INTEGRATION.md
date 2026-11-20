@@ -87,3 +87,5 @@ The adapter references the consuming game's own `game/game.hpp`; the engine libr
 The standard mesh shader now consumes normal-matrix columns at locations 13–15, in addition to the retained earlier attributes 0–12. Existing custom shaders can keep calculating their own normals from the model matrix; unused extra attributes are harmless. Reloading a material program invalidates its uniform-location cache. GPU calls and submission remain confined to the context thread.
 
 For the source-only release and automatic prerequisite/build workflow, see [BUILDING.md](BUILDING.md). JSD exports discover the adjacent source-built SDL CMake package; static engine consumers still link that SDL shared runtime. The source archive includes no generated lib/bin/export/cache products.
+
+For SI units, shape-derived mass/inertia, force scheduling, fixed-step interpolation and controlled movement, see [PHYSICS.md](PHYSICS.md). Physical camera/lighting inputs are described in [OPTICS.md](OPTICS.md). Rebuild applications together with the engine after applying this source update: public structs have new appended fields; existing binary consumers are not ABI-compatible.

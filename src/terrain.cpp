@@ -35,10 +35,15 @@ TileData generate(TileKey key, int divisions, bool hardware, unsigned seed,
     }
     float step = 32.f / divisions;
     data.vertices.reserve(divisions * divisions * 6 + divisions * 24);
+    // Retain the original triangles and seams while evaluating shared vertices once.
+    std::vector<Vertex> grid(size_t(divisions + 1) * (divisions + 1));
+    for (int z = 0; z <= divisions; ++z)
+        for (int x = 0; x <= divisions; ++x)
+            grid[z * (divisions + 1) + x] = point(x * step, z * step);
     for (int z = 0; z < divisions; z++)
         for (int x = 0; x < divisions; x++) {
-            auto a = point(x * step, z * step), b = point(x * step, (z + 1) * step),
-                 c = point((x + 1) * step, z * step), d = point((x + 1) * step, (z + 1) * step);
+            auto a = grid[z * (divisions + 1) + x], b = grid[(z + 1) * (divisions + 1) + x],
+                 c = grid[z * (divisions + 1) + x + 1], d = grid[(z + 1) * (divisions + 1) + x + 1];
             data.vertices.insert(data.vertices.end(), {a, b, c, c, b, d});
         }
     // Skirts close cracks between distance-dependent mesh resolutions.
@@ -95,7 +100,8 @@ void Renderer::Impl::streamTerrain() {
                 wanted.push_back(key);
         }
     std::sort(wanted.begin(), wanted.end(), [&](auto a, auto b) {
-        return std::hypot(a.first - cx, a.second - cz) < std::hypot(b.first - cx, b.second - cz);
+        return (a.first - cx) * (a.first - cx) + (a.second - cz) * (a.second - cz) <
+               (b.first - cx) * (b.first - cx) + (b.second - cz) * (b.second - cz);
     });
     int added = 0;
     for (auto key : wanted) {

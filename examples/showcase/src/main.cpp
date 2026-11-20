@@ -1,4 +1,5 @@
 #include "showcase.hpp"
+#include "graphics_presets.hpp"
 #include "../../graphics_settings.hpp"
 #include <chrono>
 #include <fstream>
@@ -17,7 +18,7 @@ int main(int argc, char **argv) {
     std::string debugDir, profile;
     std::string capture, sequence, quality = "high";
     std::filesystem::path assets;
-    std::string config;
+    std::string config, writeConfig;
     auto value = [&](int &i) {
       if (i + 1 >= argc)
         throw std::runtime_error("missing option value");
@@ -66,12 +67,14 @@ int main(int argc, char **argv) {
         capture = value(i);
       else if (a == "--sequence")
         sequence = value(i);
-      else if (a == "--quality")
+      else if (a == "--quality" || a == "--preset")
         quality = value(i);
       else if (a == "--assets")
         assets = value(i);
       else if (a == "--settings")
         config = value(i);
+      else if (a == "--write-settings")
+        writeConfig = value(i);
       else if (a == "--help") {
         std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.4.4 "
                      "showcase\n64-second "
@@ -81,8 +84,8 @@ int main(int argc, char **argv) {
                      "exit.\n--offscreen --frames N "
                      "--time SECONDS --fps N --width N --height N\n--capture "
                      "FILE.ppm --sequence "
-                     "DIRECTORY --quality low|high|ultra\n--settings FILE.ini "
-                     "--assets PATH --no-ui "
+                     "DIRECTORY --quality minimal|low|medium|high|max\n--settings FILE.ini "
+                     "--write-settings FILE.ini --assets PATH --no-ui "
                      "--no-audio --free-camera\n--no-particles --validate "
                      "--debug-dir DIRECTORY\n"
                      "--fullscreen (default) --windowed --vsync --no-vsync "
@@ -94,7 +97,8 @@ int main(int argc, char **argv) {
       } else
         throw std::runtime_error("unknown option: " + a);
     }
-    if (quality != "low" && quality != "high" && quality != "ultra")
+    gfx::GraphicsPreset preset;
+    if (!gfx::parseGraphicsPreset(quality, preset))
       throw std::invalid_argument("unknown quality preset");
     if (width < 320 || height < 180 || width > 3840 || height > 2160 ||
         frames < 0 || !std::isfinite(start + fps) || start < 0 || fps < 1 ||
@@ -111,34 +115,7 @@ int main(int argc, char **argv) {
     }
     if (!std::filesystem::exists(assets / "showcase"))
       throw std::runtime_error("Showcase assets not found; use --assets PATH");
-    auto settings = quality == "low"     ? gfx::GraphicsSettings::balanced()
-                    : quality == "ultra" ? gfx::GraphicsSettings::ultra()
-                                         : gfx::GraphicsSettings::high();
-    settings.viewDistance = quality == "low" ? 160 : 230;
-    settings.terrainTessellation = gfx::Quality::Medium;
-    settings.edgeFusion = gfx::Quality::Off;
-    settings.shadows =
-        quality == "low" ? gfx::Quality::High : gfx::Quality::Ultra;
-    settings.antiAliasing = gfx::AntiAliasing::TAA;
-    settings.temporalWeight = .86f;
-    settings.sharpening = .22f;
-    settings.bloom = quality == "low" ? gfx::Quality::Low : gfx::Quality::High;
-    settings.bloomThreshold = 2;
-    settings.bloomStrength = .065f;
-    settings.autoExposure = false;
-    settings.exposureCompensation = -.25f;
-    settings.volumetricFog = gfx::Quality::Medium;
-    settings.fogDensity = .00065f;
-    settings.fogHeightFalloff = .065f;
-    settings.motionBlur = gfx::Quality::Low;
-    settings.motionBlurStrength = .2f;
-    settings.depthOfField = gfx::Quality::Off;
-    settings.vignette = .12f;
-    settings.contrast = 1.02f;
-    settings.saturation = 1.03f;
-    settings.reflections =
-        quality == "low" ? gfx::Quality::Off : gfx::Quality::Medium;
-    settings.gpuProfiling = true;
+    auto settings = sundog::graphicsPreset(preset);
     if (!config.empty()) {
       std::string error;
       if (!gfx::loadSettings(config, settings, error))
@@ -194,7 +171,7 @@ int main(int argc, char **argv) {
       if (!profileFile)
         throw std::runtime_error("cannot open frame profile");
       profileFile
-          << "frame,frame_ms,cpu_submission_ms,gpu_ms,draws,triangles\n";
+          << "frame,frame_ms,cpu_submission_ms,gpu_ms,draws,triangles,prepare_ms,workers\n";
     }
     auto previous = std::chrono::steady_clock::now(), begin = previous;
     if (!sequence.empty())
@@ -290,9 +267,9 @@ int main(int argc, char **argv) {
             SDL_GetWindowSize(platform.window, &windowWidth, &windowHeight);
           graphicsOverlay.draw(renderer, settings, settingsClick,
               mouseX * 1280.f / std::max(1, windowWidth),
-              mouseY * 720.f / std::max(1, windowHeight), true);
+              mouseY * 720.f / std::max(1, windowHeight), true, sundog::graphicsPreset);
         }
-      });
+      }, dt);
       if (validate) {
         renderer.check();
         renderer.validateFrame();
@@ -318,7 +295,8 @@ int main(int argc, char **argv) {
         const auto &s = renderer.statistics();
         profileFile << frame << ',' << frameSeconds * 1000 << ','
                     << s.cpuMilliseconds << ',' << s.gpuMilliseconds << ','
-                    << s.drawCalls << ',' << s.triangles << '\n';
+                    << s.drawCalls << ',' << s.triangles << ',' << s.preparationMilliseconds
+                    << ',' << s.preparationWorkers << '\n';
       }
       if (offscreen && (frame % 30 == 0 || frame == frames)) {
         auto &s = renderer.statistics();
@@ -328,6 +306,10 @@ int main(int argc, char **argv) {
                   << scene.activeParticles() << " live particles\n"
                   << std::flush;
       }
+    }
+    if (!writeConfig.empty()) {
+      std::string error;
+      if (!gfx::saveSettings(writeConfig, settings, error)) throw std::runtime_error(error);
     }
     auto &s = renderer.statistics();
     std::cout << "SUNDOG / JSD " << jsd_game_engine_version() << " / "

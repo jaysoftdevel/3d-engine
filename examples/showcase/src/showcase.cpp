@@ -160,6 +160,12 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a)
   floor.position = {0, -.35f, 8};
   floor.halfExtent = {25, .35f, 35};
   physics.box(floor);
+  BodySettings chassis;
+  chassis.motion = MotionType::Kinematic;
+  chassis.mass = 1800;
+  chassis.halfExtent = {2.1f, 1.45f, 2.5f};
+  chassis.position = rf::transformPoint(roverMotion.body(), {0, 1.6f, 0});
+  roverBody = physics.box(chassis);
   dustLeft.setSurface(height);
   dustRight.setSurface(height);
   sand.setOrigin({-5.9f, 2.9f, 8});
@@ -312,9 +318,17 @@ void Showcase::buildModels() {
        S = g::makeSphere(24, 12), T = g::makeTorus(.4f, .11f, 40, 12),
        Q = g::makeBox();
   auto bake = [&](Model &model) {
+    V3 extent{};
     for (auto &[name, vertices] : data)
-      if (!vertices.empty())
+      if (!vertices.empty()) {
+        for(const auto &v:vertices) {
+          extent.x=std::max(extent.x,std::abs(v.p.x));
+          extent.y=std::max(extent.y,std::abs(v.p.y));
+          extent.z=std::max(extent.z,std::abs(v.p.z));
+        }
         model.parts.push_back({mesh(std::move(vertices)), materials.at(name)});
+      }
+    model.halfExtent=extent;
     data.clear();
   };
   // Six-wheel expedition vehicle: layered panels, glazed cab, bolts, exposed
@@ -369,6 +383,11 @@ void Showcase::buildModels() {
       put("rubber", Q, {std::cos(a) * .654f, offset, std::sin(a) * .654f},
           {.12f, .16f, .065f}, -a, 0, 0);
   }
+  double rollingRadius = 0;
+  for (const auto &[material, vertices] : data)
+    for (const auto &vertex : vertices)
+      rollingRadius = std::max(rollingRadius, std::hypot(double(vertex.p.x), double(vertex.p.z)));
+  roverMotion = RoverMotion(rollingRadius, &Showcase::height);
   bake(wheel);
   put("steel", C, {0, 0, 0}, {.81f, .36f, .81f});
   put("dark", C, {0, .19f, 0}, {.61f, .04f, .61f});
@@ -446,6 +465,25 @@ void Showcase::add(g::MeshId shape, const g::Material &m, V3 position, V3 scale,
   d.modelMatrix = matrix(position, scale, yaw, pitch, roll);
   d.objectId = nextId++;
   scenery.push_back(d);
+  // Collision proxies share the visible structural transforms. Fine cables, signs,
+  // foliage and scanned background rocks remain render-only detail.
+  if ((shape == bevel || shape == cube || shape == cylinder) &&
+      std::min({scale.x, scale.y, scale.z}) >= .08f) {
+    BodySettings solid;
+    solid.motion = MotionType::Static;
+    solid.position = position;
+    solid.halfExtent = scale * .5f;
+    auto zq=axis({0,0,1},roll), yq=axis({0,1,0},yaw), xq=axis({1,0,0},pitch);
+    auto multiply=[](Quat a,Quat b){return Quat{
+      a.w*b.x+a.x*b.w+a.y*b.z-a.z*b.y,
+      a.w*b.y-a.x*b.z+a.y*b.w+a.z*b.x,
+      a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w,
+      a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z};};
+    solid.rotation=multiply(multiply(zq,yq),xq);
+    if (shape == cylinder && std::abs(scale.x-scale.z) < .001f)
+      physics.cylinder(solid,scale.y*.5f,scale.x*.5f);
+    else physics.box(solid);
+  }
 }
 float Showcase::height(float x, float z) {
   float local = rf::clamp((std::sqrt(x * x + (z - 3) * (z - 3)) - 23) / 18);
@@ -686,33 +724,60 @@ void Showcase::resetSimulation() {
     physics.remove(b);
   crates.clear();
   cargoReleased = false;
+  liftedCargo = {};
+  roverBlocked = false;
+  roverMotion.reset();
+  if (roverBody.value != ~0u) physics.teleport(roverBody,rf::transformPoint(roverMotion.body(),{0,1.6f,0}));
+  physics.resetClock();
   for (auto *e :
        {&dustLeft, &dustRight, &steam, &steam2, &sparks, &sand, &gravel})
     e->clear();
 }
 void Showcase::reset() {
+  missionTime = 0;
   elapsed = 0;
   cycle = 0;
   resetSimulation();
   graphics.resetHistory();
 }
 void Showcase::update(float dt) {
-  float before = elapsed;
-  elapsed += dt;
-  if (elapsed >= Duration) {
-    elapsed = std::fmod(elapsed, Duration);
+  if (!std::isfinite(dt) || dt < 0 || dt > .25f)
+    throw std::invalid_argument("Showcase simulation step must be finite and between 0 and 0.25 seconds");
+  if (dt == 0) return;
+  missionTime += double(dt);
+  float simulationStep = dt;
+  if (missionTime >= Duration) {
+    missionTime = std::fmod(missionTime, double(Duration));
+    simulationStep = float(missionTime);
     cycle++;
     resetSimulation();
     graphics.resetHistory();
   }
-  float motion = 1 - smooth(19, 24, elapsed);
-  float z = -35 + 38 * smooth(0, 24, elapsed);
+  elapsed = float(missionTime);
+  if (simulationStep > 0) {
+    auto current=physics.state(roverBody);
+    float desired=RoverMotion::routeZ(missionTime);
+    // A delayed cinematic may resume, but cannot catch up by jumping through space.
+    float currentZ=(current.position-rf::transformVector(rf::compose({},current.rotation),{0,1.6f,0})).z;
+    float nextZ=currentZ+std::clamp(desired-currentZ,0.f,2.375f*simulationStep);
+    RoverMotion target=roverMotion;
+    target.advanceToZ(nextZ,simulationStep);
+    const auto &m=target.body();
+    // The terrain fit contains pitch and roll, with no yaw on this route.
+    float pitch=std::atan2(m.m[6],m.m[10]),roll=std::atan2(m.m[1],m.m[0]);
+    Quat q{std::cos(roll*.5f)*std::sin(pitch*.5f),std::sin(roll*.5f)*std::sin(pitch*.5f),
+           std::sin(roll*.5f)*std::cos(pitch*.5f),std::cos(roll*.5f)*std::cos(pitch*.5f)};
+    auto accepted=physics.moveKinematic(roverBody,rf::transformPoint(m,{0,1.6f,0}),q,simulationStep);
+    roverBlocked=accepted.blocked;
+  }
+  float speed = float(std::abs(roverMotion.speed()));
+  float z = roverMotion.body().m[14];
   dustLeft.setOrigin({-2.45f, .22f + height(-2.45f, z - 1.5f), z - 1.5f});
   dustRight.setOrigin({.45f, .22f + height(.45f, z - 1.5f), z - 1.5f});
-  dustLeft.setVelocity({-.35f, .4f, -1.5f * motion});
-  dustRight.setVelocity({.4f, .35f, -1.6f * motion});
-  dustLeft.setEmitting(elapsed < 24);
-  dustRight.setEmitting(elapsed < 24);
+  dustLeft.setVelocity({-.35f, .4f, -.65f * speed});
+  dustRight.setVelocity({.4f, .35f, -.7f * speed});
+  dustLeft.setEmitting(speed > .02f);
+  dustRight.setEmitting(speed > .02f);
   steam.setEmitting(std::sin(elapsed * .8f) > -.55f);
   steam2.setEmitting(true);
   sparks.setEmitting(elapsed > 34 && elapsed < 47 &&
@@ -721,20 +786,44 @@ void Showcase::update(float dt) {
   gravel.setEmitting(elapsed > 18 && elapsed < 42);
   for (auto *e :
        {&dustLeft, &dustRight, &steam, &steam2, &sparks, &sand, &gravel})
-    e->update(dt);
-  if (!cargoReleased && elapsed >= 36) {
+    if (simulationStep > 0) e->update(simulationStep);
+  if (liftedCargo.value == ~0u && elapsed >= 27) {
     BodySettings box;
-    box.position = {4.8f, 1.8f, 4.2f};
-    box.halfExtent = {.58f, .55f, .58f};
-    box.mass = 25;
+    box.motion = MotionType::Kinematic;
+    box.position = rf::transformPoint(roverMotion.body(),{-.59f,2.42f,-1.05f});
+    box.halfExtent = cargo.halfExtent;
+    box.mass = 25; // loaded equipment case, kg; hollow shell is not solid steel
     box.friction = .8f;
     box.restitution = .06f;
-    crates.push_back(physics.box(box));
-    cargoReleased = true;
+    box.continuous = true;
+    box.dragCoefficient = 1.05f;
+    box.dragAreaM2 = 4*box.halfExtent.x*box.halfExtent.z;
+    liftedCargo = physics.box(box);
+    crates.push_back(liftedCargo);
   }
-  physics.step(std::max(.0001f, dt), 2);
+  if (liftedCargo.value != ~0u && !cargoReleased) {
+    if (elapsed < 36) {
+      float lift=smooth(27,30,elapsed),travel=smooth(30,35,elapsed);
+      V3 pickup=rf::transformPoint(roverMotion.body(),{-.59f,2.42f,-1.05f});
+      V3 goal{rf::mix(pickup.x,4.8f,travel),
+              rf::mix(pickup.y,4.6f,lift)-2.7f*smooth(35,36,elapsed),
+              rf::mix(pickup.z,4.2f,travel)};
+      physics.moveKinematic(liftedCargo,goal,{},simulationStep,{true,.002f,roverBody});
+    } else {
+      // Release the SAME body at its actual accepted pose; no replacement/teleport.
+      V3 releaseVelocity=physics.state(liftedCargo).velocity;
+      physics.motionType(liftedCargo,MotionType::Dynamic);
+      physics.velocity(liftedCargo,releaseVelocity);
+      cargoReleased = true;
+    }
+  }
+  if (simulationStep > 0) {
+    physics.step(simulationStep,2);
+    auto physical=physics.state(roverBody);
+    float actualZ=(physical.position-rf::transformVector(rf::compose({},physical.rotation),{0,1.6f,0})).z;
+    roverMotion.advanceToZ(actualZ,simulationStep);
+  }
   (void)physics.contacts();
-  (void)before;
 }
 g::Camera Showcase::camera() const {
   static CameraTrack track({{0, {9.0f, 4.1f, -48}, {-1, 1.9f, -29}, 55},
@@ -749,26 +838,13 @@ g::Camera Showcase::camera() const {
   return track.sample(elapsed);
 }
 void Showcase::drawRover(float t) {
-  float z = -35 + 38 * smooth(0, 24, t);
-  float bob = t < 24 ? std::sin(t * 7) * .025f : 0;
-  Mat4 root =
-      matrix({-1, height(-1, z) + bob + .035f, z}, {1, 1, 1}, 0,
-             -std::atan2(height(-1, z + 1.5f) - height(-1, z - 1.5f), 3.f),
-             std::atan2(height(.5f, z) - height(-2.5f, z), 3.f));
+  const Mat4 &root = roverMotion.body();
   rover.draw(graphics, root, 2000000);
-  for (float x : {-1.48f, 1.48f})
-    for (float offset : {-1.65f, 0.f, 1.65f}) {
-      Mat4 W =
-          root *
-          matrix({x, .72f, offset}, {1, 1, 1}, 0, 0,
-                 x > 0 ? -rf::pi / 2 : rf::pi / 2) *
-          matrix({}, {1, 1, 1},
-                 (x > 0 ? -1 : 1) * (t < 24 ? (z + 35) / .66f : 38 / .66f));
-      wheel.draw(graphics, W,
-                 3000000 + uint64_t((x + 2) * 100 + offset * 10) * 100);
-      rim.draw(graphics, W,
-               4000000 + uint64_t((x + 2) * 100 + offset * 10) * 100);
-    }
+  for (size_t i = 0; i < 6; ++i) {
+    Mat4 transform = roverMotion.wheelMatrix(i);
+    wheel.draw(graphics, transform, 3000000 + i * 100);
+    rim.draw(graphics, transform, 4000000 + i * 100);
+  }
   for (int i = 0; i < 2; i++) {
     if (i == 0 && t >= 27)
       continue;
@@ -782,8 +858,10 @@ unsigned Showcase::activeParticles() const {
          sparks.active().size() + sand.active().size() + gravel.active().size();
 }
 void Showcase::render(const g::Camera &camera, bool hud, bool particles,
-                      double fps, const std::function<void()> &overlay) {
+                      double fps, const std::function<void()> &overlay, float deltaSeconds) {
+  // Feed real frame time to temporal focus/exposure adaptation.
   g::Environment env;
+  env.deltaSeconds = deltaSeconds;
   env.sunDirection = sceneSun;
   env.imageRotation = skyRotation;
   env.sunColor = {1, .78f, .51f, 1};
@@ -793,7 +871,7 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
   env.ambientIntensity = 1.2f;
   env.fogDensity = .1f;
   env.image = daylight;
-  env.deltaSeconds = 1.f / 60;
+  env.deltaSeconds = deltaSeconds;
   env.shadowDistance = 43;
   env.atmosphere.enabled = true;
   env.atmosphere.clouds = g::Quality::High;
@@ -818,6 +896,7 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
           3.0f + travel * 1.2f};
   if (elapsed > 36)
     hook = {4.8f, 5.7f, 3};
+  if (liftedCargo.value != ~0u && !cargoReleased) hook=physics.state(liftedCargo).position+V3{0,1.1f,0};
   craneHead.draw(graphics, matrix(hook), 6100000);
   float cableHeight = 7.1f - hook.y;
   g::Material cable = materials.at("dark");
@@ -826,8 +905,6 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
                       {.035f, cableHeight, .035f},
                       0},
                      cable);
-  if (elapsed >= 27 && elapsed < 36)
-    cargo.draw(graphics, matrix(hook + V3{0, -1.1f, 0}), 6200000);
   for (auto body : crates) {
     auto p = physics.state(body);
     cargo.draw(graphics, rf::compose(p.position, p.rotation),

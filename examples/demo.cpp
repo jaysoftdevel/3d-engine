@@ -48,19 +48,16 @@ int main(int argc, char **argv) {
                 writeConfig = arg(i);
             else if (a == "--preset") {
                 auto v = arg(i);
-                settings = v == "legacy"     ? GraphicsSettings::legacy()
-                           : v == "low"      ? GraphicsSettings::low()
-                           : v == "balanced" ? GraphicsSettings::balanced()
-                           : v == "high"     ? GraphicsSettings::high()
-                           : v == "ultra"    ? GraphicsSettings::ultra()
-                                             : throw std::invalid_argument("Unknown preset");
+                GraphicsPreset preset;
+                if (!parseGraphicsPreset(v, preset)) throw std::invalid_argument("Unknown preset");
+                settings = graphicsPreset(preset);
             } else if (a == "--help") {
                 std::cout
                     << "JSD Game Engine graphics laboratory 0.4.0\n\nWASD move, arrows look, Tab mouse "
                        "capture, Escape quit. Click settings to cycle.\n\n--preset "
-                       "legacy|low|balanced|high|ultra\n--aa off|fxaa|smaa|msaa|taa --msaa 2|4|8\n--textures "
+                       "minimal|low|medium|high|max\n--aa off|fxaa|smaa|msaa|taa --msaa 2|4|8\n--textures "
                        "low|medium|high|ultra --anisotropy 1|2|4|8|16\n--shadows off|low|medium|high|ultra "
-                       "--view-distance METERS\n--ao QUALITY --dof QUALITY --focus METERS\n--gi "
+                       "--view-distance METERS\n--ao QUALITY --dof QUALITY --auto-focus 0|1 --focus-speed 0.1..30 --focus METERS\n--gi "
                        "off|ambient-probe|screen-space --gi-quality QUALITY\n--ssr QUALITY --edge-fusion "
                        "QUALITY --tessellation QUALITY\n--terrain-backend "
                        "automatic|mesh|hardware\n--offscreen --frames N --width N --height N "
@@ -124,8 +121,14 @@ int main(int argc, char **argv) {
                 settings.ambientOcclusion = parse<Quality>(v, 5);
             else if (key == "--dof")
                 settings.depthOfField = parse<Quality>(v, 5);
-            else if (key == "--focus")
+            else if (key == "--auto-focus")
+                settings.autoFocus = std::stoi(v) != 0;
+            else if (key == "--focus-speed")
+                settings.focusAdaptation = std::stof(v);
+            else if (key == "--focus") {
                 settings.focusDistance = std::stof(v);
+                settings.autoFocus = false;
+            }
             else if (key == "--gi")
                 settings.globalIllumination = parse<GlobalIllumination>(v, 3);
             else if (key == "--gi-quality")
@@ -221,7 +224,9 @@ int main(int argc, char **argv) {
             eye += forward(yaw) * (float(keys[26]) - float(keys[22])) * speed * dt;
             eye += rotate(forward(yaw), -pi / 2) * (float(keys[7]) - float(keys[4])) * speed * dt;
             eye.y += (float(keys[44]) - float(keys[224])) * speed * dt;
-            renderer.begin({eye, forward(yaw, pitch), 70, .08f});
+            Environment environment;
+            environment.deltaSeconds = dt;
+            renderer.begin({eye, forward(yaw, pitch), 70, .08f}, environment);
             Terrain terrain;
             terrain.seed = 101;
             terrain.height = [](float x, float z) {

@@ -1,5 +1,8 @@
 #include "cinematic_tests.hpp"
 #include "runtime_tests.hpp"
+#include "processing_tests.hpp"
+#include "vehicle_tests.hpp"
+#include "optics_tests.hpp"
 #include <frontier/frontier.hpp>
 #include <fstream>
 #include <iostream>
@@ -17,6 +20,7 @@ int main(int argc, char **argv) {
             checks++;
             std::cout << "PASS " << name << '\n';
         };
+        opticsTests(test);
         Capabilities caps;
         caps.maxSamples = 4;
         caps.maxAnisotropy = 4;
@@ -66,6 +70,8 @@ int main(int argc, char **argv) {
         test(std::abs(vertical.m[0]) + std::abs(vertical.m[8]) > .9f,
              "vertical view keeps a valid camera basis");
         test(std::string(frontier_engine_version()) == "0.4.4", "exported engine version symbol");
+        processingTests(test);
+        vehicleTests(test);
         runtimeTests(test);
         cinematicTests(test);
         if (argc > 1 && std::string(argv[1]) == "--graphics") {
@@ -263,6 +269,8 @@ int main(int argc, char **argv) {
                      "depth prepass keeps the nearest opaque surface regardless of draw order");
             }
             cinematicGraphicsTests(test, renderer);
+            autofocusGraphicsTests(test, renderer);
+            opticsGraphicsTests(test, renderer);
             renderer.destroyMesh(motionBox);
             renderer.destroyTexture(texture);
             test(renderer.textureDimensions(texture) == std::pair{0, 0},

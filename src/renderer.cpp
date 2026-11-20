@@ -291,7 +291,16 @@ void Renderer::Impl::upload(GpuTexture &t) {
         std::min(caps.maxTextureSize, std::array{512, 1024, 2048, 4096}[int(settings().textureQuality)]);
     float scale = std::min(1.f, float(cap) / std::max(t.width, t.height));
     int w = std::max(1, int(t.width * scale)), h = std::max(1, int(t.height * scale));
-    std::vector<unsigned char> pixels(size_t(w) * h * 4);
+    if (t.object && t.uploadedWidth == w && t.uploadedHeight == h) {
+        gl.BindTexture(GL_TEXTURE_2D, t.object);
+        if (caps.anisotropicFiltering)
+            gl.TexParameterf(GL_TEXTURE_2D, 0x84FE, settings().anisotropy);
+        return;
+    }
+    std::vector<unsigned char> resized;
+    const unsigned char *pixels = t.pixels.data();
+    if (w != t.width || h != t.height) {
+    resized.resize(size_t(w) * h * 4);
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) {
             int x0 = x * t.width / w, x1 = std::max(x0 + 1, (x + 1) * t.width / w), y0 = y * t.height / h,
@@ -303,13 +312,15 @@ void Renderer::Impl::upload(GpuTexture &t) {
                         sum[c] += t.pixels[(sy * t.width + sx) * 4 + c];
             unsigned count = (x1 - x0) * (y1 - y0);
             for (int c = 0; c < 4; c++)
-                pixels[(y * w + x) * 4 + c] = sum[c] / count;
+                resized[(y * w + x) * 4 + c] = sum[c] / count;
         }
+    pixels = resized.data();
+    }
     if (!t.object)
         gl.GenTextures(1, &t.object);
     gl.BindTexture(GL_TEXTURE_2D, t.object);
     gl.TexImage2D(GL_TEXTURE_2D, 0, t.srgb ? 0x8C43 : GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                  pixels.data());
+                  pixels);
     gl.GenerateMipmap(GL_TEXTURE_2D);
     gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 0x2703);
     gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -334,7 +345,17 @@ SettingsReport Renderer::setSettings(GraphicsSettings s) {
     auto next = resolveSettings(s, impl->caps);
     impl->report = next;
     if (old != next.effective) {
-        impl->buffersDirty = true;
+        // Uniform/texture-only edits retain all existing framebuffer storage.
+        impl->buffersDirty |= old.renderScale != next.effective.renderScale ||
+            old.antiAliasing != next.effective.antiAliasing ||
+            old.msaaSamples != next.effective.msaaSamples || old.shadows != next.effective.shadows ||
+            (old.ambientOcclusion == Quality::Off) != (next.effective.ambientOcclusion == Quality::Off) ||
+            (old.depthOfField == Quality::Off) != (next.effective.depthOfField == Quality::Off) ||
+            (old.volumetricFog == Quality::Off) != (next.effective.volumetricFog == Quality::Off) ||
+            (old.motionBlur == Quality::Off) != (next.effective.motionBlur == Quality::Off) ||
+            old.bloom != next.effective.bloom;
+        if (old.autoFocus != next.effective.autoFocus || old.depthOfField != next.effective.depthOfField)
+            impl->focusValid = false;
         impl->historyValid = false;
         if (old.textureQuality != next.effective.textureQuality ||
             old.anisotropy != next.effective.anisotropy)
@@ -417,18 +438,29 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
         throw std::invalid_argument("Invalid camera projection");
     auto &a = environment.atmosphere;
     for (float f : {a.time, a.turbidity, a.cloudCoverage, a.cloudDensity, a.cloudBase, a.cloudThickness,
-                    a.wind.x, a.wind.y, a.wind.z, environment.shadowDistance, environment.imageRotation})
+                    a.wind.x, a.wind.y, a.wind.z, environment.shadowDistance, environment.imageRotation, environment.deltaSeconds})
         if (!std::isfinite(f))
             throw std::invalid_argument("Nonfinite atmosphere");
     if (int(a.clouds) < 0 || int(a.clouds) > 4 || a.cloudCoverage < 0 || a.cloudCoverage > 1 ||
         a.cloudDensity < 0 || a.cloudDensity > 10 || a.cloudThickness < 1 || a.cloudBase < 1 ||
         environment.shadowDistance < 0)
         throw std::invalid_argument("Invalid atmosphere/shadow range");
+    if (camera.optics) camera.optics->validate();
+    if (environment.sunIlluminanceLux && (!std::isfinite(*environment.sunIlluminanceLux) || *environment.sunIlluminanceLux < 0))
+        throw std::invalid_argument("Invalid sun illuminance");
     i.camera = camera;
+    if (camera.optics) i.camera.fovDegrees = camera.optics->verticalFovDegrees();
     i.camera.direction = normalized(camera.direction);
     i.environment = environment;
+    if (environment.sunIlluminanceLux) {
+        float y=.2126f*environment.sunColor.r+.7152f*environment.sunColor.g+.0722f*environment.sunColor.b;
+        if (y<=0 && *environment.sunIlluminanceLux>0) throw std::invalid_argument("Illuminant must have positive luminance");
+        if (y>0) {i.environment.sunColor.r/=y;i.environment.sunColor.g/=y;i.environment.sunColor.b/=y;}
+        i.environment.sunIntensity = *environment.sunIlluminanceLux;
+    }
     i.commands.clear();
     i.lights.clear();
+    i.physicalLighting = environment.sunIlluminanceLux.has_value() || (camera.optics && camera.optics->physicalExposure);
     i.particleCommands.clear();
     i.uiImages.clear();
     i.ui.clear();
@@ -588,6 +620,13 @@ void Renderer::captureBuffers(const std::filesystem::path &directory) {
         for (int y = i.height - 1; y >= 0; y--)
             for (int x = 0; x < i.width; x++)
                 f.write(reinterpret_cast<char *>(bytes.data() + (size_t(y) * i.width + x) * 4), 3);
+    }
+    if (i.focusValid && i.focus[i.focusIndex].fbo) {
+        std::array<float, 4> distance{};
+        i.gl.BindFramebuffer(0x8CA8, i.focus[i.focusIndex].fbo);
+        i.gl.ReadBuffer(vl::GL_COLOR_ATTACHMENT0);
+        i.gl.ReadPixels(0, 0, 1, 1, vl::GL_RGBA, vl::GL_FLOAT, distance.data());
+        std::ofstream(directory / "autofocus.txt") << distance[0] << '\n';
     }
     i.gl.BindFramebuffer(0x8CA8, 0);
 }

@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-20",
+  "source_base": "3d-engine with presets/performance/autofocus and rover-wheel updates applied",
+  "build": {
+    "type": "Release",
+    "compiler": "GNU C++ 12.2",
+    "platform": "Linux x86_64",
+    "dependencies": "bundled Jolt 5.7.0 and SDL2, built from source",
+    "shared_and_static": true
+  },
+  "ctest": {
+    "suites": 6,
+    "passed": 6,
+    "physics_checks": 55,
+    "runtime_settings_optics_checks": 114,
+    "native_graphics_checks": 159,
+    "rover_kinematics_checks": 111,
+    "actual_showcase_physics_checks": 11,
+    "native_showcase_smoke": "passed, 2 frames at t=40, GL and finite buffer validation"
+  },
+  "physics_cases": [
+    "analytic box/sphere/cylinder/capsule volume and inertia",
+    "density-derived mass",
+    "standard gravity and freefall trajectory",
+    "force lifetime and persistent force",
+    "off-centre forces/impulses and torque",
+    "exponential linear/angular damping",
+    "quadratic drag, including strong drag without velocity reversal",
+    "elastic unequal-mass collision momentum and energy",
+    "30/144 Hz frame schedule invariance",
+    "fixed tick backlog preservation and interpolation",
+    "thin wall swept blockers and ray normals",
+    "sensor query inclusion/exclusion",
+    "conservative rotational blocking",
+    "acceleration-limited motor arrival and blocker removal",
+    "kinematic release velocity and stale/nonfinite input rejection"
+  ],
+  "showcase": {
+    "inserted_wall": "rover stops, six-wheel odometry stops; resumes without catch-up teleport",
+    "clear_route_end_z_metres": 3,
+    "cargo": "same body handle from mounted pickup to dynamic release, position continuous",
+    "settled_case_position_metres": [
+      4.79968,
+      0.64,
+      4.20036
+    ],
+    "mission_reset": "removed cargo body and reset rover history"
+  },
+  "optics": {
+    "cpu": "FOV, CoC, EV100, ISO scaling, lumen/candela/lux, smooth spot-cone flux integration, Beer-Lambert, Fresnel, Snell and total internal reflection",
+    "gpu": "photometric falloff, physical exposure, aperture/defocused pixels, shutter/motion pixels, thin-lens DoF with GPU autofocus",
+    "inverse_square": {
+      "expected_2m_to_4m_radiance_ratio": 4,
+      "measured_from_8bit_tonemapped_readback": 3.92721,
+      "accepted_range": [
+        3.6,
+        4.4
+      ]
+    }
+  },
+  "compatibility": {
+    "OpenGL_3_3_native_checks": 158,
+    "OpenGL_native_renderer": "Mesa llvmpipe LLVM 19.1.7; software correctness testing, not GPU performance measurements",
+    "installed_shared_static_consumers": "both compiled and ran from exported SDK targets",
+    "test_script_with_showcase": "passed, source build/install and installed tests, GL 3.3 path, graphics-lab and showcase captures",
+    "clean": "removes new physics test outputs from external SDK and preserves source/unrelated files"
+  },
+  "limits": [
+    "No native hardware GPU or Windows driver validation in this environment",
+    "Kinematic rotational sweep is conservative, not exact angular CCD",
+    "Current-world sweeps do not solve all future moving-body trajectories",
+    "Showcase wheel grounding is kinematic terrain fitting, not a suspension/drivetrain solver",
+    "Primitive colliders only; render meshes are not automatically collision shapes",
+    "RGB raster DoF and shutter blur are approximations; CPU refraction helpers do not add raster transmission/local shadow maps"
+  ],
+  "logs": [
+    "validation/physics-ctest.log",
+    "validation/physics-gl33.log"
+  ]
+}

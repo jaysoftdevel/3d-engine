@@ -96,9 +96,18 @@ struct Renderer::Impl {
         using is_transparent = void;
         size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
     };
-    std::unordered_map<unsigned, std::unordered_map<std::string, int, StringHash, std::equal_to<>>> uniforms;
+    struct UniformState {
+        int location = -1;
+        unsigned type = 0;
+        std::array<unsigned char, 16> bytes{};
+        std::unique_ptr<std::array<unsigned char, 64>> matrix;
+    };
+    std::unordered_map<unsigned, std::unordered_map<std::string, UniformState, StringHash, std::equal_to<>>> uniforms;
+    UniformState &uniformState(unsigned, std::string_view);
+    bool updateUniform(unsigned, std::string_view, unsigned, const void *, size_t, int &);
     int uniform(unsigned program, std::string_view name);
     std::vector<Light> lights;
+    bool physicalLighting = false;
     unsigned sceneMotion = 0, transparentFbo = 0;
     unsigned skyProgram = 0, fogProgram = 0, motionProgram = 0, reactiveProgram = 0, taaProgram = 0,
              bloomProgram = 0, bloomBlurProgram = 0, exposureProgram = 0, exposureAdaptProgram = 0,
@@ -121,6 +130,9 @@ struct Renderer::Impl {
     std::map<unsigned, EnvMap> environments;
     unsigned nextEnvironment = 1;
     std::array<TargetBuffer, 2> temporal, exposure;
+    std::array<TargetBuffer, 2> focus;
+    unsigned focusProgram = 0, focusIndex = 0;
+    bool focusValid = false;
     TargetBuffer luminance;
     TargetBuffer fogTarget, motionTarget;
     std::vector<TargetBuffer> bloomPyramid, bloomScratch;

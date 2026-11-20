@@ -1,0 +1,121 @@
+PASS requested MSAA preserved and effective samples clamped
+PASS anisotropy uses driver limit
+PASS hardware tessellation falls back on 3.3
+PASS unsupported MSAA selects reported FXAA fallback
+PASS nonfinite view distance normalized
+PASS settings save
+PASS all graphics settings roundtrip
+PASS invalid configuration leaves current settings unchanged
+PASS terrain job pool completes futures
+PASS projection inverse reconstructs identity
+PASS vertical view keeps a valid camera basis
+PASS exported engine version symbol
+PASS all five preset names parse without ambiguity
+PASS presets keep native resolution, textured surfaces and autofocus
+PASS all five preset names parse without ambiguity
+PASS presets keep native resolution, textured surfaces and autofocus
+PASS all five preset names parse without ambiguity
+PASS presets keep native resolution, textured surfaces and autofocus
+PASS all five preset names parse without ambiguity
+PASS presets keep native resolution, textured surfaces and autofocus
+PASS all five preset names parse without ambiguity
+PASS presets keep native resolution, textured surfaces and autofocus
+PASS max preset selects the highest effect quality
+PASS legacy preset aliases remain accepted
+PASS invalid preset is rejected
+PASS autofocus settings save
+PASS preset, manual focus and focus response roundtrip exactly
+PASS invalid autofocus settings leave current configuration unchanged
+PASS parallel work partitions every element exactly once
+PASS nested parallel work avoids worker-pool deadlocks
+PASS parallel processing joins work and propagates failures
+PASS ECS stores typed components
+PASS ECS generations reject stale entity handles
+PASS ECS iteration tolerates entity removal
+PASS scene graph composes parent transforms
+PASS scene graph rejects hierarchy cycles
+PASS frame graph orders hazards and profiles passes
+PASS frame graph detects dependency cycles
+PASS fixed-step runtime decouples simulation from presentation
+PASS input maps actions and detects key edges
+PASS input retains held state across frames
+PASS LOD selection includes boundary hysteresis
+PASS particle emitters are seeded and bounded
+PASS particle lifetimes retire old particles
+PASS spatial audio applies stereo panning and distance attenuation
+PASS stopped audio voices produce silence
+PASS animation samples linear translation tracks
+PASS skeletal skinning blends weighted joint matrices
+PASS Jolt rigid body rests on static collision geometry
+PASS Jolt contact listener delivers collision events
+PASS physics ray casts identify actual bodies
+PASS physics impulses wake and accelerate bodies
+PASS physics rejects retired body handles
+PASS continuous collision prevents fast-body tunneling
+PASS PNG asset decoder reads engine-owned fixture texture
+PASS Radiance HDR asset preserves values above one
+PASS WAV asset decoder loads sample-rate metadata and PCM
+PASS glTF loader imports actual images, skin and animation
+PASS loaded quaternion animation changes joint pose
+PASS asset loader enforces allowed resource root
+PASS JSD engine exports its standalone version API
+PASS FPS averages completed wall time across variable frame durations
+PASS frame duration matches measured FPS
+PASS frame rate reset and zero duration do not invent a rate
+PASS frame timing rejects nonfinite durations
+PASS procedural mesh has finite positions and unit normals
+PASS procedural mesh has finite positions and unit normals
+PASS procedural mesh has finite positions and unit normals
+PASS procedural mesh has finite positions and unit normals
+PASS curved service tube produces renderable geometry
+PASS mesh merge transforms normals under nonuniform scale
+PASS gravel particles bounce against collision surface
+PASS VFX capacity bounds continuous emission
+PASS VFX fixed step is stable across frame subdivisions
+PASS VFX reset retires particles and simulation state
+PASS steam buoyancy produces a rising plume
+PASS spark lifetime retires hot particles
+PASS invalid emitter capacity rejected
+PASS cinematic camera interpolates position and look direction
+PASS cinematic camera loops at track duration
+PASS cinematic track rejects duplicate key times
+PASS texture quality changes actual GPU allocation
+PASS raising quality restores retained source texture
+PASS invalid triangle mesh rejected
+PASS nonfinite camera rejected before rendering
+PASS AA mode renders without GL errors
+PASS AA mode renders without GL errors
+PASS AA mode renders without GL errors
+PASS AA mode renders without GL errors
+PASS AA mode renders without GL errors
+PASS combined effects execute multipass pipeline
+PASS shadow quality allocates actual map
+PASS explicit mesh terrain backend renders
+PASS view distance changes submitted scene geometry
+PASS temporal upscaling keeps full output resolution and history
+PASS tiled local lighting submits real light data
+PASS HDR environment prefilter and BRDF lookup render successfully
+PASS shader reload rejects invalid programs transactionally
+PASS object motion vectors produce visible motion blur
+PASS depth prepass keeps the nearest opaque surface regardless of draw order
+PASS depth prepass keeps the nearest opaque surface regardless of draw order
+PASS streamed mesh update detaches static indices and restores original pixels
+PASS particle depth testing hides sprites behind opaque geometry
+PASS dust steam sparks and sand change actual rendered pixels
+PASS sprite styles share one GPU instanced draw
+PASS soft particles fade against copied scene depth
+PASS zero mesh normals rejected before HDR shading
+PASS nonfinite material mapping rejected before submission
+PASS normal mapping keeps parallel tangent and normal bases finite
+PASS flat light bins retain bounded ranges when more than 128 lights overlap
+PASS ray-marched clouds change atmospheric sky pixels
+PASS full resolution textured UI overlay renders
+PASS autofocus acquires the actual center surface depth
+PASS autofocus adapts smoothly instead of jumping
+PASS autofocus converges on the new subject
+PASS camera cuts reacquire focus immediately
+PASS empty sky converges to the far focus distance
+PASS manual focus omits the autofocus pass while retaining depth of field
+PASS large scenes prepare draws across available CPU cores
+PASS destroyed texture handle is retired
+120 checks passed.

@@ -29,6 +29,6 @@ gfx::Camera CameraTrack::sample(float time, bool loop) const {
     };
     auto p = blend(keys[a].position, keys[i].position, keys[j].position, keys[b].position),
          target = blend(keys[a].target, keys[i].target, keys[j].target, keys[b].target);
-    return {p, rf::normalized(target - p), rf::mix(keys[i].fov, keys[j].fov, u * u * (3 - 2 * u)), .08f};
+    return {p, rf::normalized(target - p), rf::mix(keys[i].fov, keys[j].fov, u * u * (3 - 2 * u)), .08f, {}};
 }
 } // namespace jsd

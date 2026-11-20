@@ -104,3 +104,7 @@ python3 tools/audit_source_package.py /path/to/jsd-game-engine-v0.4.4-source.tar
 ```
 
 The audit detects native executable/object/archive signatures, compiled-library suffixes, Java/WASM binaries and build caches. Text shell/Python scripts remain executable; glTF .bin buffers, images and audio are data, not prebuilt programs. Auditing a tree after building will intentionally report its generated binaries; audit the pristine source tree or release archive.
+
+## Runtime quality presets
+
+Both examples provide Minimal, Low, Medium, High and Max graphics presets. The showcase exposes them through `C` and `--quality`; the graphics lab uses `--preset`. See [presets and autofocus](GRAPHICS_PRESETS.md). Rebuild after applying this update so engine headers, libraries and executables agree.

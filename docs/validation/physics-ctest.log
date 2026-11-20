@@ -1,0 +1,464 @@
+Internal ctest changing into directory: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check
+UpdateCTestConfiguration  from :/workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/DartConfiguration.tcl
+Test project /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start 1: physics
+
+1: Test command: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/jsd-physics-tests
+1: Working Directory: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check
+1: Test timeout computed to be: 10000000
+1: 55 physics checks, 0 failures
+1/6 Test #1: physics ..........................   Passed    0.02 sec
+test 2
+    Start 2: runtime-and-settings
+
+2: Test command: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/jsd-engine-tests
+2: Working Directory: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check
+2: Test timeout computed to be: 10000000
+2: PASS 50 mm lens and 24 mm sensor define vertical field of view
+2: PASS thin lens is sharp at focus distance
+2: PASS stopping down halves physical blur radius
+2: PASS photographic EV100 from aperture shutter ISO
+2: PASS doubling ISO doubles exposure
+2: PASS isotropic luminous flux to candela
+2: PASS inverse square illuminance in lux
+2: PASS Lambert incidence cosine
+2: PASS spotlight smooth cone conserves specified lumens
+2: PASS colored light retains photometric intensity
+2: PASS Beer Lambert attenuation per metre
+2: PASS dielectric normal incidence reflectance
+2: PASS equal media have no interface reflection
+2: PASS total internal reflection returns full reflectance
+2: PASS Snell refraction direction
+2: PASS Snell total internal reflection reports no transmitted ray
+2: PASS requested MSAA preserved and effective samples clamped
+2: PASS anisotropy uses driver limit
+2: PASS hardware tessellation falls back on 3.3
+2: PASS unsupported MSAA selects reported FXAA fallback
+2: PASS nonfinite view distance normalized
+2: PASS settings save
+2: PASS all graphics settings roundtrip
+2: PASS invalid configuration leaves current settings unchanged
+2: PASS terrain job pool completes futures
+2: PASS projection inverse reconstructs identity
+2: PASS vertical view keeps a valid camera basis
+2: PASS exported engine version symbol
+2: PASS all five preset names parse without ambiguity
+2: PASS presets keep native resolution, textured surfaces and autofocus
+2: PASS all five preset names parse without ambiguity
+2: PASS presets keep native resolution, textured surfaces and autofocus
+2: PASS all five preset names parse without ambiguity
+2: PASS presets keep native resolution, textured surfaces and autofocus
+2: PASS all five preset names parse without ambiguity
+2: PASS presets keep native resolution, textured surfaces and autofocus
+2: PASS all five preset names parse without ambiguity
+2: PASS presets keep native resolution, textured surfaces and autofocus
+2: PASS max preset selects the highest effect quality
+2: PASS legacy preset aliases remain accepted
+2: PASS invalid preset is rejected
+2: PASS autofocus settings save
+2: PASS preset, manual focus and focus response roundtrip exactly
+2: PASS invalid autofocus settings leave current configuration unchanged
+2: PASS parallel work partitions every element exactly once
+2: PASS nested parallel work avoids worker-pool deadlocks
+2: PASS parallel processing joins work and propagates failures
+2: PASS one tyre circumference produces exactly one forward revolution
+2: PASS reversing travel reverses wheel rotation without residual drift
+2: PASS both mirrored wheel axles satisfy zero-slip ground contact
+2: PASS mirrored wheel meshes rotate in opposite local directions
+2: PASS both mirrored wheel axles satisfy zero-slip ground contact
+2: PASS mirrored wheel meshes rotate in opposite local directions
+2: PASS suspension movement and sideways drift do not spin grounded wheels
+2: PASS inclined terrain uses three-dimensional surface travel
+2: PASS distance-driven rotation is independent of update frequency
+2: PASS distance-driven rotation is independent of update frequency
+2: PASS distance-driven rotation is independent of update frequency
+2: PASS distance-driven rotation is independent of update frequency
+2: PASS teleport/reset starts fresh odometry without phantom wheel travel
+2: PASS stationary wheels stay stationary
+2: PASS zero wheel radius is rejected
+2: PASS invalid wheel timesteps leave odometry unchanged
+2: PASS degenerate contact frames cannot corrupt wheel state
+2: PASS ECS stores typed components
+2: PASS ECS generations reject stale entity handles
+2: PASS ECS iteration tolerates entity removal
+2: PASS scene graph composes parent transforms
+2: PASS scene graph rejects hierarchy cycles
+2: PASS frame graph orders hazards and profiles passes
+2: PASS frame graph detects dependency cycles
+2: PASS fixed-step runtime decouples simulation from presentation
+2: PASS input maps actions and detects key edges
+2: PASS input retains held state across frames
+2: PASS LOD selection includes boundary hysteresis
+2: PASS particle emitters are seeded and bounded
+2: PASS particle lifetimes retire old particles
+2: PASS spatial audio applies stereo panning and distance attenuation
+2: PASS stopped audio voices produce silence
+2: PASS animation samples linear translation tracks
+2: PASS skeletal skinning blends weighted joint matrices
+2: PASS Jolt rigid body rests on static collision geometry
+2: PASS Jolt contact listener delivers collision events
+2: PASS physics ray casts identify actual bodies
+2: PASS physics impulses wake and accelerate bodies
+2: PASS physics rejects retired body handles
+2: PASS continuous collision prevents fast-body tunneling
+2: PASS PNG asset decoder reads engine-owned fixture texture
+2: PASS Radiance HDR asset preserves values above one
+2: PASS WAV asset decoder loads sample-rate metadata and PCM
+2: PASS glTF loader imports actual images, skin and animation
+2: PASS loaded quaternion animation changes joint pose
+2: PASS asset loader enforces allowed resource root
+2: PASS JSD engine exports its standalone version API
+2: PASS FPS averages completed wall time across variable frame durations
+2: PASS frame duration matches measured FPS
+2: PASS frame rate reset and zero duration do not invent a rate
+2: PASS frame timing rejects nonfinite durations
+2: PASS procedural mesh has finite positions and unit normals
+2: PASS procedural mesh has finite positions and unit normals
+2: PASS procedural mesh has finite positions and unit normals
+2: PASS procedural mesh has finite positions and unit normals
+2: PASS curved service tube produces renderable geometry
+2: PASS mesh merge transforms normals under nonuniform scale
+2: PASS gravel particles bounce against collision surface
+2: PASS VFX capacity bounds continuous emission
+2: PASS VFX fixed step is stable across frame subdivisions
+2: PASS VFX reset retires particles and simulation state
+2: PASS steam buoyancy produces a rising plume
+2: PASS spark lifetime retires hot particles
+2: PASS invalid emitter capacity rejected
+2: PASS cinematic camera interpolates position and look direction
+2: PASS cinematic camera loops at track duration
+2: PASS cinematic track rejects duplicate key times
+2: 114 checks passed.
+2/6 Test #2: runtime-and-settings .............   Passed    0.03 sec
+test 3
+    Start 3: graphics
+
+3: Test command: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/jsd-engine-tests "--graphics"
+3: Working Directory: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check
+3: Test timeout computed to be: 10000000
+3: PASS 50 mm lens and 24 mm sensor define vertical field of view
+3: PASS thin lens is sharp at focus distance
+3: PASS stopping down halves physical blur radius
+3: PASS photographic EV100 from aperture shutter ISO
+3: PASS doubling ISO doubles exposure
+3: PASS isotropic luminous flux to candela
+3: PASS inverse square illuminance in lux
+3: PASS Lambert incidence cosine
+3: PASS spotlight smooth cone conserves specified lumens
+3: PASS colored light retains photometric intensity
+3: PASS Beer Lambert attenuation per metre
+3: PASS dielectric normal incidence reflectance
+3: PASS equal media have no interface reflection
+3: PASS total internal reflection returns full reflectance
+3: PASS Snell refraction direction
+3: PASS Snell total internal reflection reports no transmitted ray
+3: PASS requested MSAA preserved and effective samples clamped
+3: PASS anisotropy uses driver limit
+3: PASS hardware tessellation falls back on 3.3
+3: PASS unsupported MSAA selects reported FXAA fallback
+3: PASS nonfinite view distance normalized
+3: PASS settings save
+3: PASS all graphics settings roundtrip
+3: PASS invalid configuration leaves current settings unchanged
+3: PASS terrain job pool completes futures
+3: PASS projection inverse reconstructs identity
+3: PASS vertical view keeps a valid camera basis
+3: PASS exported engine version symbol
+3: PASS all five preset names parse without ambiguity
+3: PASS presets keep native resolution, textured surfaces and autofocus
+3: PASS all five preset names parse without ambiguity
+3: PASS presets keep native resolution, textured surfaces and autofocus
+3: PASS all five preset names parse without ambiguity
+3: PASS presets keep native resolution, textured surfaces and autofocus
+3: PASS all five preset names parse without ambiguity
+3: PASS presets keep native resolution, textured surfaces and autofocus
+3: PASS all five preset names parse without ambiguity
+3: PASS presets keep native resolution, textured surfaces and autofocus
+3: PASS max preset selects the highest effect quality
+3: PASS legacy preset aliases remain accepted
+3: PASS invalid preset is rejected
+3: PASS autofocus settings save
+3: PASS preset, manual focus and focus response roundtrip exactly
+3: PASS invalid autofocus settings leave current configuration unchanged
+3: PASS parallel work partitions every element exactly once
+3: PASS nested parallel work avoids worker-pool deadlocks
+3: PASS parallel processing joins work and propagates failures
+3: PASS one tyre circumference produces exactly one forward revolution
+3: PASS reversing travel reverses wheel rotation without residual drift
+3: PASS both mirrored wheel axles satisfy zero-slip ground contact
+3: PASS mirrored wheel meshes rotate in opposite local directions
+3: PASS both mirrored wheel axles satisfy zero-slip ground contact
+3: PASS mirrored wheel meshes rotate in opposite local directions
+3: PASS suspension movement and sideways drift do not spin grounded wheels
+3: PASS inclined terrain uses three-dimensional surface travel
+3: PASS distance-driven rotation is independent of update frequency
+3: PASS distance-driven rotation is independent of update frequency
+3: PASS distance-driven rotation is independent of update frequency
+3: PASS distance-driven rotation is independent of update frequency
+3: PASS teleport/reset starts fresh odometry without phantom wheel travel
+3: PASS stationary wheels stay stationary
+3: PASS zero wheel radius is rejected
+3: PASS invalid wheel timesteps leave odometry unchanged
+3: PASS degenerate contact frames cannot corrupt wheel state
+3: PASS ECS stores typed components
+3: PASS ECS generations reject stale entity handles
+3: PASS ECS iteration tolerates entity removal
+3: PASS scene graph composes parent transforms
+3: PASS scene graph rejects hierarchy cycles
+3: PASS frame graph orders hazards and profiles passes
+3: PASS frame graph detects dependency cycles
+3: PASS fixed-step runtime decouples simulation from presentation
+3: PASS input maps actions and detects key edges
+3: PASS input retains held state across frames
+3: PASS LOD selection includes boundary hysteresis
+3: PASS particle emitters are seeded and bounded
+3: PASS particle lifetimes retire old particles
+3: PASS spatial audio applies stereo panning and distance attenuation
+3: PASS stopped audio voices produce silence
+3: PASS animation samples linear translation tracks
+3: PASS skeletal skinning blends weighted joint matrices
+3: PASS Jolt rigid body rests on static collision geometry
+3: PASS Jolt contact listener delivers collision events
+3: PASS physics ray casts identify actual bodies
+3: PASS physics impulses wake and accelerate bodies
+3: PASS physics rejects retired body handles
+3: PASS continuous collision prevents fast-body tunneling
+3: PASS PNG asset decoder reads engine-owned fixture texture
+3: PASS Radiance HDR asset preserves values above one
+3: PASS WAV asset decoder loads sample-rate metadata and PCM
+3: PASS glTF loader imports actual images, skin and animation
+3: PASS loaded quaternion animation changes joint pose
+3: PASS asset loader enforces allowed resource root
+3: PASS JSD engine exports its standalone version API
+3: PASS FPS averages completed wall time across variable frame durations
+3: PASS frame duration matches measured FPS
+3: PASS frame rate reset and zero duration do not invent a rate
+3: PASS frame timing rejects nonfinite durations
+3: PASS procedural mesh has finite positions and unit normals
+3: PASS procedural mesh has finite positions and unit normals
+3: PASS procedural mesh has finite positions and unit normals
+3: PASS procedural mesh has finite positions and unit normals
+3: PASS curved service tube produces renderable geometry
+3: PASS mesh merge transforms normals under nonuniform scale
+3: PASS gravel particles bounce against collision surface
+3: PASS VFX capacity bounds continuous emission
+3: PASS VFX fixed step is stable across frame subdivisions
+3: PASS VFX reset retires particles and simulation state
+3: PASS steam buoyancy produces a rising plume
+3: PASS spark lifetime retires hot particles
+3: PASS invalid emitter capacity rejected
+3: PASS cinematic camera interpolates position and look direction
+3: PASS cinematic camera loops at track duration
+3: PASS cinematic track rejects duplicate key times
+3: PASS texture quality changes actual GPU allocation
+3: PASS raising quality restores retained source texture
+3: PASS invalid triangle mesh rejected
+3: PASS nonfinite camera rejected before rendering
+3: PASS AA mode renders without GL errors
+3: PASS AA mode renders without GL errors
+3: PASS AA mode renders without GL errors
+3: PASS AA mode renders without GL errors
+3: PASS AA mode renders without GL errors
+3: PASS combined effects execute multipass pipeline
+3: PASS shadow quality allocates actual map
+3: PASS explicit mesh terrain backend renders
+3: PASS hardware terrain tessellation executes patch path
+3: PASS view distance changes submitted scene geometry
+3: PASS temporal upscaling keeps full output resolution and history
+3: PASS tiled local lighting submits real light data
+3: PASS HDR environment prefilter and BRDF lookup render successfully
+3: PASS shader reload rejects invalid programs transactionally
+3: PASS object motion vectors produce visible motion blur
+3: PASS depth prepass keeps the nearest opaque surface regardless of draw order
+3: PASS depth prepass keeps the nearest opaque surface regardless of draw order
+3: PASS streamed mesh update detaches static indices and restores original pixels
+3: PASS particle depth testing hides sprites behind opaque geometry
+3: PASS dust steam sparks and sand change actual rendered pixels
+3: PASS sprite styles share one GPU instanced draw
+3: PASS soft particles fade against copied scene depth
+3: PASS zero mesh normals rejected before HDR shading
+3: PASS nonfinite material mapping rejected before submission
+3: PASS normal mapping keeps parallel tangent and normal bases finite
+3: PASS flat light bins retain bounded ranges when more than 128 lights overlap
+3: PASS ray-marched clouds change atmospheric sky pixels
+3: PASS full resolution textured UI overlay renders
+3: PASS autofocus acquires the actual center surface depth
+3: PASS autofocus adapts smoothly instead of jumping
+3: PASS autofocus converges on the new subject
+3: PASS camera cuts reacquire focus immediately
+3: PASS empty sky converges to the far focus distance
+3: PASS manual focus omits the autofocus pass while retaining depth of field
+3: PASS large scenes prepare draws across available CPU cores
+3: PHOTOMETRY 0.0384523 0.00979127 ratio 3.92721
+3: PASS GPU photometric light follows inverse square irradiance
+3: PASS GPU physical camera exposure responds to ISO
+3: PASS thin lens depth of field and GPU autofocus execute together
+3: PASS GPU thin lens aperture changes defocused edge pixels
+3: PASS GPU physical shutter duration changes motion blur pixels
+3: PASS destroyed texture handle is retired
+3: 159 checks passed.
+3/6 Test #3: graphics .........................   Passed    3.38 sec
+test 4
+    Start 4: showcase-physics
+
+4: Test command: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/examples/showcase/jsd-showcase-physics-tests
+4: Working Directory: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/examples/showcase
+4: Test timeout computed to be: 10000000
+4: SUNDOG scene: 1364 objects / 52 meshes / original PBR assets
+4: PASS showcase rover stops at an actual scene blocker
+4: PASS blocked rover wheels do not spin
+4: PASS cleared route resumes without a catch-up teleport
+4: PASS clear showcase route reaches its original destination
+4: ROVER_END_Z 3
+4: PASS crane acquires a real kinematic cargo body
+4: PASS cargo pickup starts at mounted case position
+4: PASS release keeps the same solver body handle
+4: PASS cargo release preserves position continuously
+4: CARGO_REST 4.79968 0.64 4.20036
+4: PASS cargo falls and rests on visible compound slab
+4: PASS released cargo settles under damping and friction
+4: PASS mission reset removes released bodies
+4: 11 showcase physics checks passed.
+4/6 Test #4: showcase-physics .................   Passed    3.25 sec
+test 5
+    Start 5: rover-kinematics
+
+5: Test command: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/examples/showcase/jsd-rover-tests
+5: Working Directory: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/examples/showcase
+5: Test timeout computed to be: 10000000
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS dust emission can use actual stopped rover speed
+5: PASS rendering wheel poses cannot advance the simulation
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS dust emission can use actual stopped rover speed
+5: PASS rendering wheel poses cannot advance the simulation
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS dust emission can use actual stopped rover speed
+5: PASS rendering wheel poses cannot advance the simulation
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS every wheel covers the complete 38-metre route
+5: PASS left/right showcase mounts use physically correct spin direction
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS all wheels stop when rover translation stops
+5: PASS dust emission can use actual stopped rover speed
+5: PASS rendering wheel poses cannot advance the simulation
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS mission restart resets all six rolling histories
+5: PASS tilted wheel support follows the local terrain contact plane
+5: PASS tilted wheel support follows the local terrain contact plane
+5: PASS tilted wheel support follows the local terrain contact plane
+5: PASS tilted wheel support follows the local terrain contact plane
+5: PASS tilted wheel support follows the local terrain contact plane
+5: PASS tilted wheel support follows the local terrain contact plane
+5: PASS assembled rover wheel has zero-slip contact velocity
+5: 111 rover checks passed.
+5/6 Test #5: rover-kinematics .................   Passed    0.01 sec
+test 6
+    Start 6: showcase-smoke
+
+6: Test command: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/examples/showcase/jsd-showcase "--offscreen" "--frames" "2" "--time" "40" "--width" "640" "--height" "360" "--validate"
+6: Working Directory: /workspace/scratch/f8542ff39916/showcase-work/3d-engine/build/overlay-check/examples/showcase
+6: Test timeout computed to be: 10000000
+6: Renderer: llvmpipe (LLVM 19.1.7, 256 bits) / offscreen / uncapped requested
+6: SUNDOG scene: 1364 objects / 52 meshes / original PBR assets
+6: Frame 2 t=40.0333 / 2061781 triangles / 232 draws / 441 sprites / 563 live particles
+6: SUNDOG / JSD 0.4.4 / llvmpipe (LLVM 19.1.7, 256 bits) / frames=2 time=40.0333 render=640x360 particles=563 elapsed=0.961689s
+6/6 Test #6: showcase-smoke ...................   Passed    3.33 sec
+
+100% tests passed, 0 tests failed out of 6
+
+Total Test time (real) =  10.02 sec

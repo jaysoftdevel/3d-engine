@@ -55,3 +55,51 @@ The bundled report compares 0.4.0 and 0.4.1 on Mesa25 llvmpipe, fixed 960x540 ou
 | 55 s | 554.4 | 500.7 | 10.7% |
 
 Combined throughput increased 8.7% in this run. Small differences can vary between runs; these are measurements on the checked software driver, not a promise for other machines.
+
+## Presets, autofocus and processing update
+
+This update changes scheduling, resource reuse and driver submission. It does not lower the selected resolution, geometry, texture tier, shadow filtering or effect sample counts. The existing showcase High preset retains its prior appearance. Minimal through Max are explicit quality choices; autofocus changes depth of field only when that effect is enabled.
+
+- Uniform values are retained per linked program and compared bitwise. Unchanged values and inactive shader inputs skip driver updates. Shader replacement retires the cache. Compact scalar/vector records keep frequently used state together; matrix storage is allocated separately only where needed.
+- Prepared draw storage persists across frames. Large lists use the existing job pool to compute independent transforms, bounds, normal matrices and material keys; stable ordering and all GL calls stay on the render thread. Small lists run locally to avoid scheduling overhead. Nested work and exceptions are joined safely.
+- Automatic workers respect Linux CPU affinity and reserve one available CPU for the calling thread. Other platforms use hardware concurrency. `JSD_WORKERS=N` sets the background-worker budget, limited by available CPUs; explicit `Jobs(N)` instances keep their requested size. Sleeping worker threads do not create artificial CPU load.
+- Terrain generation evaluates each shared grid vertex once while retaining the exact emitted triangle order, normals, UVs and skirts. Terrain height callbacks must be deterministic for a world position and safe to call on workers. Distance-priority sorting compares squared grid distances instead of repeated square roots.
+- Exposure, color, focus, anisotropy and other uniform-only edits retain framebuffer storage. Target reallocation happens only when dimensions, attachment layouts or enabled target-producing effects change. Texture changes that retain the uploaded dimensions update filtering without rebuilding pixel data/mipmaps; native-size uploads use retained source pixels directly.
+- Autofocus remains on the GPU in two 1x1 textures. It performs no normal-frame CPU readback or synchronization. The blur retains the selected sample count and foreground rejection; linear depth is reconstructed from the projection entries. See `GRAPHICS_PRESETS.md`.
+
+The source release includes `PROCESSING_VALIDATION.json` with the final measurements and comparison results. These measurements use Mesa llvmpipe, a software OpenGL driver, and are not a dedicated-GPU speed forecast. Frame time includes actual rendering and presentation; offline simulation cadence is not treated as measured FPS. No driver power, process-affinity or system scheduling settings are changed.
+
+Measured processing work (same settings/output):
+
+| Workload | Before | After | Result |
+| --- | ---: | ---: | --- |
+| Draw-heavy frame, 1,600 boxes | 18.74 ms | 14.21 ms | 24.2% lower frame time |
+| Uniform calls per draw-heavy frame | 4,918 | 200 | 95.9% fewer |
+| Exposure/anisotropy edit texture uploads | 12 | 0 | Existing storage reused |
+| Exposure/anisotropy edit framebuffer creations | 8 | 0 | Existing storage reused |
+| Generation of 60 terrain tiles | 32.46 ms | 10.88 ms | 2.98x faster |
+| Terrain height evaluations | 1,704,000 | 498,300 | 70.8% fewer |
+
+The draw-heavy fixture uses 320x180 native output, four warmup frames, then 16 timed frames; values are medians of three process runs. Terrain tests use subdivisions 8/16/32/64 and the engine's terrain-height function; generation timings exclude comparison-file writing. The resulting image and complete terrain vertex buffers are byte-identical.
+
+Full showcase, 640x360, unchanged High settings (software driver):
+
+| Mission start | Before median frame | After median frame | Frame-time reduction |
+| --- | ---: | ---: | ---: |
+| 16 s | 422.56 ms | 416.94 ms | 1.3% |
+| 40 s | 344.42 ms | 327.87 ms | 4.8% |
+| 55 s | 408.66 ms | 404.31 ms | 1.1% |
+
+Each mission uses two before/after pairs with order reversed in the second pair. Runs contain 24 frames; first eight warmup frames and the final capture frame are excluded. The table reports the median of the two run medians. All six paired showcase captures are byte-identical. These smaller, software-driver frame-time differences vary with host load; the raw runs are retained in the JSON rather than treated as a hardware FPS promise. Both builds use four llvmpipe raster threads and seven engine background workers for the comparison.
+
+Native UI checks exercise every preset button, both settings pages, focus controls and saved configurations. Regression tests render actual center targets to verify autofocus acquisition, smooth changes, camera cuts, sky focus and manual mode. The retained quality settings and sample counts are tested independently from the new explicit Max preset.
+
+The driver-call/texture/framebuffer benchmark is provided as `tools/benchmark_processing.cpp` and uses only the public engine API. Build it after installing the local SDK:
+
+```bash
+c++ -O2 -std=c++20 -Iinclude tools/benchmark_processing.cpp -Llib \
+    -Wl,-rpath,"$PWD/lib" -ljsd-game-engine -o build/processing-benchmark
+./build/processing-benchmark comparison.ppm
+```
+
+It prints actual frame time and intercepted GL call counts, and writes a comparison image. Compile against each matching engine SDK when comparing builds; use the same driver, environment and dimensions. The benchmark does not select lower quality settings dynamically.

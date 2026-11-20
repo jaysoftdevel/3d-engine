@@ -4,14 +4,16 @@
 #include <iostream>
 #include <string>
 
-// Shared by the graphics lab and optional showcase; no engine ABI changes.
+// Shared controls for the graphics lab and optional showcase.
 namespace rf::examples {
+using PresetFactory = gfx::GraphicsSettings (*)(gfx::GraphicsPreset);
 class GraphicsSettingsOverlay {
     int page = 0;
 
 public:
     void draw(gfx::Renderer &renderer, gfx::GraphicsSettings &settings,
-              bool click, float mouseX, float mouseY, bool closeHint = false) {
+              bool click, float mouseX, float mouseY, bool closeHint = false,
+              PresetFactory preset = gfx::graphicsPreset) {
         using namespace gfx;
         auto number = [](float value) {
             return std::isfinite(value) ? std::to_string(int(value)) : std::string("invalid");
@@ -19,19 +21,39 @@ public:
         renderer.rect(850, 20, 410, 678, {.02f, .045f, .065f, .70f});
         renderer.text(870, 38, "GRAPHICS SETTINGS / PAGES", 2, {.3f, .9f, .8f, 1});
         bool changed = false;
-        float rowY = 81;
+        const char *activePreset = "custom";
+        if (click)
+            for (int i = 0; i < 5; ++i) {
+                float x = 865 + i * 77;
+                if (mouseX >= x && mouseX < x + 72 && mouseY >= 70 && mouseY < 96) {
+                    settings = preset(GraphicsPreset(i));
+                    changed = true;
+                    break;
+                }
+            }
+        for (int i = 0; i < 5; ++i) {
+            float x = 865 + i * 77;
+            auto value = preset(GraphicsPreset(i));
+            bool hover = mouseX >= x && mouseX < x + 72 && mouseY >= 70 && mouseY < 96;
+            bool selected = settings == value;
+            if (selected) activePreset = name(GraphicsPreset(i));
+            renderer.text(x + 3, 77, name(GraphicsPreset(i)), 1.35f,
+                          selected || hover ? Color{.3f, .9f, .8f, 1} : Color{.8f, .85f, .88f, 1});
+            if (selected || hover) renderer.rect(x, 94, 72, 2, {.3f, .9f, .8f, 1});
+        }
+        float rowY = 108;
         auto row = [&](const std::string &label, const std::string &value, auto change) {
-            bool hover = mouseX > 865 && mouseX < 1245 && mouseY >= rowY && mouseY < rowY + 28;
+            bool hover = mouseX > 865 && mouseX < 1245 && mouseY >= rowY && mouseY < rowY + 26;
             // Keep the background at 70% opacity; avoid stacking opaque row fills.
             if (hover)
-                renderer.rect(865, rowY, 3, 28, {.3f, .9f, .8f, 1});
+                renderer.rect(865, rowY, 3, 26, {.3f, .9f, .8f, 1});
             renderer.text(875, rowY + 9, label, 1.4f);
             renderer.text(1080, rowY + 9, value, 1.4f, {.3f, .9f, .8f, 1});
             if (hover && click) {
                 change();
                 changed = true;
             }
-            rowY += 35;
+            rowY += 30;
         };
         auto quality = [](Quality &q) { q = Quality((int(q) + 1) % 5); };
         if (page == 0) {
@@ -55,10 +77,16 @@ public:
                 [&] { quality(settings.ambientOcclusion); });
             row("DEPTH OF FIELD", name(settings.depthOfField),
                 [&] { quality(settings.depthOfField); });
-            row("FOCUS DISTANCE", number(settings.focusDistance) + "M", [&] {
-                settings.focusDistance =
-                    settings.focusDistance >= 45 ? 5 : settings.focusDistance + 5;
-            });
+            row("AUTOFOCUS", settings.autoFocus ? "on" : "off",
+                [&] { settings.autoFocus = !settings.autoFocus; });
+            if (settings.autoFocus)
+                row("FOCUS RESPONSE", number(settings.focusAdaptation), [&] {
+                    settings.focusAdaptation = settings.focusAdaptation >= 12 ? 1 : settings.focusAdaptation + 1;
+                });
+            else
+                row("MANUAL FOCUS", number(settings.focusDistance) + "M", [&] {
+                    settings.focusDistance = settings.focusDistance >= 45 ? 5 : settings.focusDistance + 5;
+                });
             row("GLOBAL ILLUM.", name(settings.globalIllumination), [&] {
                 settings.globalIllumination =
                     GlobalIllumination((int(settings.globalIllumination) + 1) % 3);
@@ -114,9 +142,9 @@ public:
             row("GPU PROFILING", settings.gpuProfiling ? "on" : "off",
                 [&] { settings.gpuProfiling = !settings.gpuProfiling; });
         }
-        if (click && mouseX > 850 && mouseX < 1260 && mouseY > 20 && mouseY < 70)
+        if (click && mouseX > 850 && mouseX < 1260 && mouseY > 20 && mouseY < 64)
             page = 1 - page;
-        renderer.text(870, 640, "CLICK HEADER FOR NEXT PAGE", 1.25f, {.5f, .65f, .7f, 1});
+        renderer.text(870, 640, std::string("PRESET: ") + activePreset + " / HEADER: NEXT PAGE", 1.1f, {.5f, .65f, .7f, 1});
         renderer.text(870, 660, closeHint ? "CLICK VALUES / C TO CLOSE" : "CLICK VALUES TO CYCLE", 1.4f, {.5f, .65f, .7f, 1});
         const auto &effective = renderer.settings().effective;
         renderer.text(870, 683,

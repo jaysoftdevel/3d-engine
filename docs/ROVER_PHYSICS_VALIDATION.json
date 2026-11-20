@@ -1,0 +1,39 @@
+{
+  "native_render": {
+    "moving": {
+      "radius_metres": 0.714739335848,
+      "circumference_metres": 4.49083969346345,
+      "revolutions_over_38m": 8.46166921863413,
+      "rendered_frames": 2,
+      "max_phase_error_radians": 7.699667747829153e-08,
+      "max_contact_height_error_metres": 1.0324999966115911e-08,
+      "max_no_slip_velocity_error_m_per_second": 6.452321466010602e-06
+    },
+    "stopped": {
+      "radius_metres": 0.714739335848,
+      "circumference_metres": 4.49083969346345,
+      "revolutions_over_38m": 8.46166921863413,
+      "rendered_frames": 2,
+      "max_phase_error_radians": 2.0125959565575613e-08,
+      "max_contact_height_error_metres": 1.0324999966115911e-08,
+      "max_no_slip_velocity_error_m_per_second": 0
+    },
+    "loop": {
+      "radius_metres": 0.714739335848,
+      "circumference_metres": 4.49083969346345,
+      "revolutions_over_38m": 8.46166921863413,
+      "rendered_frames": 4,
+      "max_phase_error_radians": 1.1785291460179176e-10,
+      "max_contact_height_error_metres": 1.0324999966115911e-08,
+      "max_no_slip_velocity_error_m_per_second": 0
+    }
+  },
+  "tests": "All four CTest targets passed: runtime-and-settings, graphics, rover-kinematics, showcase-smoke",
+  "scope": "Grounded wheel odometry and terrain-aware kinematic rover. Existing Jolt cargo physics retained.",
+  "integration": "Actual uploaded wheel geometry and actual submitted wheel/rim matrices, native software OpenGL, --validate enabled.",
+  "check_counts": [
+    "98 checks passed.",
+    "138 checks passed.",
+    "111 rover checks passed."
+  ]
+}

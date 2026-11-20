@@ -4,6 +4,7 @@
 #include "cinematic.hpp"
 #include "particles.hpp"
 #include "physics.hpp"
+#include "vehicle.hpp"
 #include "runtime.hpp"
 #include "timing.hpp"
 #include <frontier/frontier.hpp>

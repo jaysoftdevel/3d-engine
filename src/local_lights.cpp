@@ -14,7 +14,7 @@ void Renderer::Impl::uploadLights() {
         data.push_back({l.position.x, l.position.y, l.position.z, l.radius});
         data.push_back({l.color.r, l.color.g, l.color.b, l.intensity});
         data.push_back({d.x, d.y, d.z, std::cos(l.outerCone)});
-        data.push_back({std::cos(l.innerCone), float(l.type == LightType::Spot), 0, 0});
+        data.push_back({std::cos(l.innerCone), float(l.type == LightType::Spot), float(l.falloff == LightFalloff::InverseSquare), l.sourceRadiusMetres});
         auto p = transformPoint(view, l.position);
         float z = -p.z;
         if (z + l.radius < camera.nearPlane || z - l.radius > settings().viewDistance)
@@ -67,5 +67,22 @@ void Renderer::Impl::uploadLights() {
     upload(lightGridBuffer, lightGridTexture, 0x823C, ranges.data(), ranges.size() * sizeof(ranges[0]));
     upload(lightIndexBuffer, lightIndexTexture, 0x8236, indices.data(), indices.size() * sizeof(unsigned));
     stats.localLights = lights.size();
+}
+namespace {
+Color photometricColor(Color color){
+    for(float c:{color.r,color.g,color.b})if(!std::isfinite(c)||c<0)throw std::invalid_argument("Invalid photometric color");
+    float y=.2126f*color.r+.7152f*color.g+.0722f*color.b;
+    if(y<=0)throw std::invalid_argument("Photometric color must emit light");
+    return {color.r/y,color.g/y,color.b/y,color.a};
+}
+}
+Light pointLightLumens(V3 position,float lumens,float range,Color color){
+    if(!std::isfinite(range)||range<=0)throw std::invalid_argument("Invalid light range");
+    Light l;l.position=position;l.radius=range;l.intensity=float(pointCandela(lumens));
+    l.color=photometricColor(color);l.falloff=LightFalloff::InverseSquare;return l;
+}
+Light spotLightLumens(V3 position,V3 direction,float lumens,float range,float inner,float outer,Color color){
+    auto l=pointLightLumens(position,lumens,range,color);l.type=LightType::Spot;l.direction=direction;
+    l.innerCone=inner;l.outerCone=outer;l.intensity=float(spotCandela(lumens,inner,outer));return l;
 }
 } // namespace rf::gfx

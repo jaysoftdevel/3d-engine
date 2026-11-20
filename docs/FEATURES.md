@@ -49,7 +49,7 @@ Draws support full matrices, quaternions via math helpers and instancing of matc
 | ECS | Typed component pools, generational handles, entity lifecycle, iteration |
 | Scene graph | Parent/local/world transforms, cycle checks |
 | Simulation | Fixed time step with accumulator and bounded catch-up, interpolation factor |
-| Physics | Jolt 5.7.0 boxes/spheres/capsules, static/dynamic/sensor bodies, mass/friction/restitution, CCD, gravity, sleeping, impulses, velocity, ray casts, contact start/end events |
+| Physics | Jolt 5.7.0 boxes/spheres/capsules/cylinders; static/kinematic/dynamic/sensor bodies; SI mass/density/inertia, force/torque/impulse, damping/drag, CCD, gravity, fixed ticks/interpolation, swept controlled motion, ray/sight queries and contacts; see PHYSICS.md |
 | Assets | cgltf glTF/GLB, triangle meshes, indices/attributes, images, material maps, hierarchy, skin/inverse bind, TRS linear/STEP/cubic animation; CPU skinning |
 | Images | stb_image PNG/JPEG and common image formats; float HDR loader |
 | Audio | WAV PCM16/float32 mono/stereo, resampling, looping, up to 128 voices, positional attenuation/stereo panning; SDL float callback or offline mixing |
@@ -61,7 +61,7 @@ Draws support full matrices, quaternions via math helpers and instancing of matc
 | Frame timing | FrameRateCounter averages completed real frame durations; sample CSV profiling includes frame/CPU/GPU times |
 | Development | File timestamp watcher, transactional material GLSL reload, public GPU mesh update |
 
-The task graph orders CPU callbacks; it is not a Vulkan GPU resource graph or an asynchronous compute scheduler. Render resource access is single-threaded. ECS is single-threaded unless the application supplies synchronization. Physics uses Jolt workers internally; the wrapper's create/read/step calls are serialized by the application. Drain `contacts()` regularly. Physics limits are 8,192 bodies, 32,768 pairs and a 16 MiB temporary allocator; exhaustion raises an error. Audio device behavior depends on the host; attenuation/panning are not HRTF acoustics.
+The task graph orders CPU callbacks; it is not a Vulkan GPU resource graph or an asynchronous compute scheduler. Render resource access is single-threaded. ECS is single-threaded unless the application supplies synchronization. Physics uses Jolt workers internally; the wrapper's create/read/step calls are serialized by the application. Drain `contacts()` regularly. Physics defaults are 8,192 bodies, 32,768 pairs and a 16 MiB temporary pool with heap fallback; body/pair/contact budgets are configurable through WorldSettings. Audio device behavior depends on the host; attenuation/panning are not HRTF acoustics.
 
 The loader accepts uncompressed triangle assets up to the documented code limits (128 MiB per file, 3 million expanded vertices per primitive). External resources must remain under the allowed asset root. Draco, meshopt, KTX2/Basis textures, morph targets, animation blending/state machines, material extensions, arbitrary glTF scene selection and GPU skinning are not implemented. Supply packed ORM maps; independent glTF occlusion textures and secondary UV sets are not imported. Shader reload replaces the standard mesh material program; custom shaders must retain its attribute/uniform/output contract and do not replace the tessellated terrain program.
 
@@ -72,3 +72,5 @@ Simulation is CPU based, not GPU compute. Renderer accepts up to 131,072 billboa
 ## Future backend and production work
 
 `Capabilities.hardwareRayTracing`, `vulkanBackend`, `vendorUpscaling` and `frameGeneration` are false. No placeholder switch silently enables these. Vulkan/DX12 ray tracing, ReSTIR/path tracing, neural radiance caching, FSR/DLSS/XeSS SDK integration, mesh shaders, virtualized geometry/texturing, GPU-driven occlusion, GPU simulation/skinning, hair/cloth, robust character controller/navigation, multiplayer/rollback, streaming asset database, editor/cooker, console support, HDR10 display output and large-world precision remain future work. Current Linux OpenGL functionality is implemented and exercised; Windows portability has not been validated for this SDK.
+
+Physical camera/photometry are opt-in: metre-based lens FOV/DoF, shutter blur, photographic exposure, lumens/candela point/spot lights and sun lux. CPU Fresnel/Snell/absorption helpers do not imply raster transmission. See [OPTICS.md](OPTICS.md).

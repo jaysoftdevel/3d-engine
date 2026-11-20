@@ -4,6 +4,7 @@
 #include <functional>
 #include <jsd/engine.hpp>
 #include <map>
+#include "rover_motion.hpp"
 namespace sundog {
 using namespace jsd;
 namespace g = jsd::gfx;
@@ -17,6 +18,7 @@ struct Model {
   void draw(g::Renderer &, const Mat4 &root, uint64_t id) const;
 };
 class Showcase {
+  friend struct ShowcasePhysicsProbe;
   g::Renderer &graphics;
   std::filesystem::path assetRoot;
   std::vector<g::MeshId> ownedMeshes;
@@ -42,9 +44,12 @@ class Showcase {
   g::EnvironmentId daylight;
   g::TextureId title, mission, credits;
   PhysicsWorld physics;
+  RoverMotion roverMotion;
   std::vector<Body> crates;
-  bool cargoReleased = false;
+  Body roverBody{}, liftedCargo{};
+  bool cargoReleased = false, roverBlocked = false;
   VfxEmitter dustLeft, dustRight, steam, steam2, sparks, sand, gravel;
+  double missionTime = 0;
   float elapsed = 0;
   unsigned cycle = 0;
   uint64_t nextId = 1;
@@ -66,7 +71,7 @@ public:
   void update(float seconds);
   void reset();
   void render(const g::Camera &, bool hud = true, bool particles = true,
-              double fps = -1, const std::function<void()> &overlay = {});
+              double fps = -1, const std::function<void()> &overlay = {}, float deltaSeconds = 1.f / 60);
   g::Camera camera() const;
   float time() const { return elapsed; }
   unsigned activeParticles() const;
