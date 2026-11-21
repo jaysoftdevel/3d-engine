@@ -1,5 +1,5 @@
 # Run before project(), compiler probes and bundled dependency configuration.
-find_program(JSD_GUARD_PYTHON NAMES python3 REQUIRED)
+find_program(JSD_GUARD_PYTHON NAMES python3 python REQUIRED)
 function(jsd_guard action project_id expected)
   execute_process(COMMAND "${JSD_GUARD_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/project_guard.py"
     "${action}" --root "${CMAKE_CURRENT_SOURCE_DIR}" --project "${project_id}" --expected "${expected}" ${ARGN}

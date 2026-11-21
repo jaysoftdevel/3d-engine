@@ -2,7 +2,7 @@
 #include <frontier/frontier.hpp>
 #include <atomic>
 #include <fstream>
-#include <unistd.h>
+#include "process_id.hpp"
 
 template <class Check> void processingTests(Check check) {
     using namespace rf;
@@ -24,7 +24,7 @@ template <class Check> void processingTests(Check check) {
           parseGraphicsPreset("balanced", alias) && alias == GraphicsPreset::Medium,
           "legacy preset aliases remain accepted");
     check(!parseGraphicsPreset("unknown", alias), "invalid preset is rejected");
-    auto path = std::filesystem::temp_directory_path() / ("jsd-focus-settings-" + std::to_string(getpid()));
+    auto path = std::filesystem::temp_directory_path() / ("jsd-focus-settings-" + std::to_string(jsdTestProcessId()));
     auto settings = GraphicsSettings::max();
     settings.autoFocus = false;
     settings.focusAdaptation = 7.25f;
@@ -76,7 +76,7 @@ template <class Check> void autofocusGraphicsTests(Check check, rf::gfx::Rendere
         renderer.end();
         renderer.check();
     };
-    auto directory = std::filesystem::temp_directory_path() / ("jsd-focus-" + std::to_string(getpid()));
+    auto directory = std::filesystem::temp_directory_path() / ("jsd-focus-" + std::to_string(jsdTestProcessId()));
     auto focus = [&] {
         std::filesystem::remove_all(directory);
         renderer.captureBuffers(directory);

@@ -24,3 +24,4 @@ if(JSD_BUILD_TESTS)
     add_test(NAME showcase-smoke COMMAND jsd-showcase
         --offscreen --frames 2 --time 40 --width 640 --height 360 --validate)
 endif()
+include("${PROJECT_SOURCE_DIR}/cmake/WindowsRuntime.cmake")

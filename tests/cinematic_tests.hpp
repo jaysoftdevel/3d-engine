@@ -1,7 +1,7 @@
 #pragma once
 #include <fstream>
 #include <jsd/engine.hpp>
-#include <unistd.h>
+#include "process_id.hpp"
 inline void cinematicTests(const std::function<void(bool, const char *)> &test) {
     using namespace jsd;
     FrameRateCounter timing;
@@ -120,7 +120,7 @@ inline void cinematicGraphicsTests(const std::function<void(bool, const char *)>
     Camera camera{{0, 2, -8}, normalized({0, -.7f, 8}), 60, .08f};
     auto bytes = [&]() {
         auto file =
-            std::filesystem::temp_directory_path() / ("jsd-cinematic-" + std::to_string(::getpid()) + ".ppm");
+            std::filesystem::temp_directory_path() / ("jsd-cinematic-" + std::to_string(jsdTestProcessId()) + ".ppm");
         r.screenshot(file);
         std::ifstream input(file, std::ios::binary);
         std::string content((std::istreambuf_iterator<char>(input)), {});

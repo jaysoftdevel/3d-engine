@@ -1,4 +1,5 @@
 #pragma once
+#include "process_id.hpp"
 #include <fstream>
 #include <jsd/engine.hpp>
 inline void runtimeTests(const std::function<void(bool, const char *)> &test) {
@@ -144,7 +145,7 @@ inline void runtimeTests(const std::function<void(bool, const char *)> &test) {
     physics.velocity(fast, {0, 0, 900});
     physics.step(1.f / 60);
     test(physics.state(fast).position.z < 1, "continuous collision prevents fast-body tunneling");
-    auto prefix = std::filesystem::read_symlink("/proc/self/exe").parent_path().parent_path();
+    auto prefix = rf::executableDirectory().parent_path();
     auto assetPath = prefix / "share/jsd-game-engine/test-fixtures";
     if (!std::filesystem::exists(assetPath / "animated-column.gltf"))
         assetPath = JSD_TEST_FIXTURE_DIR;
@@ -163,6 +164,19 @@ inline void runtimeTests(const std::function<void(bool, const char *)> &test) {
         auto gltf = loadGltf(assetPath / "animated-column.gltf");
         test(gltf.meshes.size() == 1 && gltf.skins.size() == 1 && gltf.animations.size() == 1,
              "glTF loader imports actual images, skin and animation");
+        auto unicodeLeaf = std::filesystem::path(u8"jsd-assets-ä-月-");
+        unicodeLeaf += std::to_string(jsdTestProcessId());
+        auto unicodeRoot = std::filesystem::temp_directory_path() / unicodeLeaf;
+        std::filesystem::create_directories(unicodeRoot);
+        struct CleanupAssets { std::filesystem::path p; ~CleanupAssets() {
+            std::error_code error; std::filesystem::remove_all(p, error);
+        } } cleanup{unicodeRoot};
+        for (const auto &entry : std::filesystem::directory_iterator(assetPath))
+            if (entry.is_regular_file()) std::filesystem::copy_file(entry.path(), unicodeRoot / entry.path().filename(),
+                std::filesystem::copy_options::overwrite_existing);
+        auto unicodeGltf = loadGltf(unicodeRoot / "animated-column.gltf");
+        test(unicodeGltf.meshes.size() == gltf.meshes.size() && unicodeGltf.images.size() == gltf.images.size(),
+             "glTF and external resources load from Unicode directories");
         auto p0 = sampleAnimation(gltf, 0, 0, false), p1 = sampleAnimation(gltf, 0, 1, false);
         bool animatedJoint=false;for(size_t i=0;i<p0.size();i++)animatedJoint=animatedJoint||p0[i].m!=p1[i].m;
         test(animatedJoint, "loaded quaternion animation changes joint pose");

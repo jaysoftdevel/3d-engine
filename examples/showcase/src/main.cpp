@@ -108,8 +108,7 @@ int main(int argc, char **argv) {
     if (offscreen && frames == 0)
       frames = 1;
     if (assets.empty()) {
-      const auto prefix = std::filesystem::read_symlink("/proc/self/exe")
-                              .parent_path().parent_path();
+      const auto prefix = rf::executableDirectory().parent_path();
       assets = prefix / JSD_SHOWCASE_ASSET_SUBDIR;
       if (!std::filesystem::exists(assets / "showcase"))
         assets = JSD_SHOWCASE_ASSET_DIR;

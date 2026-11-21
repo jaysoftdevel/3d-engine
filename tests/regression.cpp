@@ -9,7 +9,7 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
-#include <unistd.h>
+#include "process_id.hpp"
 using namespace rf;
 using namespace rf::gfx;
 int main(int argc, char **argv) {
@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
         r = resolveSettings(s, caps);
         test(std::isfinite(r.effective.viewDistance), "nonfinite view distance normalized");
         auto path = std::filesystem::temp_directory_path() /
-                    ("frontier-settings-" + std::to_string(::getpid()) + ".ini");
+                    ("frontier-settings-" + std::to_string(jsdTestProcessId()) + ".ini");
         std::string error;
         s = GraphicsSettings::ultra();
         test(saveSettings(path, s, error), "settings save");
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
                     renderer.check();
                 }
                 auto file = std::filesystem::temp_directory_path() /
-                            (std::string(label) + std::to_string(::getpid()) + ".ppm");
+                            (std::string(label) + std::to_string(jsdTestProcessId()) + ".ppm");
                 renderer.screenshot(file);
                 std::ifstream input(file, std::ios::binary);
                 std::string bytes((std::istreambuf_iterator<char>(input)), {});
@@ -249,7 +249,7 @@ int main(int argc, char **argv) {
                 renderer.end();
                 renderer.check();
                 auto file = std::filesystem::temp_directory_path() /
-                            ("jsd-overlap-" + std::to_string(::getpid()) + ".ppm");
+                            ("jsd-overlap-" + std::to_string(jsdTestProcessId()) + ".ppm");
                 renderer.screenshot(file);
                 std::ifstream input(file, std::ios::binary);
                 std::string bytes((std::istreambuf_iterator<char>(input)), {});

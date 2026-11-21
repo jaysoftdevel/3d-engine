@@ -58,7 +58,7 @@ struct ShowcasePhysicsProbe {
 }
 int main(){try{
     jsd::Platform platform(true,320,180);rf::gfx::Renderer renderer(platform,rf::gfx::GraphicsSettings::minimal());
-    auto assets=std::filesystem::read_symlink("/proc/self/exe").parent_path().parent_path()/"share/jsd-game-engine/showcase/assets";
+    auto assets=rf::executableDirectory().parent_path()/"share/jsd-game-engine/showcase/assets";
     if(!std::filesystem::exists(assets/"showcase/title.png"))assets=JSD_SHOWCASE_TEST_ASSETS;
     sundog::Showcase scene(renderer,assets);int n=sundog::ShowcasePhysicsProbe::run(scene);
     std::cout<<n<<" showcase physics checks passed.\n";return 0;

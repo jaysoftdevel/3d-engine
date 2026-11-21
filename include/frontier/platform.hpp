@@ -1,8 +1,10 @@
 #pragma once
 #include "sdl.hpp"
 #include <string>
+#include <filesystem>
 
 namespace rf {
+std::filesystem::path executableDirectory();
 class Platform {
     void *sdlContext = nullptr;
     void *eglLib = nullptr;

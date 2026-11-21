@@ -556,6 +556,9 @@ void Renderer::end() {
     impl->drawUi();
 }
 void Renderer::screenshot(const std::string &path) {
+    screenshot(std::filesystem::path(path));
+}
+void Renderer::screenshot(const std::filesystem::path &path) {
     auto &i = *impl;
     i.gl.Finish();
     std::vector<unsigned char> pixels(size_t(i.outputWidth) * i.outputHeight * 4);

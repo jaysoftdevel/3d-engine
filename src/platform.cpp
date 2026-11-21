@@ -1,6 +1,9 @@
 #include "frontier/platform.hpp"
 #include "gl.hpp"
+#ifndef _WIN32
 #include <dlfcn.h>
+#endif
+#include <filesystem>
 #include <stdexcept>
 
 namespace vl {
@@ -17,15 +20,28 @@ void GL::load(const std::function<void *(const char *)> &resolve) {
 } // namespace vl
 namespace rf {
 namespace {
+#ifndef _WIN32
 template <class F> F symbol(void *lib, const char *name) {
     auto p = reinterpret_cast<F>(dlsym(lib, name));
     if (!p)
         throw std::runtime_error(std::string("Missing platform entry: ") + name);
     return p;
 }
+#endif
 } // namespace
+std::filesystem::path executableDirectory() {
+    char *base = SDL_GetBasePath();
+    if (!base) throw std::runtime_error(std::string("Cannot locate executable: ") + SDL_GetError());
+    std::filesystem::path result(base);
+    SDL_free(base);
+    return result;
+}
 Platform::Platform(bool headless, int w, int h) : offscreen(headless), width(w), height(h) {
-    if (!headless) {
+    if (!headless
+#ifdef _WIN32
+        || headless
+#endif
+    ) {
         SDL_SetMainReady();
         if (SDL_Init(vl::sdl::video) < 0)
             throw std::runtime_error(SDL_GetError());
@@ -34,8 +50,9 @@ Platform::Platform(bool headless, int w, int h) : offscreen(headless), width(w),
         SDL_GL_SetAttribute(17, 3);
         SDL_GL_SetAttribute(18, 3);
         SDL_GL_SetAttribute(21, 1);
-        window = SDL_CreateWindow("JSD Game Engine 0.5.3", vl::sdl::centered, vl::sdl::centered, w, h,
-                                  vl::sdl::openGL | vl::sdl::resizable | vl::sdl::highDPI);
+        window = SDL_CreateWindow("JSD Game Engine 0.5.4", vl::sdl::centered, vl::sdl::centered, w, h,
+                                  vl::sdl::openGL | vl::sdl::highDPI |
+                                  (headless ? vl::sdl::hidden : vl::sdl::resizable));
         if (!window) {
             SDL_Quit();
             throw std::runtime_error(SDL_GetError());
@@ -50,6 +67,7 @@ Platform::Platform(bool headless, int w, int h) : offscreen(headless), width(w),
         SDL_GL_SetSwapInterval(1);
         return;
     }
+#ifndef _WIN32
     eglLib = dlopen("libEGL.so.1", RTLD_NOW | RTLD_LOCAL);
     glLib = dlopen("libGL.so.1", RTLD_NOW | RTLD_LOCAL);
     if (!eglLib)
@@ -81,8 +99,10 @@ Platform::Platform(bool headless, int w, int h) : offscreen(headless), width(w),
         !symbol<unsigned (*)(void *, void *, void *, void *)>(eglLib, "eglMakeCurrent")(display, surface,
                                                                                         surface, context))
         throw std::runtime_error("Cannot create OpenGL 3.3 offscreen context");
+#endif
 }
 Platform::~Platform() {
+#ifndef _WIN32
     if (eglLib) {
         auto makeCurrent =
             reinterpret_cast<unsigned (*)(void *, void *, void *, void *)>(dlsym(eglLib, "eglMakeCurrent"));
@@ -97,7 +117,9 @@ Platform::~Platform() {
         dlclose(eglLib);
         if (glLib)
             dlclose(glLib);
-    } else {
+    } else
+#endif
+    {
         if (sdlContext)
             SDL_GL_DeleteContext(sdlContext);
         if (window)
@@ -106,11 +128,15 @@ Platform::~Platform() {
     }
 }
 void *Platform::resolve(const char *name) const {
+#ifdef _WIN32
+    return SDL_GL_GetProcAddress(name);
+#else
     if (!offscreen)
         return SDL_GL_GetProcAddress(name);
     auto get = reinterpret_cast<void *(*)(const char *)>(dlsym(eglLib, "eglGetProcAddress"));
     void *p = get(name);
     return p ? p : (glLib ? dlsym(glLib, name) : nullptr);
+#endif
 }
 void Platform::present() {
     if (!offscreen)

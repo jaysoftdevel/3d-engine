@@ -77,6 +77,7 @@ union SDL_Event {
 };
 static_assert(sizeof(SDL_Event) == 56);
 extern "C" {
+char *SDL_GetBasePath();
 void SDL_SetMainReady();
 int SDL_Init(U32);
 void SDL_Quit();

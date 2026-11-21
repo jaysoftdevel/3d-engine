@@ -77,7 +77,7 @@ def preflight(package, data, targets):
             expected = entry['sha256'] if applied else entry['before_sha256']
             actual = digest(path) if path.exists() else None
             require(actual == expected, f'Partial update, unexpected revision or local change: {path}')
-            if applied:
+            if applied and os.name != 'nt':
                 require(path.stat().st_mode & 0o777 == entry['mode'], f'Unexpected installed mode: {path}')
             else:
                 changed.append((entry, path))

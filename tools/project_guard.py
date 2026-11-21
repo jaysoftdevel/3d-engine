@@ -2,10 +2,13 @@
 """Project/version, output ownership and installed SDK checks (Python standard library)."""
 import argparse
 import contextlib
-import fcntl
 import hashlib
 import json
 import os
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 from pathlib import Path
 import re
 import sys
@@ -78,7 +81,7 @@ def cache_values(build):
 def no_symlinks(path):
     path = Path(os.path.abspath(path))
     for part in (path, *path.parents):
-        require(not part.is_symlink(), f'Symlink output/target is not allowed: {part}')
+        require(not part.is_symlink() and not (hasattr(part, 'is_junction') and part.is_junction()), f'Symlink output/target is not allowed: {part}')
     return path
 
 def output_path(root, path):
@@ -165,12 +168,16 @@ def sdk(config_dir):
     require(meta.get('format') == 'jsd-install' and meta.get('project_id') == 'jsd.engine' and meta.get('kind') == 'sdk', f'Wrong SDK identity: {prefix}')
     require(meta.get('files'), 'SDK receipt has no fingerprints')
     essential = {'include/jsd/engine.hpp', 'include/frontier/renderer.hpp', 'lib/cmake/JSDGameEngine/JSDGameEngineConfig.cmake', 'lib/cmake/JSDGameEngine/JSDGameEngineConfigVersion.cmake', 'lib/libjsd-game-engine.so.' + meta['version']}
+    windows_sdk = 'bin/jsd-game-engine.dll' in meta['files']
+    if windows_sdk:
+        essential.discard('lib/libjsd-game-engine.so.' + meta['version'])
+        essential.update({'bin/jsd-game-engine.dll', 'bin/SDL2.dll', 'lib/jsd-game-engine.lib'})
     require(essential <= set(meta['files']), 'Incomplete SDK receipt: missing required engine files')
     for rel, sha in meta['files'].items():
         path = safe_file(prefix, rel)
         require(path.is_file() and digest(path) == sha, f'Incomplete or mixed SDK: {path}')
     links = meta.get('symlinks', {})
-    require({'lib/libjsd-game-engine.so', 'lib/libjsd-game-engine.so.0'} <= set(links), 'Missing SDK runtime library link fingerprints')
+    require(windows_sdk or {'lib/libjsd-game-engine.so', 'lib/libjsd-game-engine.so.0'} <= set(links), 'Missing SDK runtime library link fingerprints')
     for rel, target in links.items():
         path = prefix / rel
         safe_file(prefix, str(Path(rel).parent / '.guard-path-check'))
@@ -188,15 +195,26 @@ def operation_lock(root):
     # A persistent lock file avoids unlink/recreate races between concurrent operations.
     path = Path(root) / '.jsd-operation.lock'
     no_symlinks(path)
-    with path.open('a') as handle:
+    with path.open('a+b') as handle:
         try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
+            if os.name == 'nt':
+                handle.seek(0, 2)
+                if handle.tell() == 0:
+                    handle.write(b'\0'); handle.flush()
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
             raise GuardError(f'Another build/update is using {root}') from error
         try:
             yield
         finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+            if os.name == 'nt':
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle, fcntl.LOCK_UN)
 
 def record_build(root, build, meta):
     Path(build).mkdir(parents=True, exist_ok=True)
@@ -209,6 +227,8 @@ def receipt(root, prefix, meta):
     files = {}
     symlinks = {}
     patterns = ('lib/libjsd-game-engine*', 'lib/libSDL2*', 'lib/libJolt*', 'lib/cmake/JSDGameEngine/*', 'lib/cmake/SDL2/*', 'include/jsd/**/*', 'include/frontier/**/*', 'include/frontier-compat/**/*', 'include/Jolt/**/*', 'include/SDL2/**/*') if meta['project_id'] == 'jsd.engine' else ('bin/jsd-editor', 'lib/libjsd-game-engine*', 'lib/libSDL2*')
+    if meta['project_id'] == 'jsd.engine':
+        patterns += ('bin/jsd-*.dll', 'bin/SDL2*.dll', 'lib/jsd-*.lib', 'lib/SDL2*.lib', 'lib/Jolt*.lib')
     for pattern in patterns:
         for path in prefix.glob(pattern):
             if path.is_symlink():

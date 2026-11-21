@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         if (width < 320 || height < 180 || frames < 0)
             throw std::invalid_argument("invalid frame options");
         if (!std::filesystem::exists(assets))
-            assets = std::filesystem::read_symlink("/proc/self/exe").parent_path().parent_path() / "assets";
+            assets = rf::executableDirectory().parent_path() / "assets";
         Platform platform(headless, width, height);
         gfx::Renderer renderer(platform, settings);
         PhysicsWorld physics;

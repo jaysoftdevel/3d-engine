@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.3";
+inline constexpr const char *Version = "0.5.4";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -190,6 +190,8 @@ class Renderer {
     // UI uses a stable 1280x720 logical canvas and is drawn after all effects.
     void end();
     void screenshot(const std::string &ppmPath);
+    void screenshot(const std::filesystem::path &ppmPath);
+    void screenshot(const char *ppmPath) { screenshot(std::string(ppmPath)); }
     void validateFrame();
     void captureBuffers(const std::filesystem::path &directory);
     void check();

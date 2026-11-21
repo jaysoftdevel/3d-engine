@@ -110,7 +110,7 @@ SceneAsset loadGltf(const std::filesystem::path &path, const std::filesystem::pa
     options.file.read = [](const cgltf_memory_options *, const cgltf_file_options *file, const char *name,
                            cgltf_size *size, void **data) -> cgltf_result {
         try {
-            auto bytes = read(safePath(name, *static_cast<std::filesystem::path *>(file->user_data)));
+            auto bytes = read(safePath(std::filesystem::u8path(name), *static_cast<std::filesystem::path *>(file->user_data)));
             size_t n = *size ? *size : bytes.size();
             if (n > bytes.size())
                 return cgltf_result_data_too_short;
@@ -126,11 +126,14 @@ SceneAsset loadGltf(const std::filesystem::path &path, const std::filesystem::pa
     };
     options.file.release = [](const cgltf_memory_options *, const cgltf_file_options *, void *data,
                               cgltf_size) { std::free(data); };
+    // cgltf uses UTF-8 strings; filesystem paths are UTF-16 on Windows.
+    const auto utf8 = full.u8string();
+    const std::string gltfPath(utf8.begin(), utf8.end());
     cgltf_data *raw = nullptr;
-    if (cgltf_parse_file(&options, full.c_str(), &raw) != cgltf_result_success)
+    if (cgltf_parse_file(&options, gltfPath.c_str(), &raw) != cgltf_result_success)
         throw std::runtime_error("cannot parse glTF");
     std::unique_ptr<cgltf_data, decltype(&cgltf_free)> guard(raw, cgltf_free);
-    if (cgltf_load_buffers(&options, raw, full.c_str()) != cgltf_result_success ||
+    if (cgltf_load_buffers(&options, raw, gltfPath.c_str()) != cgltf_result_success ||
         cgltf_validate(raw) != cgltf_result_success)
         throw std::runtime_error("invalid glTF buffers/accessors");
     if (raw->nodes_count > 100000 || raw->meshes_count > 10000 || raw->images_count > 1024)
@@ -147,7 +150,7 @@ SceneAsset loadGltf(const std::filesystem::path &path, const std::filesystem::pa
                     throw std::runtime_error("embedded images must use base64");
                 data = base64(uri.substr(comma + 1));
             } else
-                data = read(safePath(full.parent_path() / uri, root));
+                data = read(safePath(full.parent_path() / std::filesystem::u8path(uri), root));
         } else if (image.buffer_view) {
             auto *p = cgltf_buffer_view_data(image.buffer_view);
             if (!p)

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <numbers>
-#include <unistd.h>
+#include "process_id.hpp"
 template<class Check> void opticsTests(Check check){
     using namespace rf;using namespace rf::gfx;
     auto near=[](double a,double b,double e=1e-6){return std::abs(a-b)<e;};
@@ -35,7 +35,7 @@ template<class Check> void opticsTests(Check check){
 template<class Check> void opticsGraphicsTests(Check check,rf::gfx::Renderer &renderer){
     using namespace rf;using namespace rf::gfx;
     auto capture=[&]{
-        renderer.end();renderer.check();auto path=std::filesystem::temp_directory_path()/("jsd-optics-"+std::to_string(getpid())+".ppm");renderer.screenshot(path);
+        renderer.end();renderer.check();auto path=std::filesystem::temp_directory_path()/("jsd-optics-"+std::to_string(jsdTestProcessId())+".ppm");renderer.screenshot(path);
         std::ifstream file(path,std::ios::binary);std::string magic;int w,h,range;file>>magic>>w>>h>>range;file.get();std::vector<unsigned char> pixels(w*h*3);file.read(reinterpret_cast<char*>(pixels.data()),pixels.size());std::filesystem::remove(path);return pixels;
     };
     auto settings=GraphicsSettings::minimal();settings.viewDistance=64;settings.autoExposure=false;settings.bloom=Quality::Off;settings.volumetricFog=Quality::Off;settings.fogDensity=0;settings.toneMapper=ToneMapper::Reinhard;settings.vignette=0;settings.contrast=settings.saturation=1;settings.exposureCompensation=0;
