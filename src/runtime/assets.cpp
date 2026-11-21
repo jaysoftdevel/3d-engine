@@ -169,6 +169,15 @@ SceneAsset loadGltf(const std::filesystem::path &path, const std::filesystem::pa
         material.material.roughness = p.roughness_factor;
         material.material.metallic = p.metallic_factor;
         material.material.emissive = {m.emissive_factor[0], m.emissive_factor[1], m.emissive_factor[2], 1};
+        if (m.has_emissive_strength) {
+            material.material.emissive.r *= m.emissive_strength.emissive_strength;
+            material.material.emissive.g *= m.emissive_strength.emissive_strength;
+            material.material.emissive.b *= m.emissive_strength.emissive_strength;
+        }
+        if (m.has_clearcoat) {
+            material.material.clearcoat = m.clearcoat.clearcoat_factor;
+            material.material.clearcoatRoughness = m.clearcoat.clearcoat_roughness_factor;
+        }
         material.material.normalScale = m.normal_texture.scale;
         material.material.alphaCutoff = m.alpha_cutoff;
         material.material.alphaMode = m.alpha_mode == cgltf_alpha_mode_blend  ? gfx::AlphaMode::Blend

@@ -174,5 +174,5 @@ inline void runtimeTests(const std::function<void(bool, const char *)> &test) {
         }
         test(failed, "asset loader enforces allowed resource root");
     }
-    test(std::string(jsd_game_engine_version()) == "0.4.4", "JSD engine exports its standalone version API");
+    test(std::string(jsd_game_engine_version()) == jsd::Version, "JSD engine exports its standalone version API");
 }

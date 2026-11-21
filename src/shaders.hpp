@@ -13,10 +13,24 @@ layout(location=4)in mat4 model;layout(location=12)in vec4 instanceColor;
 invariant gl_Position;uniform mat4 vp;uniform float windStrength,windTime;out vec2 texcoord;out vec4 tint;
 void main(){vec4 world=model*vec4(position,1);if(windStrength!=0.)world.xz+=vec2(sin(dot(world.xz,vec2(.37,.21))+windTime*1.9),cos(dot(world.xz,vec2(.19,.28))+windTime*1.3))*windStrength*uv.y*uv.y;gl_Position=vp*world;texcoord=uv;tint=color*instanceColor;}
 )GLSL";
+inline const char *minimalFragment = R"GLSL(#version 330 core
+in vec3 N,P;in vec4 tint;in vec2 texcoord;
+uniform vec3 eye,sun,sunColor,skyColor,groundColor,emissive;uniform float sunIntensity,ambientIntensity,viewDistance,storm,fogDensity,roughness,metallic,textureScale,alphaCutoff;
+uniform sampler2D albedoMap,emissiveMap;uniform samplerBuffer lightData;uniform usamplerBuffer lightGrid,lightIndices;
+uniform int textured,hasEmissive,textureProjection,alphaMode,doubleSided,localLightCount,lightGridWidth,physicalLighting;
+layout(location=0)out vec4 color;
+vec3 safe(vec3 v,vec3 fallback){float d=dot(v,v);return d>1e-12?v*inversesqrt(d):fallback;}
+vec2 mapUV(){vec3 n=abs(N);return textureScale*(textureProjection==0?texcoord:n.y>=n.x&&n.y>=n.z?P.xz:n.x>=n.z?P.zy:P.xy);}
+vec3 shade(vec3 base,vec3 n,vec3 v,vec3 l){float nl=max(dot(n,l),0.);vec3 h=safe(v+l,n);float spec=pow(max(dot(n,h),0.),mix(8.,48.,1.-clamp(roughness,0.,1.)));return (base*mix(.31831,.18,clamp(metallic,0.,1.))+spec*(.025+.12*metallic))*nl;}
+void main(){vec2 uv=mapUV();vec4 base=tint;if(textured!=0)base*=texture(albedoMap,uv);if(alphaMode==1&&base.a<alphaCutoff)discard;vec3 n=safe(N,vec3(0,1,0));if(doubleSided!=0&&!gl_FrontFacing)n=-n;vec3 v=safe(eye-P,n);vec3 lit=base.rgb*(physicalLighting!=0?vec3(0):mix(groundColor,skyColor,n.y*.5+.5)*ambientIntensity*.5)+shade(base.rgb,n,v,safe(sun,n))*sunColor*sunIntensity;
+if(localLightCount>0){ivec2 tile=ivec2(gl_FragCoord.xy)/16;uvec2 range=texelFetch(lightGrid,tile.y*lightGridWidth+tile.x).rg;for(uint i=0u;i<128u;i++){if(i>=range.y)break;int index=int(texelFetch(lightIndices,int(range.x+i)).r)*4;vec4 a=texelFetch(lightData,index),b=texelFetch(lightData,index+1),c=texelFetch(lightData,index+2),d=texelFetch(lightData,index+3);vec3 delta=a.xyz-P;float dd=dot(delta,delta);if(dd>=a.w*a.w||dd<.000001)continue;float dist=sqrt(dd);vec3 l=delta/dist;float q=dd/(a.w*a.w),fall=max(1.-q*q,0.);float attenuation=d.z>.5?1./max(dd,d.w*d.w):fall*fall/(dd+1.);if(d.y>.5)attenuation*=smoothstep(c.w,d.x,dot(-l,safe(c.xyz,vec3(0,-1,0))));lit+=shade(base.rgb,n,v,l)*b.rgb*b.w*attenuation;}}
+vec3 e=emissive;if(hasEmissive!=0)e*=texture(emissiveMap,uv).rgb;lit+=e;float fog=smoothstep(viewDistance*.35,viewDistance*(1.-.55*storm),length(P-eye))*fogDensity;lit=mix(lit,mix(groundColor,skyColor,.65),clamp(fog,0.,1.));color=vec4(max(lit,vec3(0)),alphaMode>=2?base.a:1.);}
+)GLSL";
+
 inline const char *sceneFragment = R"GLSL(#version 330 core
 in vec3 N,P;in vec4 tint,currentClip,previousClip;in vec2 texcoord,linearDepths;
-uniform vec3 eye,sun,sunColor,skyColor,groundColor,emissive;uniform float sunIntensity,ambientIntensity,roughness,metallic,viewDistance,storm,fogDensity,normalScale,alphaCutoff;
-uniform sampler2D albedoMap,normalMap,ormMap,emissiveMap,brdfMap;uniform sampler2DShadow shadowPcf;uniform sampler3D materialNoise;uniform int textureProjection;uniform float textureScale,macroVariation,clearcoat,clearcoatRoughness,environmentRotation,occlusionStrength;uniform samplerCube irradianceMap,environmentMap;
+uniform vec3 eye,sun,sunColor,skyColor,groundColor,emissive,constantOrm;uniform float sunIntensity,ambientIntensity,roughness,metallic,viewDistance,storm,fogDensity,normalScale,alphaCutoff;
+uniform sampler2D albedoMap,normalMap,ormMap,emissiveMap,brdfMap;uniform sampler2DShadow shadowPcf;uniform sampler3D materialNoise;uniform int textureProjection,lowestTextures;uniform float textureScale,macroVariation,clearcoat,clearcoatRoughness,environmentRotation,occlusionStrength;uniform samplerCube irradianceMap,environmentMap;
 uniform samplerBuffer lightData;uniform usamplerBuffer lightGrid,lightIndices;
 uniform int physicalLighting;
 uniform int textured,hasNormal,hasOrm,hasEmissive,alphaMode,doubleSided,shadowQuality,receiveShadow,giMode,iblEnabled,localLightCount,lightGridWidth,reactive;
@@ -29,11 +43,11 @@ vec3 safeNormal(vec3 a,vec3 fallback){float len=dot(a,a);return len>1e-12?a*inve
 vec3 brdf(vec3 base,vec3 n,vec3 v,vec3 l,float r,float metal){vec3 h=safeNormal(v+l,n);float nl=clamp(dot(n,l),0.,1.),nv=clamp(dot(n,v),.001,1.),nh=clamp(dot(n,h),0.,1.),vh=clamp(dot(v,h),0.,1.);float a=r*r,a2=a*a,d=nh*nh*(a2-1.)+1.,D=a2/max(3.14159265*d*d,.0001),k=(r+1.)*(r+1.)/8.;float G=nv/(nv*(1.-k)+k)*nl/max(nl*(1.-k)+k,.001);vec3 f0=mix(vec3(.04),base,metal),F=f0+(1.-f0)*pow(1.-vh,5.);return ((1.-F)*(1.-metal)*base/3.14159265+D*G*F/max(4.*nv*nl,.001))*nl;}
 vec3 environmentDirection(vec3 d){float c=cos(-environmentRotation),s=sin(-environmentRotation);return vec3(c*d.x+s*d.z,d.y,-s*d.x+c*d.z);}
 vec3 weights(vec3 n){vec3 w=pow(abs(n),vec3(5));return w/max(dot(w,vec3(1)),.001);}
-vec4 mapped(sampler2D map){if(textureProjection==0)return texture(map,texcoord*textureScale);vec3 w=weights(normalize(N));return texture(map,P.zy*textureScale)*w.x+texture(map,P.xz*textureScale)*w.y+texture(map,P.xy*textureScale)*w.z;}
+vec4 mapped(sampler2D map){if(textureProjection==0)return texture(map,texcoord*textureScale);if(lowestTextures!=0){vec3 a=abs(N);vec2 uv=a.y>=a.x&&a.y>=a.z?P.xz:a.x>=a.z?P.zy:P.xy;return texture(map,uv*textureScale);}vec3 w=weights(normalize(N));return texture(map,P.zy*textureScale)*w.x+texture(map,P.xz*textureScale)*w.y+texture(map,P.xy*textureScale)*w.z;}
 void main(){vec4 baseColor=tint;if(textured!=0)baseColor*=mapped(albedoMap);if(alphaMode==1&&baseColor.a<alphaCutoff)discard;vec3 base=baseColor.rgb,n=safeNormal(N,vec3(0,1,0)),v=safeNormal(eye-P,n);if(doubleSided!=0&&!gl_FrontFacing)n=-n;
 if(macroVariation>0.){float detail=texture(materialNoise,P*.045).r*.65+texture(materialNoise,P*.14).g*.35;base*=mix(1.,.55+detail*.65,macroVariation);}
 if(hasNormal!=0){if(textureProjection!=0){vec3 w=weights(n),nx=texture(normalMap,P.zy*textureScale).xyz*2.-1.,ny=texture(normalMap,P.xz*textureScale).xyz*2.-1.,nz=texture(normalMap,P.xy*textureScale).xyz*2.-1.;nx.xy*=normalScale;ny.xy*=normalScale;nz.xy*=normalScale;n=safeNormal(vec3(nx.z*sign(n.x),nx.y,nx.x)*w.x+vec3(ny.x,ny.z*sign(n.y),ny.y)*w.y+vec3(nz.x,nz.y,nz.z*sign(n.z))*w.z,n);}else{vec3 dp1=dFdx(P),dp2=dFdy(P);vec2 duv1=dFdx(texcoord),duv2=dFdy(texcoord);float determinant=duv1.x*duv2.y-duv1.y*duv2.x;if(abs(determinant)>.0000001){vec3 fallbackT=safeNormal(cross(abs(n.y)<.9?vec3(0,1,0):vec3(1,0,0),n),vec3(1,0,0));vec3 rawT=(dp1*duv2.y-dp2*duv1.y)/determinant;vec3 T=safeNormal(rawT-n*dot(n,rawT),fallbackT);vec3 rawB=(-dp1*duv2.x+dp2*duv1.x)/determinant;vec3 B=safeNormal(cross(n,T),cross(n,fallbackT))*(dot(cross(n,T),rawB)<0.?-1.:1.);vec3 mappedNormal=texture(normalMap,texcoord*textureScale).xyz*2.-1.;mappedNormal.xy*=normalScale;n=safeNormal(mat3(T,B,n)*mappedNormal,n);}}}
-vec3 orm=hasOrm!=0?mapped(ormMap).rgb:vec3(1);orm.r=mix(1.,orm.r,occlusionStrength);float r=clamp(roughness*orm.g,.06,1.),metal=clamp(metallic*orm.b,0.,1.);vec3 lit=base*(physicalLighting!=0?0.:.055);
+vec3 orm=hasOrm!=0?mapped(ormMap).rgb:lowestTextures!=0?constantOrm:vec3(1);orm.r=mix(1.,orm.r,occlusionStrength);float r=clamp(roughness*orm.g,.06,1.),metal=clamp(metallic*orm.b,0.,1.);vec3 lit=base*(physicalLighting!=0?0.:.055);
 if(giMode!=0)lit=base*mix(groundColor,skyColor,n.y*.5+.5)*ambientIntensity*(1.-metal*.55)*orm.r;
 if(iblEnabled!=0&&giMode!=0){float nv=max(dot(n,v),.001);vec3 f0=mix(vec3(.04),base,metal);vec2 brdfValue=texture(brdfMap,vec2(nv,r)).rg;vec3 diffuse=texture(irradianceMap,environmentDirection(n)).rgb*base*(1.-metal);vec3 specular=textureLod(environmentMap,environmentDirection(reflect(-v,n)),r*7.).rgb*(f0*brdfValue.x+brdfValue.y);lit=(diffuse+specular)*ambientIntensity*orm.r;}
 float visibility=dot(n,sun)>0.?shadow(n):1.;lit+=brdf(base,n,v,normalize(sun),r,metal)*sunColor*sunIntensity*visibility;

@@ -19,7 +19,8 @@ struct GpuMesh {
 struct GpuTexture {
     unsigned object = 0;
     int width = 0, height = 0, uploadedWidth = 0, uploadedHeight = 0;
-    bool srgb = true;
+    bool srgb = true, screenImage = false, averageReady = false;
+    std::array<float,4> average{1,1,1,1};
     std::vector<unsigned char> pixels;
 };
 struct GpuInstance {
@@ -65,6 +66,8 @@ struct PendingTile {
 
 struct Renderer::Impl {
     Context context;
+    SceneObserver *observer=nullptr;
+    unsigned outputFramebuffer() const { return context.outputFramebuffer ? context.outputFramebuffer() : 0; }
     vl::GL gl;
     Jobs jobs;
     Capabilities caps;
@@ -74,6 +77,8 @@ struct Renderer::Impl {
     std::map<unsigned, GpuTexture> textures;
     unsigned nextMesh = 1, nextTexture = 1;
     std::array<MeshId, 3> primitives{};
+    unsigned minimalProgram = 0;
+    bool compactScene = false;
     unsigned sceneProgram = 0, shadowProgram = 0, tessProgram = 0, tessShadowProgram = 0;
     unsigned aoProgram = 0, aoBlurProgram = 0, lightingProgram = 0, dofProgram = 0, tonemapProgram = 0,
              copyProgram = 0, fxaaProgram = 0, uiProgram = 0;
@@ -175,12 +180,15 @@ struct Renderer::Impl {
     unsigned terrainSeed = ~0u, terrainRevision = ~0u;
     Quality terrainQuality = Quality::Off;
     bool terrainHardware = false;
+    int terrainTileSize = 32;
     std::map<TileKey, Tile> tiles;
     std::map<TileKey, PendingTile> pending;
     std::string messages;
     explicit Impl(Context, GraphicsSettings);
     ~Impl();
     const GraphicsSettings &settings() const { return report.effective; }
+    bool minimalFrame()const{const auto&s=settings();return !customMaterialShader&&s.textureQuality==TextureQuality::Lowest&&s.antiAliasing==AntiAliasing::Off&&s.shadows==Quality::Off&&s.ambientOcclusion==Quality::Off&&s.depthOfField==Quality::Off&&s.globalIllumination==GlobalIllumination::Off&&s.reflections==Quality::Off&&s.edgeFusion==Quality::Off&&s.terrainTessellation==Quality::Off&&s.bloom==Quality::Off&&!s.autoExposure&&s.motionBlur==Quality::Off&&s.volumetricFog==Quality::Off;}
+    unsigned surfaceProgram()const{return compactScene?minimalProgram:sceneProgram;}
     unsigned program(const std::string &vs, const std::string &fs, const char *tcs = nullptr,
                      const char *tes = nullptr);
     unsigned texture(int w, int h, unsigned internal, unsigned format, unsigned type,

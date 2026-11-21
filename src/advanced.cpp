@@ -242,7 +242,7 @@ void Renderer::Impl::temporalResolve(unsigned source) {
     gl.Uniform2f(uniform(upscaleProgram, "pixel"), 1.f / outputWidth, 1.f / outputHeight);
     scalar(upscaleProgram, "sharpening", settings().sharpening);
     integer(upscaleProgram, "sameSize", 1);
-    gl.BindFramebuffer(GL_FRAMEBUFFER, 0);
+    gl.BindFramebuffer(GL_FRAMEBUFFER, outputFramebuffer());
     gl.DrawArrays(GL_TRIANGLES, 0, 3);
     stats.drawCalls += 2;
     stats.postPasses += 2;
@@ -267,6 +267,7 @@ void Renderer::light(const Light &light) {
         light.color.r < 0 || light.color.g < 0 || light.color.b < 0 ||
         (light.type == LightType::Spot && length(light.direction) < 1e-8f))
         throw std::invalid_argument("invalid local light");
+    if(impl->observer)impl->observer->lightSubmitted(light);
     impl->lights.push_back(light);
     impl->physicalLighting |= light.falloff == LightFalloff::InverseSquare;
 }

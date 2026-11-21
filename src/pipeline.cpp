@@ -69,9 +69,10 @@ void Renderer::Impl::allocate() {
     h = std::min(caps.maxTextureSize, int(std::round(h * settings().renderScale)));
     int samples = settings().antiAliasing == AntiAliasing::MSAA ? settings().msaaSamples : 1;
     if (!buffersDirty && w == width && h == height && samples == allocatedSamples && ow == outputWidth &&
-        oh == outputHeight)
+        oh == outputHeight && compactScene==minimalFrame())
         return;
     releaseTargets();
+    compactScene=minimalFrame();
     width = w;
     outputWidth = ow;
     outputHeight = oh;
@@ -80,9 +81,9 @@ void Renderer::Impl::allocate() {
     allocatedSamples = samples;
     buffersDirty = false;
     sceneColor = texture(w, h, GL_RGBA16F, GL_RGBA, GL_FLOAT);
-    sceneNormal = texture(w, h, GL_RGBA16F, GL_RGBA, GL_FLOAT);
+    if(!compactScene){sceneNormal = texture(w, h, GL_RGBA16F, GL_RGBA, GL_FLOAT);
     sceneMotion = texture(w, h, GL_RGBA16F, GL_RGBA, GL_FLOAT);
-    sceneSurface = texture(w, h, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);
+    sceneSurface = texture(w, h, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);}
     sceneDepth = texture(w, h, 0x81A6, 0x1902, GL_FLOAT);
     gl.BindTexture(GL_TEXTURE_2D, sceneDepth);
     gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 0x2600);
@@ -92,10 +93,10 @@ void Renderer::Impl::allocate() {
     unsigned colorTextures[] = {sceneColor, sceneNormal, sceneSurface, sceneMotion};
     unsigned attachments[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT0 + 1, GL_COLOR_ATTACHMENT0 + 2,
                               GL_COLOR_ATTACHMENT0 + 3};
-    for (int n = 0; n < 4; n++)
+    for (int n = 0; n < (compactScene?1:4); n++)
         gl.FramebufferTexture2D(GL_FRAMEBUFFER, attachments[n], GL_TEXTURE_2D, colorTextures[n], 0);
     gl.FramebufferTexture2D(GL_FRAMEBUFFER, 0x8D00, GL_TEXTURE_2D, sceneDepth, 0);
-    gl.DrawBuffers(4, attachments);
+    gl.DrawBuffers(compactScene?1:4, attachments);
     if (gl.CheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         throw std::runtime_error("Incomplete scene framebuffer");
     if (samples > 1) {
@@ -162,7 +163,7 @@ void Renderer::Impl::allocate() {
         edges = target(GL_RGBA8);
         weights = target(GL_RGBA8);
     }
-    gl.BindFramebuffer(GL_FRAMEBUFFER, 0);
+    gl.BindFramebuffer(GL_FRAMEBUFFER, outputFramebuffer());
 }
 Renderer::Impl::UniformState &Renderer::Impl::uniformState(unsigned p, std::string_view name) {
     auto &cache = uniforms[p];
@@ -261,6 +262,10 @@ void Renderer::Impl::material(unsigned p, const Material &m) {
             sampler(p, "albedoMap", texture->second.object, 0);
         return;
     }
+    V3 constantOrm{1,1,1};if(settings().textureQuality==TextureQuality::Lowest){auto orm=textures.find(m.ormTexture.value);if(orm!=textures.end()&&orm->second.averageReady)constantOrm={orm->second.average[0],orm->second.average[1],orm->second.average[2]};}
+    if(p==minimalProgram){scalar(p,"windStrength",m.windStrength);scalar(p,"alphaCutoff",m.alphaCutoff);integer(p,"alphaMode",int(m.alphaMode));integer(p,"doubleSided",m.doubleSided);integer(p,"textureProjection",int(m.projection));scalar(p,"textureScale",m.textureScale);scalar(p,"roughness",std::clamp(m.roughness*constantOrm.y,.06f,1.f));scalar(p,"metallic",std::clamp(m.metallic*constantOrm.z,0.f,1.f));vector(p,"emissive",{m.emissive.r,m.emissive.g,m.emissive.b});auto a=textures.find(m.albedoTexture.value),e=textures.find(m.emissiveTexture.value);integer(p,"textured",a!=textures.end());integer(p,"hasEmissive",e!=textures.end());sampler(p,"albedoMap",a==textures.end()?0:a->second.object,0);sampler(p,"emissiveMap",e==textures.end()?0:e->second.object,1);return;}
+    const bool lowest=settings().textureQuality==TextureQuality::Lowest;
+    integer(p,"lowestTextures",lowest);vector(p,"constantOrm",constantOrm);
     scalar(p, "roughness", clamp(m.roughness, .04f, 1));
     scalar(p, "metallic", clamp(m.metallic));
     vector(p, "emissive", {m.emissive.r, m.emissive.g, m.emissive.b});
@@ -274,8 +279,8 @@ void Renderer::Impl::material(unsigned p, const Material &m) {
         auto t = textures.find(pair.first.value);
         sampler(p, pair.second, t == textures.end() ? 0 : t->second.object, unit++);
     }
-    integer(p, "hasNormal", m.normalTexture.value != 0);
-    integer(p, "hasOrm", m.ormTexture.value != 0);
+    integer(p, "hasNormal", !lowest&&m.normalTexture.value != 0);
+    integer(p, "hasOrm", !lowest&&m.ormTexture.value != 0);
     integer(p, "hasEmissive", m.emissiveTexture.value != 0);
     scalar(p, "normalScale", m.normalScale);
     scalar(p, "alphaCutoff", m.alphaCutoff);
@@ -284,8 +289,8 @@ void Renderer::Impl::material(unsigned p, const Material &m) {
     integer(p, "reactive", m.temporalReactive);
     integer(p, "textureProjection", int(m.projection));
     scalar(p, "textureScale", m.textureScale);
-    scalar(p, "macroVariation", m.macroVariation);
-    scalar(p, "clearcoat", m.clearcoat);
+    scalar(p, "macroVariation", lowest?0:m.macroVariation);
+    scalar(p, "clearcoat", lowest?0:m.clearcoat);
     scalar(p, "clearcoatRoughness", m.clearcoatRoughness);
     scalar(p, "windStrength", m.windStrength);
     scalar(p, "occlusionStrength", m.occlusionStrength);
@@ -398,7 +403,7 @@ void Renderer::Impl::prepareCommands() {
         if (mesh == meshLookup.end())
             continue;
         Mat4 x = c.modelMatrix ? *c.modelMatrix : model(c.transform);
-        auto old = motionLookup.find(c.objectId);
+        auto old = compactScene?motionLookup.end():motionLookup.find(c.objectId);
         auto center = transformPoint(x, mesh->second.center);
         float bound = 0;
         for (int col = 0; col < 3; col++)
@@ -543,7 +548,7 @@ unsigned Renderer::Impl::antialias(unsigned source) {
         metrics(smaaBlendProgram);
         sampler(smaaBlendProgram, "source", source, 0);
         sampler(smaaBlendProgram, "blendTex", weights.texture, 1);
-        gl.BindFramebuffer(GL_FRAMEBUFFER, 0);
+        gl.BindFramebuffer(GL_FRAMEBUFFER, outputFramebuffer());
         gl.Viewport(0, 0, outputWidth, outputHeight);
         gl.UseProgram(smaaBlendProgram);
         gl.BindVertexArray(fullscreenVao);
@@ -558,7 +563,7 @@ unsigned Renderer::Impl::antialias(unsigned source) {
     gl.Uniform2f(uniform(p, "pixel"), 1.f / width, 1.f / height);
     scalar(p, "sharpening", settings().sharpening);
     integer(p, "sameSize", width == outputWidth && height == outputHeight);
-    gl.BindFramebuffer(GL_FRAMEBUFFER, 0);
+    gl.BindFramebuffer(GL_FRAMEBUFFER, outputFramebuffer());
     gl.Viewport(0, 0, outputWidth, outputHeight);
     gl.UseProgram(p);
     gl.BindVertexArray(fullscreenVao);
@@ -615,6 +620,7 @@ void Renderer::Impl::pipeline() {
         previousVP = vp;
         previousView = view;
     }
+    stats.lightweightRendering=compactScene;stats.sceneColorAttachments=compactScene?1:4;
     prepareCommands();
     uploadLights();
     invProjection = inverse(projection);
@@ -657,7 +663,7 @@ void Renderer::Impl::pipeline() {
     gl.Viewport(0, 0, width, height);
     unsigned outputs[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT0 + 1, GL_COLOR_ATTACHMENT0 + 2,
                           GL_COLOR_ATTACHMENT0 + 3};
-    gl.DrawBuffers(4, outputs);
+    gl.DrawBuffers(compactScene?1:4, outputs);
     gl.ClearColor(environment.skyColor.r * .4f, environment.skyColor.g * .4f, environment.skyColor.b * .4f,
                   1);
     gl.Clear(GL_COLOR_BUFFER_BIT | 0x100);
@@ -665,7 +671,7 @@ void Renderer::Impl::pipeline() {
         gl.Enable(0x809D);
     else
         gl.Disable(0x809D);
-    depthPrepassed = !settings().wireframe && !customMaterialShader;
+    depthPrepassed = !compactScene && !settings().wireframe && !customMaterialShader;
     if (depthPrepassed) {
         gl.DrawBuffer(0);
         countDraws = false;
@@ -673,9 +679,9 @@ void Renderer::Impl::pipeline() {
         if (terrainRequested)
             drawTerrain(false, true);
         countDraws = true;
-        gl.DrawBuffers(4, outputs);
+        gl.DrawBuffers(compactScene?1:4, outputs);
     }
-    drawCommands(sceneProgram, vp, false);
+    drawCommands(surfaceProgram(), vp, false);
     if (terrainRequested)
         drawTerrain(false);
     gl.PolygonMode(0x0408, 0x1B02);
@@ -692,8 +698,8 @@ void Renderer::Impl::pipeline() {
     integer(skyProgram, "enabled", sky != environments.end());
     sampler(skyProgram, "skyEquirect", sky == environments.end() ? 0 : sky->second.source, 0);
     scalar(skyProgram, "environmentRotation", environment.imageRotation);
-    integer(skyProgram, "atmosphereEnabled", environment.atmosphere.enabled);
-    integer(skyProgram, "cloudSteps", std::array{0, 8, 12, 20, 32}[int(environment.atmosphere.clouds)]);
+    integer(skyProgram, "atmosphereEnabled", environment.atmosphere.enabled&&!compactScene);
+    integer(skyProgram, "cloudSteps", compactScene?0:std::array{0, 8, 12, 20, 32}[int(environment.atmosphere.clouds)]);
     vector(skyProgram, "eye", camera.position);
     vector(skyProgram, "sun", normalized(environment.sunDirection));
     vector(skyProgram, "sunColor", {environment.sunColor.r, environment.sunColor.g, environment.sunColor.b});
@@ -755,6 +761,7 @@ void Renderer::Impl::pipeline() {
         gl.GenerateMipmap(GL_TEXTURE_2D);
         gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 0x2703);
     }
+    if(compactScene){gl.BindFramebuffer(0x8CA8,sceneFbo);gl.ReadBuffer(GL_COLOR_ATTACHMENT0);gl.BindFramebuffer(0x8CA9,lit.fbo);gl.DrawBuffer(GL_COLOR_ATTACHMENT0);gl.BlitFramebuffer(0,0,width,height,0,0,width,height,GL_COLOR_BUFFER_BIT,0x2600);}else{
     gl.UseProgram(lightingProgram);
     sampler(lightingProgram, "source", sceneColor, 0);
     sampler(lightingProgram, "depthMap", sceneDepth, 1);
@@ -772,12 +779,13 @@ void Renderer::Impl::pipeline() {
     vector(lightingProgram, "skyColor",
            {environment.skyColor.r, environment.skyColor.g, environment.skyColor.b});
     fullscreen(lightingProgram, lit.fbo);
+    }
     gl.BindFramebuffer(GL_FRAMEBUFFER, transparentFbo);
     gl.DrawBuffer(GL_COLOR_ATTACHMENT0);
     gl.Enable(0x0B71);
     gl.DepthMask(0);
     gl.Enable(GL_BLEND);
-    drawCommands(sceneProgram, vp, false, true);
+    drawCommands(surfaceProgram(), vp, false, true);
     gl.Disable(GL_BLEND);
     if (settings().antiAliasing == AntiAliasing::TAA) {
         gl.BindFramebuffer(GL_FRAMEBUFFER, sceneFbo);
@@ -853,14 +861,14 @@ void Renderer::Impl::pipeline() {
     fullscreen(tonemapProgram, display.fbo);
     antialias(display.texture);
     gl.BindSampler(13, 0);
-    gl.BindFramebuffer(GL_FRAMEBUFFER, 0);
+    gl.BindFramebuffer(GL_FRAMEBUFFER, outputFramebuffer());
     gl.Viewport(0, 0, outputWidth, outputHeight);
     previousVP = vp;
     previousView = view;
     lastEye = camera.position;
     lastDirection = camera.direction;
     previousModels.clear();
-    for (const auto &c : prepared)
+    if(!compactScene)for (const auto &c : prepared)
         if (c.source && c.source->objectId)
             previousModels[c.source->objectId] = c.instance.model;
     historyValid = true;

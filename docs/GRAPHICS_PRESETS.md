@@ -22,7 +22,7 @@ All presets use the native output resolution (`render_scale=1`) and textured mod
 
 | General engine preset | AA | Texture tier | Shadows | AO | Depth of field | View distance |
 | --- | --- | --- | --- | --- | --- | --- |
-| Minimal | Off | Low | Off | Off | Off | 80 m |
+| Minimal | Off | Lowest (64 px) | Off | Off | Off | 320 m |
 | Low | FXAA | Low | Low | Off | Off | 100 m |
 | Medium | FXAA | High | Medium | Medium | Off | 200 m |
 | High | TAA | High | High | High | Off | 300 m |
@@ -46,7 +46,7 @@ focus_adaptation=6
 focus_distance=12
 ```
 
-`focus_distance` applies in manual mode (`auto_focus=0`). The graphics lab also accepts `--auto-focus 0|1`, `--focus-speed VALUE`, and `--focus METERS`; an explicit `--focus` selects manual mode. `--debug-dir` can write the current GPU focus distance to `autofocus.txt` alongside the diagnostic images. This readback occurs only when diagnostics are requested.
+`focus_distance` applies in manual mode (`auto_focus=0`). The graphics lab also accepts `--auto-focus 0|1`, `--focus-speed VALUE`, and `--focus METERS`; an explicit `--focus` selects manual mode. The showcase’s `--debug-dir` can write the current GPU focus distance to `autofocus.txt` alongside the diagnostic images. This readback occurs only when diagnostics are requested.
 
 ## Processing and worker control
 
@@ -57,3 +57,5 @@ JSD_WORKERS=4 ./run-showcase.sh --profile frame-times.csv
 ```
 
 The profile retains its existing columns and adds `prepare_ms` and `workers`. These separate CPU command preparation from driver submission/GPU costs. New settings/statistics fields require rebuilding engine consumers; the ordinary source build rebuilds the engine and both examples together. See `PERFORMANCE.md` for measured results and limits.
+
+Minimal uses a compact forward path with reduced surface/sky work and coarser distant terrain; see [Minimal rendering](MINIMAL_RENDERING.md). Other presets retain their rendering path.

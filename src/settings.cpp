@@ -25,9 +25,9 @@ bool parseGraphicsPreset(std::string_view text, GraphicsPreset &preset) {
 }
 GraphicsSettings GraphicsSettings::minimal() {
     auto s = legacy();
-    s.textureQuality = TextureQuality::Low;
+    s.textureQuality = TextureQuality::Lowest;
     s.anisotropy = 1;
-    s.viewDistance = 80;
+    s.viewDistance = 320;
     return s;
 }
 GraphicsSettings GraphicsSettings::medium() { return balanced(); }
@@ -58,8 +58,8 @@ const char *name(Quality q) {
     return n[std::clamp(int(q), 0, 4)];
 }
 const char *name(TextureQuality q) {
-    static const char *n[] = {"low", "medium", "high", "ultra"};
-    return n[std::clamp(int(q), 0, 3)];
+    static const char *n[] = {"low", "medium", "high", "ultra", "lowest"};
+    return n[std::clamp(int(q), 0, 4)];
 }
 const char *name(GlobalIllumination q) {
     static const char *n[] = {"off", "ambient-probe", "screen-space"};
@@ -73,6 +73,7 @@ const char *name(ToneMapper q) {
     static const char *n[] = {"aces", "reinhard", "neutral"};
     return n[std::clamp(int(q), 0, 2)];
 }
+int textureEdgeLimit(TextureQuality q){return std::array{512,1024,2048,4096,64}[std::clamp(int(q),0,4)];}
 GraphicsSettings GraphicsSettings::legacy() {
     GraphicsSettings s;
     s.antiAliasing = AntiAliasing::Off;
@@ -143,13 +144,11 @@ SettingsReport resolveSettings(GraphicsSettings requested, const Capabilities &c
                     &s.edgeFusion, &s.terrainTessellation, &s.bloom, &s.motionBlur, &s.volumetricFog})
         quality(*q);
     s.antiAliasing = AntiAliasing(std::clamp(int(s.antiAliasing), 0, 4));
-    s.textureQuality = TextureQuality(std::clamp(int(s.textureQuality), 0, 3));
+    s.textureQuality = TextureQuality(std::clamp(int(s.textureQuality), 0, 4));
     s.globalIllumination = GlobalIllumination(std::clamp(int(s.globalIllumination), 0, 2));
     s.tessellationBackend = TessellationBackend(std::clamp(int(s.tessellationBackend), 0, 2));
     auto originalTexture = s.textureQuality;
-    while (int(s.textureQuality) > 0 &&
-           std::array{512, 1024, 2048, 4096}[int(s.textureQuality)] > c.maxTextureSize)
-        s.textureQuality = TextureQuality(int(s.textureQuality) - 1);
+    if(textureEdgeLimit(s.textureQuality)>c.maxTextureSize){auto chosen=TextureQuality::Lowest;for(auto tier:{TextureQuality::Lowest,TextureQuality::Low,TextureQuality::Medium,TextureQuality::High,TextureQuality::Ultra})if(textureEdgeLimit(tier)<=c.maxTextureSize&&textureEdgeLimit(tier)<=textureEdgeLimit(originalTexture))chosen=tier;s.textureQuality=chosen;}
     if (s.textureQuality != originalTexture)
         note("Texture quality reduced to maximum driver texture size");
     auto originalShadow = s.shadows;
@@ -309,7 +308,7 @@ bool loadSettings(const std::filesystem::path &p, GraphicsSettings &result, std:
             else if (key == "msaa_samples")
                 s.msaaSamples = integer(v);
             else if (key == "texture_quality")
-                parseEnum(v, s.textureQuality, 3);
+                parseEnum(v, s.textureQuality, 4);
             else if (key == "anisotropy")
                 s.anisotropy = integer(v);
             else if (key == "view_distance")

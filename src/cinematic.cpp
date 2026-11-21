@@ -67,7 +67,7 @@ void Renderer::Impl::drawParticles() {
     gl.BlitFramebuffer(0, 0, width, height, 0, 0, width, height, 0x100, 0x2600);
     gl.BindFramebuffer(GL_FRAMEBUFFER, transparentFbo);
     unsigned outputs[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT0 + 1};
-    gl.DrawBuffers(2, outputs);
+    gl.DrawBuffers(compactScene?1:2, outputs);
     gl.ColorMaski(1, 0, 0, 0, 1);
     gl.Enable(0x0B71);
     gl.DepthMask(0);
@@ -116,6 +116,7 @@ void Renderer::Impl::drawParticles() {
 void Renderer::image(TextureId texture, float x, float y, float w, float h, Color tint) {
     if (!impl->textures.contains(texture.value) || !std::isfinite(x + y + w + h) || w <= 0 || h <= 0)
         throw std::invalid_argument("invalid UI image");
+    auto &image=impl->textures.at(texture.value);if(!image.screenImage){image.screenImage=true;impl->upload(image);}
     impl->uiImages.push_back({texture, x, y, w, h, tint});
 }
 void Renderer::Impl::drawImages() {

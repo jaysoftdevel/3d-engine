@@ -65,7 +65,7 @@ Do not set that override on a machine missing desktop headers unless supplying t
 
 | Variable | Purpose |
 | --- | --- |
-| CMAKE | CMake executable, 3.20+ |
+| CMAKE | CMake executable, 3.21+ |
 | CC / CXX | C/C++ compiler selection |
 | JSD_BUILD_TYPE | Release or Debug (run.sh uses this mode) |
 | JSD_BUILD_JOBS | Parallel compile jobs; default 4 |

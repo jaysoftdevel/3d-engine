@@ -4,11 +4,11 @@
 
 namespace rf::gfx {
 namespace {
-TileData generate(TileKey key, int divisions, bool hardware, unsigned seed,
-                  std::function<float(float, float)> fn) {
+TileData generate(TileKey key, int divisions, bool hardware, unsigned seed,float span,
+                  std::function<float(float, float)> fn,std::function<Color(float,float)> color) {
     TileData data;
     data.divisions = divisions;
-    float ox = key.first * 32.f, oz = key.second * 32.f;
+    float ox = key.first * span, oz = key.second * span;
     auto height = [&](float x, float z) {
         float h = fn ? fn(x, z) : terrainHeight(x, z, seed);
         if (!std::isfinite(h) || std::abs(h) > 10000)
@@ -18,7 +18,7 @@ TileData generate(TileKey key, int divisions, bool hardware, unsigned seed,
     auto point = [&](float x, float z) {
         float h = height(x + ox, z + oz), dx = height(x + ox + .25f, z + oz) - height(x + ox - .25f, z + oz),
               dz = height(x + ox, z + oz + .25f) - height(x + ox, z + oz - .25f);
-        return Vertex{{x, h, z}, normalized({-dx, .5f, -dz}), {}, (x + ox) * .125f, (z + oz) * .125f};
+        return Vertex{{x, h, z}, normalized({-dx, .5f, -dz}), color?color(x+ox,z+oz):Color{}, (x + ox) * .125f, (z + oz) * .125f};
     };
     if (hardware) {
         for (int z = 0; z < 4; z++)
@@ -33,7 +33,7 @@ TileData generate(TileKey key, int divisions, bool hardware, unsigned seed,
                 data.heights.push_back(height(ox + x * .5f, oz + z * .5f));
         return data;
     }
-    float step = 32.f / divisions;
+    float step = span / divisions;
     data.vertices.reserve(divisions * divisions * 6 + divisions * 24);
     // Retain the original triangles and seams while evaluating shared vertices once.
     std::vector<Vertex> grid(size_t(divisions + 1) * (divisions + 1));
@@ -51,20 +51,20 @@ TileData generate(TileKey key, int divisions, bool hardware, unsigned seed,
         for (int k = 0; k < divisions; k++) {
             float t = k * step, next = (k + 1) * step;
             auto a = point(side == 0   ? 0
-                           : side == 1 ? 32
+                           : side == 1 ? span
                                        : t,
                            side == 2   ? 0
-                           : side == 3 ? 32
+                           : side == 3 ? span
                                        : t),
                  b = point(side == 0   ? 0
-                           : side == 1 ? 32
+                           : side == 1 ? span
                                        : next,
                            side == 2   ? 0
-                           : side == 3 ? 32
+                           : side == 3 ? span
                                        : next);
             auto c = a, d = b;
-            c.p.y -= 2;
-            d.p.y -= 2;
+            c.p.y -= span==64?8:2;
+            d.p.y -= span==64?8:2;
             data.vertices.insert(data.vertices.end(), {a, b, c, c, b, d});
         }
     return data;
@@ -72,9 +72,10 @@ TileData generate(TileKey key, int divisions, bool hardware, unsigned seed,
 } // namespace
 void Renderer::Impl::streamTerrain() {
     bool hardware = settings().terrainTessellation != Quality::Off &&
-                    settings().tessellationBackend == TessellationBackend::Hardware;
+                    settings().tessellationBackend == TessellationBackend::Hardware && !terrainSpec.color;
+    const int span=compactScene?64:32;
     if (terrainSeed != terrainSpec.seed || terrainRevision != terrainSpec.revision ||
-        terrainQuality != settings().terrainTessellation || terrainHardware != hardware) {
+        terrainQuality != settings().terrainTessellation || terrainHardware != hardware || terrainTileSize!=span) {
         for (auto &[key, t] : tiles) {
             (void)key;
             destroy(t);
@@ -84,10 +85,10 @@ void Renderer::Impl::streamTerrain() {
         terrainSeed = terrainSpec.seed;
         terrainRevision = terrainSpec.revision;
         terrainQuality = settings().terrainTessellation;
-        terrainHardware = hardware;
+        terrainHardware = hardware;terrainTileSize=span;
     }
-    int cx = std::floor(camera.position.x / 32), cz = std::floor(camera.position.z / 32),
-        radius = std::ceil(settings().viewDistance / 32);
+    int cx = std::floor(camera.position.x / span), cz = std::floor(camera.position.z / span),
+        radius = std::ceil(settings().viewDistance / span);
     int base = std::array{8, 16, 32, 48, 64}[int(settings().terrainTessellation)];
     stats.terrainSubdivisions = hardware ? base / 4 : base;
     stats.hardwareTessellation = hardware;
@@ -95,8 +96,8 @@ void Renderer::Impl::streamTerrain() {
     for (int z = -radius; z <= radius; z++)
         for (int x = -radius; x <= radius; x++) {
             TileKey key{cx + x, cz + z};
-            if (flatDistance(camera.position, {key.first * 32.f + 16, 0, key.second * 32.f + 16}) <
-                settings().viewDistance + 24)
+            if (flatDistance(camera.position, {key.first * float(span) + span*.5f, 0, key.second * float(span) + span*.5f}) <
+                settings().viewDistance + span*.75f)
                 wanted.push_back(key);
         }
     std::sort(wanted.begin(), wanted.end(), [&](auto a, auto b) {
@@ -105,8 +106,8 @@ void Renderer::Impl::streamTerrain() {
     });
     int added = 0;
     for (auto key : wanted) {
-        float distance = flatDistance(camera.position, {key.first * 32.f + 16, 0, key.second * 32.f + 16});
-        int divisions = hardware         ? base
+        float distance = flatDistance(camera.position, {key.first * float(span) + span*.5f, 0, key.second * float(span) + span*.5f});
+        int divisions = compactScene? (distance>256?1:distance>160?2:distance>80?4:8) : hardware         ? base
                         : distance > 160 ? std::min(base, 8)
                         : distance > 80  ? std::min(base, 16)
                                          : base;
@@ -114,9 +115,9 @@ void Renderer::Impl::streamTerrain() {
         if (!pending.contains(key) && (current == tiles.end() || current->second.divisions != divisions) &&
             (context.offscreen || added < 8)) {
             unsigned seed = terrainSpec.seed;
-            auto fn = terrainSpec.height;
-            pending.emplace(key, PendingTile{jobs.submit([key, divisions, hardware, seed, fn] {
-                                                 return generate(key, divisions, hardware, seed, fn);
+            auto fn = terrainSpec.height;auto color=terrainSpec.color;
+            pending.emplace(key, PendingTile{jobs.submit([key, divisions, hardware, seed, fn,color,span] {
+                                                 return generate(key, divisions, hardware, seed,span, fn,color);
                                              }),
                                              divisions});
             added++;
@@ -147,7 +148,7 @@ void Renderer::Impl::streamTerrain() {
             ++it;
     }
     for (auto it = tiles.begin(); it != tiles.end();) {
-        if (flatDistance(camera.position, {it->first.first * 32.f + 16, 0, it->first.second * 32.f + 16}) >
+        if (flatDistance(camera.position, {it->first.first * float(span) + span*.5f, 0, it->first.second * float(span) + span*.5f}) >
             settings().viewDistance + 70) {
             destroy(it->second);
             it = tiles.erase(it);
@@ -166,7 +167,7 @@ void Renderer::Impl::drawTerrain(bool shadow, bool depthOnly) {
     const bool lateDepth = depthPrepassed && opaque && !shadow && !depthOnly;
     const bool depthProgram = shadow || depthOnly;
     unsigned p = terrainHardware ? (depthProgram ? tessShadowProgram : tessProgram)
-                                 : (depthProgram ? shadowProgram : sceneProgram);
+                                 : (depthProgram ? shadowProgram : surfaceProgram());
     const Mat4 &matrix = shadow ? lightVP : vp;
     common(p, matrix);
     material(p, terrainSpec.material);
@@ -177,7 +178,7 @@ void Renderer::Impl::drawTerrain(bool shadow, bool depthOnly) {
     std::array<GpuInstance, 1> batch;
     batch[0].color=terrainSpec.material.albedo;
     for (auto &[key, tile] : tiles) {
-        Transform t{{key.first * 32.f, 0, key.second * 32.f}, {1, 1, 1}, 0};
+        Transform t{{key.first * float(terrainTileSize), 0, key.second * float(terrainTileSize)}, {1, 1, 1}, 0};
         if (!visible(tile.mesh, t, matrix))
             continue;
         batch[0].model=model(t);batch[0].previous=batch[0].model;

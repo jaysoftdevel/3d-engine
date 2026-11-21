@@ -63,7 +63,7 @@ public:
                 settings.msaaSamples = settings.msaaSamples >= 8 ? 2 : settings.msaaSamples * 2;
             });
             row("TEXTURE QUALITY", name(settings.textureQuality), [&] {
-                settings.textureQuality = TextureQuality((int(settings.textureQuality) + 1) % 4);
+                settings.textureQuality = TextureQuality((int(settings.textureQuality) + 1) % 5);
             });
             row("ANISOTROPY", number(settings.anisotropy) + "X", [&] {
                 settings.anisotropy = settings.anisotropy >= 16 ? 1 : settings.anisotropy * 2;

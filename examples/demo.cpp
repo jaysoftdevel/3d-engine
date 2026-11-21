@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
                     << "JSD Game Engine graphics laboratory 0.4.0\n\nWASD move, arrows look, Tab mouse "
                        "capture, Escape quit. Click settings to cycle.\n\n--preset "
                        "minimal|low|medium|high|max\n--aa off|fxaa|smaa|msaa|taa --msaa 2|4|8\n--textures "
-                       "low|medium|high|ultra --anisotropy 1|2|4|8|16\n--shadows off|low|medium|high|ultra "
+                       "lowest|low|medium|high|ultra --anisotropy 1|2|4|8|16\n--shadows off|low|medium|high|ultra "
                        "--view-distance METERS\n--ao QUALITY --dof QUALITY --auto-focus 0|1 --focus-speed 0.1..30 --focus METERS\n--gi "
                        "off|ambient-probe|screen-space --gi-quality QUALITY\n--ssr QUALITY --edge-fusion "
                        "QUALITY --tessellation QUALITY\n--terrain-backend "
@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
             else if (key == "--msaa")
                 settings.msaaSamples = std::stoi(v);
             else if (key == "--textures")
-                settings.textureQuality = parse<TextureQuality>(v, 4);
+                settings.textureQuality = parse<TextureQuality>(v, 5);
             else if (key == "--anisotropy")
                 settings.anisotropy = std::stoi(v);
             else if (key == "--shadows")

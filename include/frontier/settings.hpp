@@ -8,7 +8,8 @@ namespace rf::gfx {
 enum class AntiAliasing { Off, FXAA, SMAA, MSAA, TAA };
 enum class ToneMapper { ACES, Reinhard, Neutral };
 enum class Quality { Off, Low, Medium, High, Ultra };
-enum class TextureQuality { Low, Medium, High, Ultra };
+// Existing serialized values remain unchanged; Lowest is appended.
+enum class TextureQuality { Low, Medium, High, Ultra, Lowest };
 enum class GlobalIllumination { Off, AmbientProbe, ScreenSpace };
 enum class TessellationBackend { Automatic, Mesh, Hardware };
 enum class GraphicsPreset { Minimal, Low, Medium, High, Max };
@@ -64,6 +65,7 @@ struct SettingsReport {
     GraphicsSettings requested, effective;
     std::vector<std::string> adjustments;
 };
+int textureEdgeLimit(TextureQuality);
 SettingsReport resolveSettings(GraphicsSettings requested, const Capabilities &caps);
 const char *name(AntiAliasing value);
 const char *name(Quality value);

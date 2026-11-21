@@ -1,4 +1,5 @@
 #include "cinematic_tests.hpp"
+#include "minimal_tests.hpp"
 #include "runtime_tests.hpp"
 #include "processing_tests.hpp"
 #include "vehicle_tests.hpp"
@@ -69,8 +70,9 @@ int main(int argc, char **argv) {
         auto vertical = lookAt({0, 0, 0}, {0, 1, 0});
         test(std::abs(vertical.m[0]) + std::abs(vertical.m[8]) > .9f,
              "vertical view keeps a valid camera basis");
-        test(std::string(frontier_engine_version()) == "0.4.4", "exported engine version symbol");
+        test(std::string(frontier_engine_version()) == rf::gfx::Version, "exported engine version symbol");
         processingTests(test);
+        minimalSettingsTests(test);
         vehicleTests(test);
         runtimeTests(test);
         cinematicTests(test);
@@ -271,6 +273,7 @@ int main(int argc, char **argv) {
             cinematicGraphicsTests(test, renderer);
             autofocusGraphicsTests(test, renderer);
             opticsGraphicsTests(test, renderer);
+            minimalGraphicsTests(test,renderer);
             renderer.destroyMesh(motionBox);
             renderer.destroyTexture(texture);
             test(renderer.textureDimensions(texture) == std::pair{0, 0},

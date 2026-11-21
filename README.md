@@ -1,8 +1,14 @@
-# JSD Game Engine 0.4.4 — standalone source project
+# JSD Game Engine 0.5.2 — standalone source project
 
 An independent native C++20 Linux engine. The archive contains one top-level directory: `jsd-game-engine`. The optional autoplay showcase is included under `examples/showcase`, as a target of the engine build. All primary source, public headers, dependencies, build scripts, engine tools, documentation and tests live here in `jsd-game-engine`. The showcase is disabled by default (`JSD_BUILD_SHOWCASE=OFF`). The engine builds, tests and runs its graphics lab independently. The graphics/runtime APIs and 0.4.1 performance improvements remain available.
 
 **No compiled executables, libraries, object files, Gradle wrapper JARs or build caches are distributed.** All engine, SDL2 and Jolt code is built locally; cgltf/stb/SMAA source is compiled as part of the engine. Images, meshes and audio are runtime input data.
+
+## Editable engine projects
+
+The 160-second SUNDOG tour now flies continuously from the relay into a mountain cave refinery and extraction gallery, then returns without a camera cut. [Expansion details](examples/showcase/docs/DEEP_REFINERY.md).
+
+The complete SUNDOG project is in `projects/sundog/sundog.jsdproject`, with all runtime resources in `sundog.assets/`. Run `./run-project.sh`, or open it in the separate sibling editor. Projects retain geometry, materials, motion, terrain, lighting, optics, effects, audio, HUD, physics proxies and rendering settings. [Project format and workflow](docs/JSDPROJECT.md).
 
 ## Use
 
@@ -20,7 +26,7 @@ Run `./run-showcase.sh` or `./run.sh --showcase` to enable/build and launch the 
 
 The default build uses bundled dependency source and does not fetch code. If compiler/build tools or desktop development headers are missing, the scripts run `install_deps.sh`. OS package installation requires network/admin access; normal compilation/install stays inside the workspace. Set `JSD_AUTO_INSTALL_DEPS=0` if your toolchain/headers are already provisioned. The GPU driver, glibc and OS window/audio libraries are system prerequisites.
 
-`JSD_BUILD_JOBS=8` selects parallelism and `CMAKE=/path/to/cmake` selects CMake 3.20+. `JSD_INSTALL_PREFIX=/your/sdk` selects an SDK destination. The engine is compiled once into PIC object files, reused by its shared/static outputs. Both variants use the same source-built SDL shared runtime. [Build details](docs/BUILDING.md).
+`JSD_BUILD_JOBS=8` selects parallelism and `CMAKE=/path/to/cmake` selects CMake 3.21+. `JSD_INSTALL_PREFIX=/your/sdk` selects an SDK destination. The engine is compiled once into PIC object files, reused by its shared/static outputs. Both variants use the same source-built SDL shared runtime. [Build details](docs/BUILDING.md).
 
 ## External game dependency
 
@@ -58,3 +64,5 @@ Graphics controls now include Minimal, Low, Medium, High and Max presets in both
 Rover wheel direction, circumference-based rotation and ground contact are corrected in the [rover physics update](docs/ROVER_PHYSICS.md).
 
 The [SI physics layer](docs/PHYSICS.md) now provides density-based mass/inertia, gravity, force/torque, stable damping/drag, fixed-step scheduling and swept cinematic motion. Rover/crane actors use collision-aware solver poses. [Physical camera and photometry](docs/OPTICS.md) add metre-based lenses, shutter/ISO exposure and lumen/lux lighting without changing legacy defaults.
+
+Minimal now uses a 320 m horizon and a 64 px Lowest world-texture tier, with compact forward rendering and coarse distant terrain. [Settings, diagnostics and trade-offs](docs/MINIMAL_RENDERING.md).

@@ -85,8 +85,8 @@ g::TextureId Showcase::texture(const std::string &name, bool srgb) {
   ownedTextures.push_back(id);
   return id;
 }
-Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a)
-    : graphics(r), assetRoot(a), dustLeft(VfxSettings::dust()), dustRight([] {
+Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a,jsd::project::ProjectCapture *capture)
+    : graphics(r), assetRoot(a),authoring(capture), dustLeft(VfxSettings::dust()), dustRight([] {
         auto s = VfxSettings::dust();
         s.seed = 849;
         return s;
@@ -116,6 +116,7 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a)
     scanCliff[i] = importModel("namaqualand_cliff_01-" + suffix + ".gltf");
   }
   buildScenery();
+  buildCave();
   auto hdr = loadHdr(assetRoot / "showcase/scans/kloofendal-4k.hdr");
   double logLuma = 0, totalWeight = 0;
   float peak = 0;
@@ -136,6 +137,7 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a)
       }
     }
   float scale = .35f / std::exp(logLuma / std::max(1., totalWeight));
+  skyGain=scale;
   for (auto &value : hdr.rgb)
     value *= scale;
   float phi = (brightest % hdr.width + .5f) / hdr.width * 2 * rf::pi - rf::pi,
@@ -308,11 +310,14 @@ void Showcase::buildMaterials() {
   materials["white"] = white;
 }
 void Showcase::buildModels() {
+  std::map<std::string,std::vector<jsd::project::ProjectCapture::Part>> authoredParts;
+  unsigned partNumber=0;
   using Group = std::map<std::string, std::vector<g::Vertex>>;
   Group data;
   auto put = [&](const char *mat, const std::vector<g::Vertex> &shape, V3 p,
                  V3 size, float yaw = 0, float pitch = 0, float roll = 0) {
     g::appendMesh(data[mat], shape, matrix(p, size, yaw, pitch, roll));
+    if(authoring)authoredParts[mat].push_back({mesh(shape),materials.at(mat),matrix(p,size,yaw,pitch,roll),std::string(mat)+" part "+std::to_string(++partNumber)});
   };
   auto B = g::makeBeveledBox(.07f, 3), C = g::makeCylinder(32),
        S = g::makeSphere(24, 12), T = g::makeTorus(.4f, .11f, 40, 12),
@@ -326,10 +331,11 @@ void Showcase::buildModels() {
           extent.y=std::max(extent.y,std::abs(v.p.y));
           extent.z=std::max(extent.z,std::abs(v.p.z));
         }
-        model.parts.push_back({mesh(std::move(vertices)), materials.at(name)});
+        auto baked=mesh(std::move(vertices));model.parts.push_back({baked, materials.at(name)});
+        if(authoring)authoring->parts(baked,authoredParts[name]);
       }
     model.halfExtent=extent;
-    data.clear();
+    data.clear();authoredParts.clear();
   };
   // Six-wheel expedition vehicle: layered panels, glazed cab, bolts, exposed
   // suspension and cargo bed.
@@ -480,6 +486,7 @@ void Showcase::add(g::MeshId shape, const g::Material &m, V3 position, V3 scale,
       a.w*b.z+a.x*b.y-a.y*b.x+a.z*b.w,
       a.w*b.w-a.x*b.x-a.y*b.y-a.z*b.z};};
     solid.rotation=multiply(multiply(zq,yq),xq);
+    if(authoring)colliderRecords[d.objectId]=solid;
     if (shape == cylinder && std::abs(scale.x-scale.z) < .001f)
       physics.cylinder(solid,scale.y*.5f,scale.x*.5f);
     else physics.box(solid);
@@ -521,7 +528,7 @@ void Showcase::buildScenery() {
   const Massif massifs[] = {
       {{-47, 0, 48}, {44, 32, 37}, 41}, {{-22, 0, 95}, {48, 43, 42}, 77},
       {{30, 0, 113}, {53, 48, 42}, 93}, {{72, 0, 64}, {47, 41, 37}, 114},
-      {{-92, 0, 86}, {51, 43, 45}, 53}, {{100, 0, 135}, {62, 55, 48}, 199}};
+      {{-92, 0, 86}, {51, 43, 45}, 53}, {{194, 0, 152}, {62, 55, 48}, 199}};
   for (auto &m : massifs) {
     V3 scale{m.scale.x, m.scale.y * 1.15f, m.scale.z};
     place(scanCliff[0],
@@ -732,6 +739,7 @@ void Showcase::resetSimulation() {
   for (auto *e :
        {&dustLeft, &dustRight, &steam, &steam2, &sparks, &sand, &gravel})
     e->clear();
+  for(auto &e:caveEffects)e.clear();
 }
 void Showcase::reset() {
   missionTime = 0;
@@ -823,20 +831,10 @@ void Showcase::update(float dt) {
     float actualZ=(physical.position-rf::transformVector(rf::compose({},physical.rotation),{0,1.6f,0})).z;
     roverMotion.advanceToZ(actualZ,simulationStep);
   }
+  updateCave(simulationStep);
   (void)physics.contacts();
 }
-g::Camera Showcase::camera() const {
-  static CameraTrack track({{0, {9.0f, 4.1f, -48}, {-1, 1.9f, -29}, 55},
-                            {8, {8.0f, 3.4f, -35}, {-1, 2.0f, -19}, 55},
-                            {16, {8.0f, 3.6f, -19}, {-1, 1.9f, -3}, 54},
-                            {24, {9.0f, 4.0f, -8}, {0, 2.2f, 5}, 55},
-                            {32, {8.0f, 3.6f, -2}, {1, 2.5f, 6}, 58},
-                            {40, {-5.6f, 3.2f, 5}, {2.4f, 2.3f, 10.4f}, 55},
-                            {48, {-9.5f, 6.4f, -.5f}, {3.5f, 5.3f, 14}, 55},
-                            {56, {-15.2f, 9.1f, -16}, {.2f, 4.5f, 10}, 54},
-                            {64, {9.0f, 4.1f, -48}, {-1, 1.9f, -29}, 55}});
-  return track.sample(elapsed);
-}
+g::Camera Showcase::camera() const {return cameraAt(elapsed);}
 void Showcase::drawRover(float t) {
   const Mat4 &root = roverMotion.body();
   rover.draw(graphics, root, 2000000);
@@ -855,7 +853,7 @@ void Showcase::drawRover(float t) {
 unsigned Showcase::activeParticles() const {
   return dustLeft.active().size() + dustRight.active().size() +
          steam.active().size() + steam2.active().size() +
-         sparks.active().size() + sand.active().size() + gravel.active().size();
+         sparks.active().size() + sand.active().size() + gravel.active().size()+[&]{unsigned n=0;for(auto&e:caveEffects)n+=e.active().size();return n;}();
 }
 void Showcase::render(const g::Camera &camera, bool hud, bool particles,
                       double fps, const std::function<void()> &overlay, float deltaSeconds) {
@@ -865,11 +863,11 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
   env.sunDirection = sceneSun;
   env.imageRotation = skyRotation;
   env.sunColor = {1, .78f, .51f, 1};
-  env.sunIntensity = 4.2f;
+  env.sunIntensity = 4.2f*(1-caveBlend(elapsed));
   env.skyColor = {.34f, .46f, .62f, 1};
   env.groundColor = {.23f, .17f, .11f, 1};
-  env.ambientIntensity = 1.2f;
-  env.fogDensity = .1f;
+  env.ambientIntensity = rf::mix(1.2f,.45f,caveBlend(elapsed));
+  env.fogDensity = rf::mix(.1f,.7f,caveBlend(elapsed));
   env.image = daylight;
   env.deltaSeconds = deltaSeconds;
   env.shadowDistance = 43;
@@ -951,6 +949,7 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
   light.radius = 12;
   light.intensity = 16;
   graphics.light(light);
+  drawCave(particles);
   if (hud) {
     graphics.rect(0, 0, 1280, 33, {.012f, .02f, .022f, 1});
     graphics.rect(0, 687, 1280, 33, {.012f, .02f, .022f, 1});
@@ -961,14 +960,19 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
     float fade = 1 - smooth(3.5f, 6, elapsed);
     if (fade > 0)
       graphics.image(title, 48, 516, 650, 132, {1, 1, 1, fade});
-    if (elapsed > 48)
+    if (elapsed > 150)
       graphics.image(
           credits, 48, 526, 570, 116,
-          {1, 1, 1, smooth(48, 50, elapsed) * (1 - smooth(60, 63, elapsed))});
+          {1, 1, 1, smooth(150, 152, elapsed) * (1 - smooth(157, 160, elapsed))});
     std::string phase = elapsed < 24   ? "01 / APPROACH"
                         : elapsed < 36 ? "02 / RECOVER CARGO"
                         : elapsed < 47 ? "03 / REPAIR UPLINK"
-                                       : "04 / RELAY ONLINE";
+                                       : elapsed < 58 ? "04 / RELAY ONLINE"
+                        : elapsed < 74 ? "05 / MOUNTAIN TRANSIT"
+                        : elapsed < 104 ? "06 / CAVE REFINERY"
+                        : elapsed < 132 ? "07 / EXTRACTION GALLERY"
+                        : elapsed < 145 ? "08 / PLANT OVERLOOK"
+                                        : "09 / RETURN TO RELAY";
     graphics.text(225, 700, phase, 1.2f, {.75f, .71f, .59f, 1});
     graphics.rect(400, 704, 565, 2, {.17f, .2f, .2f, 1});
     graphics.rect(400, 704, 565 * elapsed / Duration, 2, {.77f, .46f, .18f, 1});

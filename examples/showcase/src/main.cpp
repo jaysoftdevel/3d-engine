@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     float start = 0, fps = 60;
     std::string debugDir, profile;
     std::string capture, sequence, quality = "high";
-    std::filesystem::path assets;
+    std::filesystem::path assets,exportProject;
     std::string config, writeConfig;
     auto value = [&](int &i) {
       if (i + 1 >= argc)
@@ -26,7 +26,8 @@ int main(int argc, char **argv) {
     };
     for (int i = 1; i < argc; i++) {
       std::string a = argv[i];
-      if (a == "--validate")
+      if (a == "--export-project")exportProject=value(i);
+      else if (a == "--validate")
         validate = true;
       else if (a == "--windowed")
         fullscreen = false;
@@ -76,8 +77,8 @@ int main(int argc, char **argv) {
       else if (a == "--write-settings")
         writeConfig = value(i);
       else if (a == "--help") {
-        std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.4.4 "
-                     "showcase\n64-second "
+        std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.5.1 "
+                     "showcase\n160-second "
                      "autonomous recovery mission; loops automatically.\nSPACE "
                      "pause; TAB explore "
                      "camera; WASD/mouse fly; C graphics settings; R restart; F1 HUD; ESC "
@@ -137,6 +138,13 @@ int main(int argc, char **argv) {
                                             : "windowed")
               << " / " << (vsync ? "VSync requested" : "uncapped requested")
               << '\n';
+    if(!exportProject.empty()){
+      jsd::project::ProjectCapture capture(exportProject);renderer.observe(&capture);
+      {sundog::Showcase scene(renderer,assets,&capture);scene.projectMetadata();unsigned count=unsigned(scene.Duration*120);
+       for(unsigned n=0;n<count;n++){if(n)scene.update(1.f/120);float t=n/120.f;capture.frame(t);scene.render(scene.camera(),false,false,-1,{},1.f/120);scene.projectSample(t);capture.endFrame();if(n%960==0)std::cout<<"Project capture "<<t<<" s\n";}
+       capture.frame(scene.Duration);scene.render(scene.camera(),false,false,-1,{},1.f/120);scene.projectSample(scene.Duration);capture.endFrame();capture.finish();}
+      renderer.observe(nullptr);std::cout<<"Exported complete project: "<<exportProject<<'\n';return 0;
+    }
     sundog::Showcase scene(renderer, assets);
     AudioMixer audio;
     std::unique_ptr<AudioDevice> device;

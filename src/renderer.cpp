@@ -19,7 +19,7 @@ Context fromPlatform(Platform &p) {
                 p.dimensions();
                 return std::pair{p.width, p.height};
             },
-            p.offscreen};
+            p.offscreen, {}};
 }
 } // namespace
 Renderer::Renderer(Platform &p, GraphicsSettings s) : Renderer(fromPlatform(p), s) {}
@@ -72,6 +72,7 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s) : context(std::move(c)) {
     gl.SamplerParameterfv(shadowSampler, 0x1004, shadowBorder);
     gl.GenVertexArrays(1, &fullscreenVao);
     sceneProgram = program(shader::meshVertex, shader::sceneFragment);
+    minimalProgram = program(shader::meshVertex, shader::minimalFragment);
     shadowProgram = program(shader::shadowVertex, shader::shadowFragment);
     if (caps.hardwareTessellation) {
         std::string fs = shader::sceneFragment;
@@ -102,6 +103,7 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s) : context(std::move(c)) {
     initializeCinematic();
 }
 Renderer::Impl::~Impl() {
+    gl.DeleteProgram(minimalProgram);
     releaseCinematic();
     releaseAdvanced();
     releaseTargets();
@@ -288,9 +290,10 @@ unsigned Renderer::Impl::texture(int w, int h, unsigned internal, unsigned forma
 }
 void Renderer::Impl::upload(GpuTexture &t) {
     int cap =
-        std::min(caps.maxTextureSize, std::array{512, 1024, 2048, 4096}[int(settings().textureQuality)]);
+        std::min(caps.maxTextureSize, t.screenImage?std::max(2048,textureEdgeLimit(settings().textureQuality)):textureEdgeLimit(settings().textureQuality));
     float scale = std::min(1.f, float(cap) / std::max(t.width, t.height));
     int w = std::max(1, int(t.width * scale)), h = std::max(1, int(t.height * scale));
+    if(settings().textureQuality==TextureQuality::Lowest&&!t.averageReady&&t.width<=64&&t.height<=64){std::array<double,4>sum{};for(size_t n=0;n<size_t(t.width)*t.height;n++)for(int c=0;c<4;c++)sum[c]+=t.pixels[n*4+c];for(int c=0;c<4;c++)t.average[c]=float(sum[c]/(double(t.width)*t.height*255));t.averageReady=true;}
     if (t.object && t.uploadedWidth == w && t.uploadedHeight == h) {
         gl.BindTexture(GL_TEXTURE_2D, t.object);
         if (caps.anisotropicFiltering)
@@ -316,6 +319,7 @@ void Renderer::Impl::upload(GpuTexture &t) {
         }
     pixels = resized.data();
     }
+    if(settings().textureQuality==TextureQuality::Lowest&&!t.averageReady){std::array<double,4>sum{};for(size_t n=0;n<size_t(w)*h;n++)for(int c=0;c<4;c++)sum[c]+=pixels[n*4+c];for(int c=0;c<4;c++)t.average[c]=float(sum[c]/(double(w)*h*255));t.averageReady=true;}
     if (!t.object)
         gl.GenTextures(1, &t.object);
     gl.BindTexture(GL_TEXTURE_2D, t.object);
@@ -378,8 +382,10 @@ MeshId Renderer::createMesh(std::span<const Vertex> v) {
             throw std::invalid_argument("Mesh contains a zero-length normal");
     unsigned id = impl->nextMesh++;
     impl->meshes.emplace(id, impl->upload(v));
+    if(impl->observer)impl->observer->meshCreated({id},v);
     return {id};
 }
+void Renderer::observe(SceneObserver *observer){impl->observer=observer;if(observer){observer->meshCreated(impl->primitives[0],makeBox());observer->meshCreated(impl->primitives[1],makeRock());observer->meshCreated(impl->primitives[2],makeCylinder());}}
 void Renderer::destroyMesh(MeshId id) {
     for (auto primitive : impl->primitives)
         if (primitive == id)
@@ -402,6 +408,7 @@ TextureId Renderer::createTexture(int w, int h, std::span<const unsigned char> b
     impl->upload(t);
     unsigned id = impl->nextTexture++;
     impl->textures.emplace(id, std::move(t));
+    if(impl->observer)impl->observer->textureCreated({id},w,h,bytes,srgb);
     return {id};
 }
 void Renderer::destroyTexture(TextureId id) {
@@ -518,6 +525,7 @@ void Renderer::submit(const Draw &draw) {
         for (float value : draw.modelMatrix->m)
             if (!std::isfinite(value))
                 throw std::invalid_argument("Nonfinite model matrix");
+    if(i.observer)i.observer->submitted(draw);
     i.commands.push_back(draw);
     i.rendered = false;
 }
@@ -543,6 +551,7 @@ void Renderer::render() {
     }
 }
 void Renderer::end() {
+    if(impl->observer&&impl->observer->recordOnly)return;
     render();
     impl->drawUi();
 }
@@ -611,9 +620,9 @@ void Renderer::captureBuffers(const std::filesystem::path &directory) {
     i.gl.Finish();
     for (int pass = 0; pass < 5; pass++) {
         i.gl.BindFramebuffer(0x8CA8, pass == 4 ? i.lit.fbo : i.sceneFbo);
-        i.gl.ReadBuffer(vl::GL_COLOR_ATTACHMENT0 + (pass == 4 ? 0 : pass));
+        if(!i.compactScene||pass==0||pass==4)i.gl.ReadBuffer(vl::GL_COLOR_ATTACHMENT0 + (pass == 4 ? 0 : pass));
         std::vector<unsigned char> bytes(size_t(i.width) * i.height * 4);
-        i.gl.ReadPixels(0, 0, i.width, i.height, vl::GL_RGBA, vl::GL_UNSIGNED_BYTE, bytes.data());
+        if(!i.compactScene||pass==0||pass==4)i.gl.ReadPixels(0, 0, i.width, i.height, vl::GL_RGBA, vl::GL_UNSIGNED_BYTE, bytes.data());else for(size_t n=0;n<bytes.size();n+=4){bytes[n]=pass==1?128:0;bytes[n+1]=pass==1?128:0;bytes[n+2]=pass==1?255:0;bytes[n+3]=255;}
         const char *name[] = {"scene", "normal", "material", "motion", "lighting"};
         std::ofstream f(directory / (std::string(name[pass]) + ".ppm"), std::ios::binary);
         f << "P6\n" << i.width << ' ' << i.height << "\n255\n";
@@ -621,6 +630,7 @@ void Renderer::captureBuffers(const std::filesystem::path &directory) {
             for (int x = 0; x < i.width; x++)
                 f.write(reinterpret_cast<char *>(bytes.data() + (size_t(y) * i.width + x) * 4), 3);
     }
+    std::ofstream(directory/"pipeline.txt") << (i.compactScene?"lightweight forward; deferred normal/material/motion dumps are neutral placeholders\n":"full material pipeline\n");
     if (i.focusValid && i.focus[i.focusIndex].fbo) {
         std::array<float, 4> distance{};
         i.gl.BindFramebuffer(0x8CA8, i.focus[i.focusIndex].fbo);
@@ -628,7 +638,7 @@ void Renderer::captureBuffers(const std::filesystem::path &directory) {
         i.gl.ReadPixels(0, 0, 1, 1, vl::GL_RGBA, vl::GL_FLOAT, distance.data());
         std::ofstream(directory / "autofocus.txt") << distance[0] << '\n';
     }
-    i.gl.BindFramebuffer(0x8CA8, 0);
+    i.gl.BindFramebuffer(0x8CA8, i.outputFramebuffer());
 }
 } // namespace rf::gfx
 
@@ -638,6 +648,7 @@ void Renderer::validateFrame() {
     i.gl.Finish();
     std::vector<float> pixels(size_t(i.width) * i.height * 4);
     for (int pass = 0; pass < 5; pass++) {
+        if(i.compactScene&&pass>0&&pass<4)continue;
         i.gl.BindFramebuffer(0x8CA8, pass == 4 ? i.lit.fbo : i.sceneFbo);
         i.gl.ReadBuffer(vl::GL_COLOR_ATTACHMENT0 + (pass == 4 ? 0 : pass));
         i.gl.ReadPixels(0, 0, i.width, i.height, vl::GL_RGBA, vl::GL_FLOAT, pixels.data());
@@ -650,6 +661,7 @@ void Renderer::validateFrame() {
                                   std::to_string(index % 4) + " value " + std::to_string(*bad);
             i.gl.BindFramebuffer(0x8CA8, i.sceneFbo);
             for (int attachment : {1, 2}) {
+                if(i.compactScene)break;
                 std::array<float, 4> values{};
                 i.gl.ReadBuffer(vl::GL_COLOR_ATTACHMENT0 + attachment);
                 i.gl.ReadPixels(x, y, 1, 1, vl::GL_RGBA, vl::GL_FLOAT, values.data());
@@ -657,10 +669,10 @@ void Renderer::validateFrame() {
                 for (float value : values)
                     message += " " + std::to_string(value);
             }
-            i.gl.BindFramebuffer(0x8CA8, 0);
+            i.gl.BindFramebuffer(0x8CA8, i.outputFramebuffer());
             throw std::runtime_error(message);
         }
     }
-    i.gl.BindFramebuffer(0x8CA8, 0);
+    i.gl.BindFramebuffer(0x8CA8, i.outputFramebuffer());
 }
 } // namespace rf::gfx

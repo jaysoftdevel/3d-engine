@@ -34,7 +34,7 @@ Platform::Platform(bool headless, int w, int h) : offscreen(headless), width(w),
         SDL_GL_SetAttribute(17, 3);
         SDL_GL_SetAttribute(18, 3);
         SDL_GL_SetAttribute(21, 1);
-        window = SDL_CreateWindow("JSD Game Engine 0.4.4", vl::sdl::centered, vl::sdl::centered, w, h,
+        window = SDL_CreateWindow("JSD Game Engine 0.5.3", vl::sdl::centered, vl::sdl::centered, w, h,
                                   vl::sdl::openGL | vl::sdl::resizable | vl::sdl::highDPI);
         if (!window) {
             SDL_Quit();

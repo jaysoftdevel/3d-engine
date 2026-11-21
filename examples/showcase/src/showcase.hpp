@@ -5,6 +5,7 @@
 #include <jsd/engine.hpp>
 #include <map>
 #include "rover_motion.hpp"
+#include <jsd/project_capture.hpp>
 namespace sundog {
 using namespace jsd;
 namespace g = jsd::gfx;
@@ -21,6 +22,8 @@ class Showcase {
   friend struct ShowcasePhysicsProbe;
   g::Renderer &graphics;
   std::filesystem::path assetRoot;
+  jsd::project::ProjectCapture *authoring=nullptr;float skyGain=1;std::map<uint64_t,BodySettings> colliderRecords;
+  std::vector<jsd::project::Id> emitterNodes;jsd::project::Id cameraNode=0;
   std::vector<g::MeshId> ownedMeshes;
   std::vector<g::TextureId> ownedTextures;
   std::map<std::string, g::Material> materials;
@@ -53,6 +56,14 @@ class Showcase {
   float elapsed = 0;
   unsigned cycle = 0;
   uint64_t nextId = 1;
+  std::vector<g::Draw> caveScenery;
+  std::map<uint64_t,std::string> caveNames;
+  struct Rotor {g::Draw draw;V3 position;float speed;};
+  std::vector<Rotor> caveRotors;
+  std::vector<VfxEmitter> caveEffects;
+  std::vector<g::Light> caveLights;
+  void buildCave();void drawCave(bool particles);void updateCave(float);
+  std::vector<VfxEmitter*> projectEffects();
   void buildMaterials();
   void buildModels();
   void buildScenery();
@@ -64,7 +75,8 @@ class Showcase {
            float yaw = 0, float pitch = 0, float roll = 0);
 
 public:
-  explicit Showcase(g::Renderer &, const std::filesystem::path &);
+  explicit Showcase(g::Renderer &, const std::filesystem::path &,jsd::project::ProjectCapture *capture=nullptr);
+  void projectMetadata();void projectSample(float time);
   ~Showcase();
   Showcase(const Showcase &) = delete;
   Showcase &operator=(const Showcase &) = delete;
@@ -76,6 +88,8 @@ public:
   float time() const { return elapsed; }
   unsigned activeParticles() const;
   static float height(float x, float z);
-  static constexpr float Duration = 64;
+  static constexpr float Duration = 160;
+  static g::Camera cameraAt(float seconds);
+  static float caveBlend(float seconds);
 };
 } // namespace sundog

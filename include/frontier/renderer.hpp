@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.4.4";
+inline constexpr const char *Version = "0.5.3";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -107,11 +107,14 @@ struct Terrain {
     std::function<float(float, float)> height;
     // Increment revision after changing height generation while retaining the seed.
     unsigned revision = 0;
+    std::function<Color(float, float)> color;
 };
 struct Context {
     std::function<void *(const char *)> resolve;
     std::function<std::pair<int, int>()> dimensions;
     bool offscreen = false;
+    // Optional application-owned output FBO; zero/default retains window output.
+    std::function<unsigned()> outputFramebuffer;
 };
 enum class ParticleStyle { Dust, Steam, Spark, Sand };
 struct ParticleSprite {
@@ -132,8 +135,18 @@ struct Statistics {
     unsigned particleSprites = 0, particleDrawCalls = 0;
     unsigned preparationWorkers = 1;
     double preparationMilliseconds = 0;
+    bool lightweightRendering = false;
+    unsigned sceneColorAttachments = 4;
 };
 
+struct SceneObserver {
+    virtual ~SceneObserver()=default;
+    bool recordOnly=false;
+    virtual void meshCreated(MeshId,std::span<const Vertex>) {}
+    virtual void textureCreated(TextureId,int,int,std::span<const unsigned char>,bool) {}
+    virtual void submitted(const Draw &) {}
+    virtual void lightSubmitted(const Light &) {}
+};
 class Renderer {
     struct Impl;
     std::unique_ptr<Impl> impl;
@@ -162,6 +175,7 @@ class Renderer {
     // Instanced, depth-faded HDR billboards. Positions/sizes use world units; color is linear.
     void particles(std::span<const ParticleSprite>);
 
+    void observe(SceneObserver *);
     void resetHistory();
     bool reloadMaterialShaders(const std::string &vertex, const std::string &fragment, std::string &error);
     void begin(const Camera &, const Environment &environment = {});

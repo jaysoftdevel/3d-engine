@@ -49,6 +49,7 @@ class VfxEmitter {
     void clear();
     void draw(gfx::Renderer &, gfx::MeshId gravelMesh = {}) const;
     const std::vector<VfxParticle> &active() const { return particles; }
+    bool isEmitting() const { return enabled; }
     const VfxSettings &settings() const { return config; }
     unsigned collisions() const { return collisionCount; }
 };

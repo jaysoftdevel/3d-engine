@@ -86,7 +86,7 @@ EnvironmentId Renderer::createEnvironment(int w, int h, std::span<const float> r
     i.gl.Viewport(0, 0, 128, 128);
     i.gl.UseProgram(i.brdfProgram);
     i.gl.DrawArrays(GL_TRIANGLES, 0, 3);
-    i.gl.BindFramebuffer(GL_FRAMEBUFFER, 0);
+    i.gl.BindFramebuffer(GL_FRAMEBUFFER, i.outputFramebuffer());
 
     if (lightingSource != source)
         i.gl.DeleteTextures(1, &lightingSource);

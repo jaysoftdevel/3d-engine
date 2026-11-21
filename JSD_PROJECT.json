@@ -1,0 +1,9 @@
+{
+  "format": "jsd-project",
+  "schema": 1,
+  "project_id": "jsd.engine",
+  "cmake_project": "JSDGameEngine",
+  "version": "0.5.3",
+  "api_version": 1,
+  "kind": "source"
+}

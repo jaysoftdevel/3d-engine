@@ -12,7 +12,7 @@ From the engine root:
 
 The CMake target/executable is `jsd-showcase`; enabling it adds source to the existing engine build graph. All engine, SDL and Jolt code is built from source; no separate game project or prebuilt SDK is required. Installed assets resolve relative to the executable's prefix, with a source-tree fallback for development. See [source-build details](../../docs/BUILDING.md).
 
-The sample starts in borderless fullscreen at the desktop drawable resolution, with an actual wall-clock FPS counter at lower left. VSync and the earlier 125 FPS sleep cap are disabled by default. The 64-second mission loops automatically. The rover approaches through dust, the crane unloads cargo, a physics-driven crate falls, a maintenance drone welds with sparks, a hopper pours sand and bouncing gravel, vents release steam and the relay powers up. Camera tracks tour the outpost. There is no player objective or finished game package.
+The sample starts in borderless fullscreen at the desktop drawable resolution, with an actual wall-clock FPS counter at lower left. VSync and the earlier 125 FPS sleep cap are disabled by default. The 160-second mission loops automatically. The rover approaches through dust, the crane unloads cargo, a physics-driven crate falls, a maintenance drone welds with sparks, a hopper pours sand and bouncing gravel, vents release steam and the relay powers up. Camera tracks tour the outpost, accelerate over the mountains into an illuminated cave refinery, inspect the extraction gallery and return continuously to the opening view. There is no player objective or finished game package.
 
 | Control | Action |
 | --- | --- |
@@ -67,3 +67,5 @@ Preset mappings, autofocus controls and worker tuning are documented in [graphic
 The rover uses mesh-calibrated, distance-driven wheel rotation and six terrain contact locations. Wheel/rim state updates during simulation; stopping and mission resets cannot add phantom spin. See [rover physics](../../docs/ROVER_PHYSICS.md) for equations and validation.
 
 The current [physics layer](../../docs/PHYSICS.md) gives the rover a swept collision proxy and uses accepted motion for wheel odometry. Compound structural primitives and the visible slab have static collision proxies. Crane cargo now stays one 25 kg physical body from pickup through dynamic release and settlement; hook/cargo rendering follows the accepted solver pose. `./test.sh --with-showcase` includes obstacle, pickup/release continuity and settling checks.
+
+The Deep Refinery expansion adds editable plant machinery, moving ore, local lights and steam. See [the continuous tour](docs/DEEP_REFINERY.md) for chapter times and regeneration instructions.
