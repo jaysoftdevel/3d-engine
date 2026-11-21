@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
       else if (a == "--write-settings")
         writeConfig = value(i);
       else if (a == "--help") {
-        std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.5.1 "
+        std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.5.6 "
                      "showcase\n160-second "
                      "autonomous recovery mission; loops automatically.\nSPACE "
                      "pause; TAB explore "
@@ -267,6 +267,7 @@ int main(int argc, char **argv) {
         if (input.down(224))
           camera.position.y -= dt * 6;
       }
+      platform.dimensions();
       scene.render(camera, hud, particles, showFps ? frameRate.fps() : -1, [&] {
         if (showGraphicsSettings) {
           int windowWidth = width, windowHeight = height;
@@ -276,7 +277,7 @@ int main(int argc, char **argv) {
               mouseX * 1280.f / std::max(1, windowWidth),
               mouseY * 720.f / std::max(1, windowHeight), true, sundog::graphicsPreset);
         }
-      }, dt);
+      }, dt,float(platform.width)/std::max(1,platform.height));
       if (validate) {
         renderer.check();
         renderer.validateFrame();

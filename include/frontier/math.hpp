@@ -196,7 +196,7 @@ inline Mat4 inverse(const Mat4 &in) {
     Mat4 result;
     for (int r = 0; r < 4; r++)
         for (int c = 0; c < 4; c++)
-            result.m[c * 4 + r] = a[r][c + 4];
+            result.m[c * 4 + r] = static_cast<float>(a[r][c + 4]);
     return result;
 }
 inline bool contains(AABB a, V3 p) {
@@ -240,7 +240,7 @@ inline float terrainHeight(float x, float z, uint32_t seed = 101) {
     float crater = 0;
     float cx = x - 120, cz = z - 130, cr = std::sqrt(cx * cx + cz * cz);
     if (cr < 66)
-        crater = -9 * std::pow(1 - cr / 66, 2);
+        crater = static_cast<float>(-9 * std::pow(1 - cr / 66, 2));
     if (cr > 60 && cr < 77)
         crater += 1.5f * std::sin((cr - 60) / 17 * pi);
     return (base + crater) * clamp((r - 25) / 50);

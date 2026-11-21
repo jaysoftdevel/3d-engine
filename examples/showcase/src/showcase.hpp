@@ -44,7 +44,7 @@ class Showcase {
   V3 sceneSun{-.48f, .59f, .65f};
   float skyRotation = 0;
 
-  g::EnvironmentId daylight;
+  g::EnvironmentId daylight, underground;
   g::TextureId title, mission, credits;
   PhysicsWorld physics;
   RoverMotion roverMotion;
@@ -83,7 +83,7 @@ public:
   void update(float seconds);
   void reset();
   void render(const g::Camera &, bool hud = true, bool particles = true,
-              double fps = -1, const std::function<void()> &overlay = {}, float deltaSeconds = 1.f / 60);
+              double fps = -1, const std::function<void()> &overlay = {}, float deltaSeconds = 1.f / 60, float aspect = 16.f/9);
   g::Camera camera() const;
   float time() const { return elapsed; }
   unsigned activeParticles() const;
@@ -91,5 +91,7 @@ public:
   static constexpr float Duration = 160;
   static g::Camera cameraAt(float seconds);
   static float caveBlend(float seconds);
+  static bool insideCave(V3 position);
+  static bool enclosedView(const g::Camera &camera,float aspect=16.f/9);
 };
 } // namespace sundog

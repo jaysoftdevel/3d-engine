@@ -1,7 +1,10 @@
 # Run before project(), compiler probes and bundled dependency configuration.
-find_program(JSD_GUARD_PYTHON NAMES python3 python REQUIRED)
+if(NOT JSD_GUARD_PYTHON)
+ find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
+ set(JSD_GUARD_PYTHON "${Python3_EXECUTABLE}" CACHE FILEPATH "Python interpreter for project guards")
+endif()
 function(jsd_guard action project_id expected)
-  execute_process(COMMAND "${JSD_GUARD_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/project_guard.py"
+  execute_process(COMMAND "${JSD_GUARD_PYTHON}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tools/project_guard.py"
     "${action}" --root "${CMAKE_CURRENT_SOURCE_DIR}" --project "${project_id}" --expected "${expected}" ${ARGN}
     RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE error)
   if(NOT status EQUAL 0)
@@ -38,7 +41,7 @@ function(jsd_guard_project project_id expected)
 if(NOT "$ENV{DESTDIR}" STREQUAL "")
  message(FATAL_ERROR "Use an explicit guarded prefix instead of DESTDIR")
 endif()
-execute_process(COMMAND "@JSD_GUARD_PYTHON@" "@guard_root@/tools/project_guard.py" install
+execute_process(COMMAND "@JSD_GUARD_PYTHON@" -B "@guard_root@/tools/project_guard.py" install
  --root "@guard_root@" --project @project_id@ --expected @expected@
  --build "@guard_build@" --prefix "${CMAKE_INSTALL_PREFIX}" RESULT_VARIABLE guard_status)
 if(NOT guard_status EQUAL 0)
@@ -52,7 +55,7 @@ endfunction()
 function(jsd_install_receipt project_id expected)
   set(guard_root "${CMAKE_CURRENT_SOURCE_DIR}")
   set(guard_receipt_code [=[
-execute_process(COMMAND "@JSD_GUARD_PYTHON@" "@guard_root@/tools/project_guard.py" receipt
+execute_process(COMMAND "@JSD_GUARD_PYTHON@" -B "@guard_root@/tools/project_guard.py" receipt
  --root "@guard_root@" --project @project_id@ --expected @expected@
  --prefix "${CMAKE_INSTALL_PREFIX}" RESULT_VARIABLE guard_status)
 if(NOT guard_status EQUAL 0)

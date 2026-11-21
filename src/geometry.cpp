@@ -40,6 +40,9 @@ std::vector<Vertex> makeCylinder(unsigned sides) {
             r = q + V3{0, 1, 0}, s = p + V3{0, 1, 0};
         triangle(v, p, q, r, float(j) / sides, 0, float(j + 1) / sides, 0, float(j + 1) / sides, 1);
         triangle(v, p, r, s, float(j) / sides, 0, float(j + 1) / sides, 1, float(j) / sides, 1);
+        // Smooth only the cylindrical wall; retain hard cap edges and UV seams.
+        for(size_t i=v.size()-6;i<v.size();++i)
+            v[i].n=normalized(V3{v[i].p.x,0,v[i].p.z});
         triangle(v, {0, .5f, 0}, s, r);
         triangle(v, {0, -.5f, 0}, q, p);
     }

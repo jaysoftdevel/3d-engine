@@ -654,9 +654,10 @@ void Renderer::Impl::pipeline() {
         gl.Clear(0x100);
         gl.Enable(0x8037);
         gl.PolygonOffset(1.4f, 2.f);
-        drawCommands(shadowProgram, lightVP, true);
-        if (terrainRequested)
-            drawTerrain(true);
+        if (environment.sunIntensity > 0) {
+            drawCommands(shadowProgram, lightVP, true);
+            if (terrainRequested) drawTerrain(true);
+        }
         gl.Disable(0x8037);
     }
     gl.BindFramebuffer(GL_FRAMEBUFFER, msaaFbo ? msaaFbo : sceneFbo);

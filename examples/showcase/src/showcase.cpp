@@ -1,4 +1,5 @@
 #include "showcase.hpp"
+#include <jsd/showcase_terrain.hpp>
 #include <cmath>
 #include <cstdio>
 #include <iostream>
@@ -154,6 +155,9 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a,jsd::project::
       hdr.rgb[k + 2] = .075f;
     }
   daylight = graphics.createEnvironment(hdr.width, hdr.height, hdr.rgb, 3.0f);
+  std::vector<float> indoor(32*16*3);
+  for(size_t i=0;i<indoor.size();i+=3){indoor[i]=.12f;indoor[i+1]=.14f;indoor[i+2]=.16f;}
+  underground=graphics.createEnvironment(32,16,indoor,1.f);
   title = texture("title.png", false);
   mission = texture("mission.png", false);
   credits = texture("credits.png", false);
@@ -184,6 +188,7 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a,jsd::project::
 }
 Showcase::~Showcase() {
   graphics.destroyEnvironment(daylight);
+  graphics.destroyEnvironment(underground);
   for (auto m : ownedMeshes)
     graphics.destroyMesh(m);
   for (auto t : ownedTextures)
@@ -492,34 +497,8 @@ void Showcase::add(g::MeshId shape, const g::Material &m, V3 position, V3 scale,
     else physics.box(solid);
   }
 }
-float Showcase::height(float x, float z) {
-  float local = rf::clamp((std::sqrt(x * x + (z - 3) * (z - 3)) - 23) / 18);
-  float base =
-      (std::sin(x * .11f + std::sin(z * .07f)) * .4f +
-       std::cos(z * .08f) * .5f + std::sin(x * .043f + z * .031f) * 1.4f) *
-      local;
-  struct Mesa {
-    float x, z, r, h;
-  };
-  static const Mesa mesas[] = {{-47, 40, 25, 29}, {-23, 92, 30, 42},
-                               {30, 113, 33, 47}, {72, 64, 28, 38},
-                               {-92, 86, 34, 39}, {105, 133, 35, 49},
-                               {-69, 142, 34, 48}};
-  for (auto m : mesas) {
-    float dx = x - m.x, dz = z - m.z;
-    float d = std::sqrt(dx * dx + dz * dz);
-    float edge =
-        m.r * (1 + .045f * std::sin(x * .4f) + .035f * std::sin(z * .3f));
-    base += m.h * .12f * (1 - smooth(edge * .58f, edge, d));
-  }
-  float road = (1 - smooth(2.2f, 6.0f, std::abs(x + 1))) *
-               (1 - smooth(45.f, 60.f, std::abs(z + 7)));
-  base *= 1 - road;
-  float rut = std::exp(-std::pow((x + 2.48f) / .23f, 2)) +
-              std::exp(-std::pow((x - .48f) / .23f, 2));
-  base -= rut * .028f * road;
-  return base;
-}
+float Showcase::height(float x,float z){return jsd::showcaseTerrainHeight(x,z);}
+
 void Showcase::buildScenery() {
   struct Massif {
     V3 p, scale;
@@ -856,19 +835,20 @@ unsigned Showcase::activeParticles() const {
          sparks.active().size() + sand.active().size() + gravel.active().size()+[&]{unsigned n=0;for(auto&e:caveEffects)n+=e.active().size();return n;}();
 }
 void Showcase::render(const g::Camera &camera, bool hud, bool particles,
-                      double fps, const std::function<void()> &overlay, float deltaSeconds) {
+                      double fps, const std::function<void()> &overlay, float deltaSeconds,float aspect) {
   // Feed real frame time to temporal focus/exposure adaptation.
   g::Environment env;
   env.deltaSeconds = deltaSeconds;
   env.sunDirection = sceneSun;
   env.imageRotation = skyRotation;
   env.sunColor = {1, .78f, .51f, 1};
-  env.sunIntensity = 4.2f*(1-caveBlend(elapsed));
+  float interior=insideCave(camera.position)?smooth(89,112,camera.position.z):0;
+  env.sunIntensity = 4.2f*(1-interior);
   env.skyColor = {.34f, .46f, .62f, 1};
   env.groundColor = {.23f, .17f, .11f, 1};
-  env.ambientIntensity = rf::mix(1.2f,.45f,caveBlend(elapsed));
-  env.fogDensity = rf::mix(.1f,.7f,caveBlend(elapsed));
-  env.image = daylight;
+  env.ambientIntensity = rf::mix(1.2f,.32f,interior);
+  env.fogDensity = rf::mix(.1f,.12f,interior);
+  env.image = interior>.999f?underground:daylight;
   env.deltaSeconds = deltaSeconds;
   env.shadowDistance = 43;
   env.atmosphere.enabled = true;
@@ -881,8 +861,12 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
   terrain.height = height;
   terrain.material = materials.at("sand");
   terrain.seed = 38004;
-  terrain.revision = 4;
-  graphics.terrain(terrain);
+  terrain.revision = 5;
+  // The rock shell is opaque. When its only opening is behind the camera,
+  // the outpost and ground outside cannot contribute visible pixels or indoor sun shadows.
+  bool sealedView=!authoring && enclosedView(camera,aspect);
+  if(!sealedView)graphics.terrain(terrain);
+  if(!sealedView){
   for (auto &draw : scenery)
     graphics.submit(draw);
   for (auto &instance : staticModels)
@@ -949,6 +933,7 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
   light.radius = 12;
   light.intensity = 16;
   graphics.light(light);
+  }
   drawCave(particles);
   if (hud) {
     graphics.rect(0, 0, 1280, 33, {.012f, .02f, .022f, 1});
@@ -969,7 +954,7 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
                         : elapsed < 47 ? "03 / REPAIR UPLINK"
                                        : elapsed < 58 ? "04 / RELAY ONLINE"
                         : elapsed < 74 ? "05 / MOUNTAIN TRANSIT"
-                        : elapsed < 104 ? "06 / CAVE REFINERY"
+                        : elapsed < 104 ? "06 / ORE PROCESSING"
                         : elapsed < 132 ? "07 / EXTRACTION GALLERY"
                         : elapsed < 145 ? "08 / PLANT OVERLOOK"
                                         : "09 / RETURN TO RELAY";

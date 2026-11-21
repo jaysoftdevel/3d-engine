@@ -1,4 +1,5 @@
 #include "cinematic_tests.hpp"
+#include "light_bounds_tests.hpp"
 #include "minimal_tests.hpp"
 #include "runtime_tests.hpp"
 #include "processing_tests.hpp"
@@ -22,6 +23,14 @@ int main(int argc, char **argv) {
             std::cout << "PASS " << name << '\n';
         };
         opticsTests(test);
+        lightBoundsTests(test);
+        auto round=makeCylinder(40);bool radial=true,capsHard=true;
+        for(size_t i=0;i<round.size();i++){
+            const auto&v=round[i];
+            if(i%12<6)radial&=std::abs(dot(v.n,normalized(V3{v.p.x,0,v.p.z}))-1)<1e-5f;
+            else capsHard&=std::abs(v.n.y)>.999f;
+        }
+        test(radial&&capsHard&&round.size()==480,"smooth cylinder lighting preserves hard caps and triangle budget");
         Capabilities caps;
         caps.maxSamples = 4;
         caps.maxAnisotropy = 4;

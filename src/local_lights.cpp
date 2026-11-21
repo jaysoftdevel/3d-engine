@@ -1,4 +1,5 @@
 #include "internal.hpp"
+#include "frontier/detail/light_bounds.hpp"
 namespace rf::gfx {
 void Renderer::Impl::uploadLights() {
     lightGridWidth = (width + 15) / 16;
@@ -20,15 +21,12 @@ void Renderer::Impl::uploadLights() {
         if (z + l.radius < camera.nearPlane || z - l.radius > settings().viewDistance)
             continue;
         int x0 = 0, y0 = 0, x1 = lightGridWidth - 1, y1 = rows - 1;
-        if (z > l.radius + camera.nearPlane) {
-            auto c = transformPoint(vp, l.position);
-            float rx = projection.m[0] * l.radius / (z - l.radius),
-                  ry = projection.m[5] * l.radius / (z - l.radius);
-            x0 = std::clamp(int((c.x - rx + 1) * .5f * width / 16), 0, x1);
-            x1 = std::clamp(int((c.x + rx + 1) * .5f * width / 16), 0, x1);
-            y0 = std::clamp(int((c.y - ry + 1) * .5f * height / 16), 0, y1);
-            y1 = std::clamp(int((c.y + ry + 1) * .5f * height / 16), 0, y1);
-        }
+        std::array<float,4> bounds;
+        if(!detail::lightBounds(p,l.radius,camera.nearPlane,projection.m[0],projection.m[5],bounds))continue;
+        x0=std::clamp(int((bounds[0]+1)*.5f*width/16),0,x1);
+        x1=std::clamp(int((bounds[2]+1)*.5f*width/16),0,x1);
+        y0=std::clamp(int((bounds[1]+1)*.5f*height/16),0,y1);
+        y1=std::clamp(int((bounds[3]+1)*.5f*height/16),0,y1);
         for (int y = y0; y <= y1; y++)
             for (int x = x0; x <= x1; x++) {
                 auto &count = lightRanges[y * lightGridWidth + x][1];

@@ -37,7 +37,7 @@ struct ShowcasePhysicsProbe {
             if(time>=73&&time<=146&&p.z>=89&&p.z<=184){float u=rf::clamp((p.z-99)/20);u=u*u*(3-2*u);float rx=rf::mix(8.f,26.f,u),ry=rf::mix(13.f,23.f,u);float dx=(p.x-128)/rx,dy=(p.y-8)/ry;tunnelClear&=p.y>8.4f&&dx*dx+dy*dy<.92f;}
             if(time>=58&&time<=152){
                 for(auto&instance:scene.staticModels){auto local=rf::transformPoint(rf::inverse(instance.root),p),half=instance.model->halfExtent;if(std::abs(local.x)<half.x&&std::abs(local.y)<half.y&&std::abs(local.z)<half.z){if(solidClear)std::cout<<"MOUNTAIN_INTERSECTION "<<time<<" camera "<<p.x<<' '<<p.y<<' '<<p.z<<" mountain "<<instance.root.m[12]<<' '<<instance.root.m[13]<<' '<<instance.root.m[14]<<'\n';solidClear=false;}}
-                for(auto&draw:scene.caveScenery){auto name=scene.caveNames.at(draw.objectId);if(name.starts_with("Refinery pressure vessel")){auto q=rf::transformPoint(rf::inverse(*draw.modelMatrix),p);if(std::abs(q.y)<.51f&&q.x*q.x+q.z*q.z<.26f){if(solidClear)std::cout<<"VESSEL_INTERSECTION "<<time<<'\n';solidClear=false;}}}
+                for(auto&draw:scene.caveScenery){auto name=scene.caveNames.at(draw.objectId);if(name.starts_with("Process water settling tank")){auto q=rf::transformPoint(rf::inverse(*draw.modelMatrix),p);if(std::abs(q.y)<.51f&&q.x*q.x+q.z*q.z<.26f){if(solidClear)std::cout<<"VESSEL_INTERSECTION "<<time<<'\n';solidClear=false;}}}
             }
             prior=camera;
         }
@@ -50,7 +50,35 @@ struct ShowcasePhysicsProbe {
         auto endV=(Showcase::cameraAt(Showcase::Duration-.001f).position-Showcase::cameraAt(Showcase::Duration-.002f).position)*1000;
         auto startV=(Showcase::cameraAt(.002f).position-Showcase::cameraAt(.001f).position)*1000;
         check(rf::distance(endV,startV)<.08f,"camera loop also matches travel velocity");
-        check(scene.caveLights.size()>=24&&scene.caveEffects.size()==8&&scene.caveScenery.size()>600,"resource plant includes substantial geometry lights and seeded effects");
+        check(scene.caveEffects.size()==8,"bounded process emitters keep stable export identities");
+        jsd::project::TerrainData exported;exported.generator="sundog-v2";exported.validate();
+        bool terrainSame=true;for(int z=-40;z<200;z+=7)for(int x=-100;x<200;x+=11)
+            terrainSame&=std::abs(exported.height(float(x),float(z))-Showcase::height(float(x),float(z)))<1e-6f;
+        check(terrainSame,"exported terrain and showcase use the same graded geology");
+        int stairTreads=0,motors=0,stringers=0;bool closedDuct=false,feed=false;float priorY=0;
+        for(const auto &draw:scene.caveScenery){
+            const auto& name=scene.caveNames.at(draw.objectId);
+            if(name=="Gallery stair tread"){
+                float y=draw.modelMatrix->m[13];
+                if(stairTreads)check(y-priorY>.17f&&y-priorY<.19f,"stair risers remain walkable");
+                priorY=y;stairTreads++;
+            }
+            motors+=name=="Enclosed tank agitator gearbox";
+            stringers+=name=="Stair load-bearing stringer";
+            closedDuct|=name=="Main extraction duct / exhausted outside portal";
+            feed|=name=="Conveyor covered discharge chute";
+            check(!name.starts_with("Molten")&&!name.starts_with("Furnace"),"no open underground furnace or slag channel");
+        }
+        check(stairTreads==42&&stringers==2&&motors==3&&closedDuct&&feed,
+              "stairs have stringers, tank drives are enclosed, conveyor and extraction connect");
+        check(std::abs(Showcase::height(128,87)-7.95f)<.02f,"service approach meets the portal floor without a floating slab");
+        check(!Showcase::enclosedView(Showcase::cameraAt(68)),"exterior terrain remains visible on the approach");
+        check(!Showcase::enclosedView(Showcase::cameraAt(92),4),"wide aspect ratios retain a portal at the edge of view");
+        auto interior=Showcase::cameraAt(84);check(Showcase::enclosedView(interior),"opaque rock encloses the forward gallery view");
+        interior.direction=rf::normalized(V3{128,14,88}-interior.position);
+        check(!Showcase::enclosedView(interior),"looking out through the portal preserves exterior rendering");
+        interior.position={150,32,140};interior.direction={0,0,1};
+        check(!Showcase::enclosedView(interior),"above-vault views never hide exterior scenery");
         check(Showcase::caveBlend(70)==0&&Showcase::caveBlend(90)==1&&Showcase::caveBlend(150)==0,"interior lighting transitions smoothly during entry and exit");
         return checks;
     }

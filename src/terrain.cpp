@@ -49,19 +49,10 @@ TileData generate(TileKey key, int divisions, bool hardware, unsigned seed,float
     // Skirts close cracks between distance-dependent mesh resolutions.
     for (int side = 0; side < 4; side++)
         for (int k = 0; k < divisions; k++) {
-            float t = k * step, next = (k + 1) * step;
-            auto a = point(side == 0   ? 0
-                           : side == 1 ? span
-                                       : t,
-                           side == 2   ? 0
-                           : side == 3 ? span
-                                       : t),
-                 b = point(side == 0   ? 0
-                           : side == 1 ? span
-                                       : next,
-                           side == 2   ? 0
-                           : side == 3 ? span
-                                       : next);
+            auto a=grid[(side==2?0:side==3?divisions:k)*(divisions+1)+
+                        (side==0?0:side==1?divisions:k)],
+                 b=grid[(side==2?0:side==3?divisions:k+1)*(divisions+1)+
+                        (side==0?0:side==1?divisions:k+1)];
             auto c = a, d = b;
             c.p.y -= span==64?8:2;
             d.p.y -= span==64?8:2;
