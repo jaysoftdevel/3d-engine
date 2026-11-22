@@ -103,7 +103,7 @@ class Guards(unittest.TestCase):
         self.rejected({'jsd.engine': self.editor, 'jsd.editor': self.engine})
 
     def test_unexpected_versions(self):
-        for ver in ('0.5.1', '0.5.9', '0.6.0'):
+        for ver in ('0.5.1', '0.5.12', '0.6.0'):
             fixture(self.engine, 'jsd.engine', ver, False)
             self.rejected({'jsd.engine': self.engine})
 
@@ -161,7 +161,7 @@ class Guards(unittest.TestCase):
 
     def test_payload_internal_version_mismatch(self):
         p = self.package / 'files/jsd.engine/include/jsd/engine.hpp'
-        write(p, 'inline constexpr const char *Version = "0.5.9";')
+        write(p, 'inline constexpr const char *Version = "0.5.12";')
         for f in self.data['components'][0]['files']:
             if f['path'] == 'include/jsd/engine.hpp':f['sha256'] = guard.digest(p)
         self.save_manifest();self.rejected({'jsd.engine': self.engine})
@@ -240,7 +240,7 @@ class Guards(unittest.TestCase):
         editor = guard.source(self.editor, 'jsd.editor')
         for ver, api in [('0.5.2', 1), ('0.6.0', 1), ('0.5.3', 2)]:
             with self.assertRaises(guard.GuardError):guard.compatible(dict(project_id='jsd.engine', version=ver, api_version=api), editor)
-        guard.compatible(dict(project_id='jsd.engine', version='0.5.9', api_version=1), editor)
+        guard.compatible(dict(project_id='jsd.engine', version='0.5.12', api_version=1), editor)
 
     def test_unmarked_and_corrupt_sdk(self):
         self.updated();prefix = self.root / 'sdk';config = prefix / 'lib/cmake/JSDGameEngine'
@@ -285,11 +285,11 @@ class Guards(unittest.TestCase):
             (self.engine / 'tools').mkdir(exist_ok=True);shutil.copy2(tools / name, self.engine / 'tools' / name)
         helper = Path(__file__).resolve().parents[1] / 'cmake/ProjectGuards.cmake'
         (self.engine / 'cmake').mkdir();shutil.copy2(helper, self.engine / 'cmake/ProjectGuards.cmake')
-        write(self.engine / 'CMakeLists.txt', 'cmake_minimum_required(VERSION 3.21)\ninclude(cmake/ProjectGuards.cmake)\njsd_guard_project(jsd.engine 0.5.9)\nproject(JSDGameEngine VERSION 0.5.3 LANGUAGES NONE)\nfile(WRITE "${CMAKE_BINARY_DIR}/reached-project" "bad")\n')
+        write(self.engine / 'CMakeLists.txt', 'cmake_minimum_required(VERSION 3.21)\ninclude(cmake/ProjectGuards.cmake)\njsd_guard_project(jsd.engine 0.5.12)\nproject(JSDGameEngine VERSION 0.5.3 LANGUAGES NONE)\nfile(WRITE "${CMAKE_BINARY_DIR}/reached-project" "bad")\n')
         cmake = os.environ.get('CMAKE', 'cmake')
         result = subprocess.run([cmake, '-S', str(self.engine), '-B', str(self.engine / 'build/direct')], capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('Expected jsd.engine 0.5.9', result.stdout + result.stderr)
+        self.assertIn('Expected jsd.engine 0.5.12', result.stdout + result.stderr)
         self.assertFalse((self.engine / 'build/direct/reached-project').exists())
 
     def test_generator_validates_future_package(self):

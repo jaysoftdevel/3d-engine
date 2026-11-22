@@ -29,8 +29,9 @@ void Renderer::Impl::destroy(TargetBuffer &t) {
     t = {};
 }
 void Renderer::Impl::releaseTargets() {
-    for (auto *t : {&aoRaw, &aoA, &aoB, &lit, &dof, &display, &edges, &weights, &fogTarget, &motionTarget})
+    for (auto *t : {&aoRaw, &aoA, &aoB, &lit, &dof, &display, &edges, &weights, &fogTarget, &fogScattering, &motionTarget})
         destroy(*t);
+    for (auto &t : directHistory)destroy(t);directHistoryValid=false;
     for (auto &t : temporal)
         destroy(t);
     for (auto &t : focus)
@@ -46,7 +47,7 @@ void Renderer::Impl::releaseTargets() {
     bloomPyramid.clear();
     bloomScratch.clear();
     for (auto *tex :
-         {&sceneColor, &sceneNormal, &sceneSurface, &sceneDepth, &shadowDepth, &sceneMotion, &particleDepth})
+         {&sceneColor, &sceneNormal, &sceneSurface, &sceneAlbedo, &sceneDirect, &sceneDepth, &shadowDepth, &sceneMotion, &particleDepth})
         if (*tex) {
             gl.DeleteTextures(1, tex);
             *tex = 0;
@@ -56,9 +57,10 @@ void Renderer::Impl::releaseTargets() {
             gl.DeleteFramebuffers(1, fbo);
             *fbo = 0;
         }
-    gl.DeleteRenderbuffers(5, msaaBuffers.data());
+    gl.DeleteRenderbuffers(7, msaaBuffers.data());
     msaaBuffers.fill(0);
     shadowSize = 0;
+    localShadows={};
 }
 void Renderer::Impl::allocate() {
     auto [w, h] = context.dimensions();
@@ -83,41 +85,43 @@ void Renderer::Impl::allocate() {
     sceneColor = texture(w, h, GL_RGBA16F, GL_RGBA, GL_FLOAT);
     if(!compactScene){sceneNormal = texture(w, h, GL_RGBA16F, GL_RGBA, GL_FLOAT);
     sceneMotion = texture(w, h, GL_RGBA16F, GL_RGBA, GL_FLOAT);
-    sceneSurface = texture(w, h, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);}
+    sceneSurface = texture(w, h, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE);sceneAlbedo=texture(w,h,GL_RGBA8,GL_RGBA,GL_UNSIGNED_BYTE);sceneDirect=texture(w,h,GL_RGBA16F,GL_RGBA,GL_FLOAT);}
     sceneDepth = texture(w, h, 0x81A6, 0x1902, GL_FLOAT);
     gl.BindTexture(GL_TEXTURE_2D, sceneDepth);
     gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 0x2600);
     gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, 0x2600);
     gl.GenFramebuffers(1, &sceneFbo);
     gl.BindFramebuffer(GL_FRAMEBUFFER, sceneFbo);
-    unsigned colorTextures[] = {sceneColor, sceneNormal, sceneSurface, sceneMotion};
+    unsigned colorTextures[] = {sceneColor, sceneNormal, sceneSurface, sceneMotion, sceneAlbedo, sceneDirect};
     unsigned attachments[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT0 + 1, GL_COLOR_ATTACHMENT0 + 2,
-                              GL_COLOR_ATTACHMENT0 + 3};
-    for (int n = 0; n < (compactScene?1:4); n++)
+                              GL_COLOR_ATTACHMENT0 + 3,GL_COLOR_ATTACHMENT0 + 4,GL_COLOR_ATTACHMENT0 + 5};
+    for (int n = 0; n < (compactScene?1:6); n++)
         gl.FramebufferTexture2D(GL_FRAMEBUFFER, attachments[n], GL_TEXTURE_2D, colorTextures[n], 0);
     gl.FramebufferTexture2D(GL_FRAMEBUFFER, 0x8D00, GL_TEXTURE_2D, sceneDepth, 0);
-    gl.DrawBuffers(compactScene?1:4, attachments);
+    gl.DrawBuffers(compactScene?1:6, attachments);
     if (gl.CheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         throw std::runtime_error("Incomplete scene framebuffer");
     if (samples > 1) {
         gl.GenFramebuffers(1, &msaaFbo);
         gl.BindFramebuffer(GL_FRAMEBUFFER, msaaFbo);
-        gl.GenRenderbuffers(5, msaaBuffers.data());
-        unsigned formats[] = {GL_RGBA16F, GL_RGBA16F, GL_RGBA8, GL_RGBA16F, 0x81A6};
-        for (int n = 0; n < 5; n++) {
+        gl.GenRenderbuffers(7, msaaBuffers.data());
+        unsigned formats[] = {GL_RGBA16F, GL_RGBA16F, GL_RGBA8, GL_RGBA16F, GL_RGBA8, GL_RGBA16F, 0x81A6};
+        for (int n = 0; n < 7; n++) {
             gl.BindRenderbuffer(0x8D41, msaaBuffers[n]);
             gl.RenderbufferStorageMultisample(0x8D41, samples, formats[n], w, h);
-            gl.FramebufferRenderbuffer(GL_FRAMEBUFFER, n == 4 ? 0x8D00 : attachments[n], 0x8D41,
+            gl.FramebufferRenderbuffer(GL_FRAMEBUFFER, n == 6 ? 0x8D00 : attachments[n], 0x8D41,
                                        msaaBuffers[n]);
         }
-        gl.DrawBuffers(4, attachments);
+        gl.DrawBuffers(6, attachments);
         if (gl.CheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
             throw std::runtime_error("Driver could not allocate requested MSAA framebuffer");
     }
     if (settings().shadows != Quality::Off) {
         shadowSize =
-            std::min(caps.maxTextureSize, std::array{0, 512, 1024, 2048, 4096}[int(settings().shadows)]);
-        shadowDepth = texture(shadowSize, shadowSize, 0x81A6, 0x1902, GL_FLOAT);
+            std::min(caps.maxTextureSize/2, std::array{0, 512, 1024, 2048, 4096}[int(settings().shadows)]);
+        // Share one depth atlas/sampler with local lights to stay within the
+        // OpenGL 3.3 minimum of sixteen fragment texture units.
+        shadowDepth = texture(shadowSize, shadowSize*2, 0x81A6, 0x1902, GL_FLOAT);
         gl.BindTexture(GL_TEXTURE_2D, shadowDepth);
         gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 0x2600);
         gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, 0x2600);
@@ -248,14 +252,24 @@ void Renderer::Impl::common(unsigned p, const Mat4 &m) {
     matrix(p, "previousVP", previousVP);
     matrix(p, "view", view);
     matrix(p, "previousView", previousView);
-    bindAdvanced(p);
+    for(int i=0;i<4;i++)matrix(p,("shadowMatrices["+std::to_string(i)+"]").c_str(),shadowMatrices[i]);
+    gl.Uniform4f(uniform(p,"shadowSplits"),shadowSplits[0],shadowSplits[1],shadowSplits[2],shadowSplits[3]);
+    integer(p,"cascadeCount",cascadeCount);
+    bindLocalShadows(p);
+    integer(p,"hybridReflection",!probeCapture&&settings().reflections!=Quality::Off);
+    sampler(p,"contactDepth",contactDepthValid&&!probeCapture?particleDepth:0,15);
+    matrix(p,"contactVP",vp);matrix(p,"contactInvVP",inverse(vp));
+    integer(p,"contactShadows",contactDepthValid&&!probeCapture&&settings().shadows!=Quality::Off);
+    integer(p,"directSamples",!probeCapture&&settings().stochasticLighting?settings().directLightSamples:0);
+    integer(p,"stochasticFrame",settings().antiAliasing==AntiAliasing::TAA?int(frameIndex%1024):0);
+    bindAdvanced(p);bindProbe(p);
 }
 void Renderer::Impl::material(unsigned p, const Material &m) {
     if (p == shadowProgram) {
         scalar(p, "windStrength", m.windStrength);
         scalar(p, "alphaCutoff", m.alphaCutoff);
         integer(p, "alphaMode", int(m.alphaMode));
-        bool masked = m.alphaMode == AlphaMode::Mask;
+        bool masked = m.alphaMode == AlphaMode::Mask && m.surface == SurfaceKind::Textured;
         auto texture = masked ? textures.find(m.albedoTexture.value) : textures.end();
         integer(p, "textured", texture != textures.end());
         if (texture != textures.end())
@@ -263,15 +277,18 @@ void Renderer::Impl::material(unsigned p, const Material &m) {
         return;
     }
     V3 constantOrm{1,1,1};if(settings().textureQuality==TextureQuality::Lowest){auto orm=textures.find(m.ormTexture.value);if(orm!=textures.end()&&orm->second.averageReady)constantOrm={orm->second.average[0],orm->second.average[1],orm->second.average[2]};}
-    if(p==minimalProgram){scalar(p,"windStrength",m.windStrength);scalar(p,"alphaCutoff",m.alphaCutoff);integer(p,"alphaMode",int(m.alphaMode));integer(p,"doubleSided",m.doubleSided);integer(p,"textureProjection",int(m.projection));scalar(p,"textureScale",m.textureScale);scalar(p,"roughness",std::clamp(m.roughness*constantOrm.y,.06f,1.f));scalar(p,"metallic",std::clamp(m.metallic*constantOrm.z,0.f,1.f));vector(p,"emissive",{m.emissive.r,m.emissive.g,m.emissive.b});auto a=textures.find(m.albedoTexture.value),e=textures.find(m.emissiveTexture.value);integer(p,"textured",a!=textures.end());integer(p,"hasEmissive",e!=textures.end());sampler(p,"albedoMap",a==textures.end()?0:a->second.object,0);sampler(p,"emissiveMap",e==textures.end()?0:e->second.object,1);return;}
+    integer(p,"surfaceKind",int(m.surface));integer(p,"surfaceSeed",int(m.surfaceSeed));integer(p,"surfaceWorld",m.surfaceWorld);integer(p,"surfaceUV",m.surfaceUV);
+    const bool procedural=m.surface!=SurfaceKind::Textured;
+    if(p==minimalProgram){scalar(p,"normalScale",m.normalScale);scalar(p,"windStrength",m.windStrength);scalar(p,"alphaCutoff",m.alphaCutoff);integer(p,"alphaMode",int(m.alphaMode));integer(p,"doubleSided",m.doubleSided);integer(p,"textureProjection",int(m.projection));scalar(p,"textureScale",m.textureScale);scalar(p,"roughness",std::clamp(m.roughness*(procedural?1:constantOrm.y),.06f,1.f));scalar(p,"metallic",std::clamp(m.metallic*(procedural?1:constantOrm.z),0.f,1.f));vector(p,"emissive",{m.emissive.r,m.emissive.g,m.emissive.b});auto a=textures.find(m.albedoTexture.value),e=textures.find(m.emissiveTexture.value);integer(p,"textured",!procedural&&a!=textures.end());integer(p,"hasEmissive",e!=textures.end());sampler(p,"albedoMap",a==textures.end()?0:a->second.object,0);sampler(p,"emissiveMap",e==textures.end()?0:e->second.object,1);return;}
+    scalar(p,"wetness",m.wetness);scalar(p,"dust",m.dust);scalar(p,"sheen",m.sheen);scalar(p,"anisotropy",m.anisotropy);
     const bool lowest=settings().textureQuality==TextureQuality::Lowest;
-    integer(p,"lowestTextures",lowest);vector(p,"constantOrm",constantOrm);
+    integer(p,"lowestTextures",lowest);vector(p,"constantOrm",procedural?V3{1,1,1}:constantOrm);
     scalar(p, "roughness", clamp(m.roughness, .04f, 1));
     scalar(p, "metallic", clamp(m.metallic));
     vector(p, "emissive", {m.emissive.r, m.emissive.g, m.emissive.b});
     integer(p, "receiveShadow", m.receiveShadow);
     auto it = textures.find(m.albedoTexture.value);
-    integer(p, "textured", it != textures.end());
+    integer(p, "textured", !procedural&&it != textures.end());
     sampler(p, "albedoMap", it == textures.end() ? 0 : it->second.object, 0);
     int unit = 1;
     for (auto pair : {std::pair{m.normalTexture, "normalMap"}, std::pair{m.ormTexture, "ormMap"},
@@ -279,8 +296,8 @@ void Renderer::Impl::material(unsigned p, const Material &m) {
         auto t = textures.find(pair.first.value);
         sampler(p, pair.second, t == textures.end() ? 0 : t->second.object, unit++);
     }
-    integer(p, "hasNormal", !lowest&&m.normalTexture.value != 0);
-    integer(p, "hasOrm", !lowest&&m.ormTexture.value != 0);
+    integer(p, "hasNormal", !procedural&&!lowest&&m.normalTexture.value != 0);
+    integer(p, "hasOrm", !procedural&&!lowest&&m.ormTexture.value != 0);
     integer(p, "hasEmissive", m.emissiveTexture.value != 0);
     scalar(p, "normalScale", m.normalScale);
     scalar(p, "alphaCutoff", m.alphaCutoff);
@@ -334,6 +351,26 @@ bool Renderer::Impl::visible(const GpuMesh &m, const Transform &t, const Mat4 &m
 void Renderer::Impl::mesh(const GpuMesh &m, std::span<const GpuInstance> batch, bool patches) {
     if (batch.empty())
         return;
+    if(!patches&&!m.lods.empty()){
+        std::array<std::vector<GpuInstance>,4> groups;
+        float focal=height/(2*std::tan(camera.fovDegrees*pi/360));
+        for(auto &instance:batch){
+            auto center=transformPoint(instance.model,m.center);float scale=0;
+            for(int c=0;c<3;c++)scale=std::max(scale,length(V3{instance.model.m[c*4],instance.model.m[c*4+1],instance.model.m[c*4+2]}));
+            float distanceToSurface=std::max(camera.nearPlane,distance(center,camera.position)-m.radius*scale);
+            unsigned selected=0;for(size_t i=0;i<m.lods.size();i++)if(m.lods[i].lodError*scale*focal/distanceToSurface<=m.lodPixelError)selected=unsigned(i+1);
+            groups[selected].push_back(instance);
+            if(countDraws&&selected){stats.lodInstances++;stats.lodTrianglesSaved+=(m.count-m.lods[selected-1].count)/3;}
+        }
+        // The original mesh has no recursive LOD call in this branch.
+        auto draw=[&](const GpuMesh &geometry,std::span<const GpuInstance> instances){
+            if(instances.empty())return;
+            gl.BindVertexArray(geometry.vao);gl.BindBuffer(GL_ARRAY_BUFFER,instanceBuffer);gl.BufferData(GL_ARRAY_BUFFER,instances.size_bytes(),instances.data(),GL_STREAM_DRAW);
+            if(geometry.ibo)gl.DrawElementsInstanced(GL_TRIANGLES,geometry.count,0x1405,nullptr,instances.size());else gl.DrawArraysInstanced(GL_TRIANGLES,0,geometry.count,instances.size());
+            if(countDraws){stats.drawCalls++;stats.triangles+=geometry.count/3*instances.size();}
+        };
+        draw(m,groups[0]);for(size_t i=0;i<m.lods.size();i++)draw(m.lods[i],groups[i+1]);return;
+    }
     gl.BindVertexArray(m.vao);
     gl.BindBuffer(GL_ARRAY_BUFFER, instanceBuffer);
     gl.BufferData(GL_ARRAY_BUFFER, batch.size_bytes(), batch.data(), GL_STREAM_DRAW);
@@ -391,7 +428,7 @@ void Renderer::Impl::prepareCommands() {
                         bits(a.clearcoat),
                         bits(a.clearcoatRoughness),
                         bits(a.windStrength),
-                        bits(a.occlusionStrength)};
+                        bits(a.occlusionStrength),unsigned(a.surface),a.surfaceSeed,unsigned(a.surfaceWorld),bits(a.wetness),bits(a.dust),bits(a.sheen),bits(a.anisotropy),unsigned(a.surfaceUV)};
     };
     const auto &meshLookup = std::as_const(meshes);
     const auto &motionLookup = std::as_const(previousModels);
@@ -581,7 +618,7 @@ void Renderer::Impl::pipeline() {
     stats.outputHeight = outputHeight;
     if (frameIndex && (distance(lastEye, camera.position) > 10 || dot(lastDirection, camera.direction) < .5f)) {
         historyValid = false;
-        focusValid = false;
+        focusValid = false;directHistoryValid=false;
     }
     bool query = false;
     unsigned qi = queryIndex % 3;
@@ -620,7 +657,7 @@ void Renderer::Impl::pipeline() {
         previousVP = vp;
         previousView = view;
     }
-    stats.lightweightRendering=compactScene;stats.sceneColorAttachments=compactScene?1:4;
+    stats.lightweightRendering=compactScene;stats.sceneColorAttachments=compactScene?1:6;
     prepareCommands();
     uploadLights();
     invProjection = inverse(projection);
@@ -632,39 +669,17 @@ void Renderer::Impl::pipeline() {
     }
     if (terrainRequested)
         streamTerrain();
-    float extent = environment.shadowDistance > 0 ? std::clamp(environment.shadowDistance, 8.f, 150.f)
-                                                  : std::min(settings().viewDistance * .7f, 150.f);
-    V3 center = camera.position + camera.direction * std::min(35.f, extent * .3f);
-    center.y = 0;
-    V3 sun = normalized(environment.sunDirection);
-    if (length(sun) < .1f)
-        sun = {.3f, .8f, .2f};
-    auto lightView = lookAt(center + sun * extent * 3, center);
-    auto origin = transformPoint(lightView, {});
-    float texel = 2 * extent / std::max(1, shadowSize);
-    lightView.m[12] += std::round(origin.x / texel) * texel - origin.x;
-    lightView.m[13] += std::round(origin.y / texel) * texel - origin.y;
-    lightVP = orthographic(-extent, extent, -extent, extent, 1, extent * 6) * lightView;
-    gl.Disable(GL_BLEND);
-    gl.Enable(0x0B71);
-    gl.PolygonMode(0x0408, settings().wireframe ? 0x1B01 : 0x1B02);
-    if (shadowFbo) {
-        gl.BindFramebuffer(GL_FRAMEBUFFER, shadowFbo);
-        gl.Viewport(0, 0, shadowSize, shadowSize);
-        gl.Clear(0x100);
-        gl.Enable(0x8037);
-        gl.PolygonOffset(1.4f, 2.f);
-        if (environment.sunIntensity > 0) {
-            drawCommands(shadowProgram, lightVP, true);
-            if (terrainRequested) drawTerrain(true);
-        }
-        gl.Disable(0x8037);
-    }
+    gl.Disable(GL_BLEND);gl.Enable(0x0B71);gl.PolygonMode(0x0408,0x1B02);
+    drawShadows();
+    updateLocalShadows();
+    updateProbe();
+    gl.Disable(GL_BLEND);gl.Enable(0x0B71);gl.DepthFunc(0x0201);gl.DepthMask(1);
+    gl.PolygonMode(0x0408,settings().wireframe?0x1B01:0x1B02);
     gl.BindFramebuffer(GL_FRAMEBUFFER, msaaFbo ? msaaFbo : sceneFbo);
     gl.Viewport(0, 0, width, height);
     unsigned outputs[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT0 + 1, GL_COLOR_ATTACHMENT0 + 2,
-                          GL_COLOR_ATTACHMENT0 + 3};
-    gl.DrawBuffers(compactScene?1:4, outputs);
+                          GL_COLOR_ATTACHMENT0 + 3,GL_COLOR_ATTACHMENT0 + 4,GL_COLOR_ATTACHMENT0 + 5};
+    gl.DrawBuffers(compactScene?1:6, outputs);
     gl.ClearColor(environment.skyColor.r * .4f, environment.skyColor.g * .4f, environment.skyColor.b * .4f,
                   1);
     gl.Clear(GL_COLOR_BUFFER_BIT | 0x100);
@@ -679,12 +694,20 @@ void Renderer::Impl::pipeline() {
         drawCommands(shadowProgram, vp, false, false, true);
         if (terrainRequested)
             drawTerrain(false, true);
+        drawScatter(false,true);
         countDraws = true;
-        gl.DrawBuffers(compactScene?1:4, outputs);
+        gl.DrawBuffers(compactScene?1:6, outputs);
+        // Copy the completed opaque prepass to a separate read-only texture.
+        // Sampling the attached depth texture during scene drawing would be a GL feedback loop.
+        gl.BindFramebuffer(0x8CA8,msaaFbo?msaaFbo:sceneFbo);gl.BindFramebuffer(0x8CA9,particleDepthFbo);
+        gl.BlitFramebuffer(0,0,width,height,0,0,width,height,0x100,0x2600);
+        gl.BindFramebuffer(GL_FRAMEBUFFER,msaaFbo?msaaFbo:sceneFbo);contactDepthValid=true;
     }
+    stats.stochasticLightSamples=settings().stochasticLighting?settings().directLightSamples:0;
     drawCommands(surfaceProgram(), vp, false);
     if (terrainRequested)
         drawTerrain(false);
+    drawScatter(false);
     gl.PolygonMode(0x0408, 0x1B02);
     gl.Enable(0x0B71);
     gl.DepthFunc(0x0203);
@@ -721,7 +744,7 @@ void Renderer::Impl::pipeline() {
     if (msaaFbo) {
         gl.BindFramebuffer(0x8CA8, msaaFbo);
         gl.BindFramebuffer(0x8CA9, sceneFbo);
-        for (int n = 0; n < 4; n++) {
+        for (int n = 0; n < 6; n++) {
             gl.ReadBuffer(outputs[n]);
             gl.DrawBuffer(outputs[n]);
             gl.BlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, 0x2600);
@@ -756,11 +779,20 @@ void Renderer::Impl::pipeline() {
         gl.Uniform2f(uniform(aoBlurProgram, "direction"), 0, 1.f / height);
         fullscreen(aoBlurProgram, aoB.fbo);
     }
+    if(!compactScene&&settings().stochasticLighting&&!customMaterialShader){
+        unsigned next=1-directIndex;gl.UseProgram(directDenoiseProgram);
+        sampler(directDenoiseProgram,"source",sceneDirect,0);sampler(directDenoiseProgram,"history",directHistory[directIndex].texture,1);
+        sampler(directDenoiseProgram,"depthMap",sceneDepth,2);sampler(directDenoiseProgram,"normalMap",sceneNormal,3);
+        sampler(directDenoiseProgram,"motionMap",sceneMotion,4);sampler(directDenoiseProgram,"surfaceMap",sceneSurface,5);sampler(directDenoiseProgram,"albedoMap",sceneAlbedo,6);
+        projectionTerms(directDenoiseProgram,false);gl.Uniform2f(uniform(directDenoiseProgram,"pixel"),1.f/width,1.f/height);
+        integer(directDenoiseProgram,"valid",historyValid&&directHistoryValid);fullscreen(directDenoiseProgram,directHistory[next].fbo);
+        directIndex=next;directHistoryValid=true;
+    }
     if (settings().reflections != Quality::Off) {
         gl.ActiveTexture(GL_TEXTURE0);
-        gl.BindTexture(GL_TEXTURE_2D, sceneColor);
-        gl.GenerateMipmap(GL_TEXTURE_2D);
-        gl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 0x2703);
+        for(unsigned tex:{sceneColor,sceneDirect,directHistory[directIndex].texture})if(tex){
+            gl.BindTexture(GL_TEXTURE_2D,tex);gl.GenerateMipmap(GL_TEXTURE_2D);gl.TexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2703);
+        }
     }
     if(compactScene){gl.BindFramebuffer(0x8CA8,sceneFbo);gl.ReadBuffer(GL_COLOR_ATTACHMENT0);gl.BindFramebuffer(0x8CA9,lit.fbo);gl.DrawBuffer(GL_COLOR_ATTACHMENT0);gl.BlitFramebuffer(0,0,width,height,0,0,width,height,GL_COLOR_BUFFER_BIT,0x2600);}else{
     gl.UseProgram(lightingProgram);
@@ -769,11 +801,20 @@ void Renderer::Impl::pipeline() {
     sampler(lightingProgram, "normalMap", sceneNormal, 2);
     sampler(lightingProgram, "surfaceMap", sceneSurface, 3);
     sampler(lightingProgram, "aoMap", aoB.texture, 4);
+    sampler(lightingProgram,"directRaw",sceneDirect,7);
+    sampler(lightingProgram,"directFiltered",directHistory[directIndex].texture,8);
+    integer(lightingProgram,"denoiseDirect",settings().stochasticLighting&&directHistoryValid&&!customMaterialShader);
     projectionTerms(lightingProgram);
-    matrix(lightingProgram, "view", view);
+    matrix(lightingProgram, "view", view);matrix(lightingProgram,"invView",inverse(view));
+    sampler(lightingProgram,"albedoMap",sceneAlbedo,6);
+    bindAdvanced(lightingProgram);bindProbe(lightingProgram);
+    scalar(lightingProgram,"ambientIntensity",environment.ambientIntensity);
+    integer(lightingProgram,"hybridReflection",settings().reflections!=Quality::Off);integer(lightingProgram,"physicalLighting",physicalLighting);integer(lightingProgram,"customLighting",customMaterialShader);
+    vector(lightingProgram,"groundColor",{environment.groundColor.r,environment.groundColor.g,environment.groundColor.b});
+    integer(lightingProgram,"giMode",int(settings().globalIllumination));
     integer(lightingProgram, "aoEnabled", aoB.fbo != 0);
     integer(lightingProgram, "giSamples",
-            settings().globalIllumination == GlobalIllumination::ScreenSpace
+            (settings().globalIllumination == GlobalIllumination::ScreenSpace||settings().globalIllumination==GlobalIllumination::Hybrid)
                 ? std::array{0, 8, 12, 24, 32}[int(settings().illuminationQuality)]
                 : 0);
     integer(lightingProgram, "reflectionSteps", std::array{0, 16, 32, 64, 96}[int(settings().reflections)]);
@@ -790,8 +831,8 @@ void Renderer::Impl::pipeline() {
     gl.Disable(GL_BLEND);
     if (settings().antiAliasing == AntiAliasing::TAA) {
         gl.BindFramebuffer(GL_FRAMEBUFFER, sceneFbo);
-        unsigned reactiveOutputs[] = {0, 0, GL_COLOR_ATTACHMENT0 + 2, 0};
-        gl.DrawBuffers(4, reactiveOutputs);
+        unsigned reactiveOutputs[] = {0, 0, GL_COLOR_ATTACHMENT0 + 2, 0,0,0};
+        gl.DrawBuffers(6, reactiveOutputs);
         gl.ColorMask(0, 0, 0, 1);
         drawCommands(reactiveProgram, vp, false, true);
         gl.ColorMask(1, 1, 1, 1);
@@ -848,6 +889,7 @@ void Renderer::Impl::pipeline() {
     sampler(tonemapProgram, "normalMap", sceneNormal, 2);
     sampler(tonemapProgram, "bloomMap", bloomPyramid.empty() ? 0 : bloomPyramid.front().texture, 3);
     sampler(tonemapProgram, "exposureMap", exposure[exposureIndex].texture, 4);
+    sampler(tonemapProgram,"luminanceMap",luminance.texture,5);scalar(tonemapProgram,"localExposure",settings().localExposure);
     scalar(tonemapProgram, "bloomStrength", settings().bloom == Quality::Off ? 0 : settings().bloomStrength);
     scalar(tonemapProgram, "exposureEV", settings().exposureCompensation +
         (camera.optics && camera.optics->physicalExposure ? float(std::log2(camera.optics->exposureMultiplier())) : 0));

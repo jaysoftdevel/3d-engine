@@ -89,11 +89,11 @@ public:
                 });
             row("GLOBAL ILLUM.", name(settings.globalIllumination), [&] {
                 settings.globalIllumination =
-                    GlobalIllumination((int(settings.globalIllumination) + 1) % 3);
+                    GlobalIllumination((int(settings.globalIllumination) + 1) % 5);
             });
             row("GI QUALITY", name(settings.illuminationQuality),
                 [&] { quality(settings.illuminationQuality); });
-            row("SCREEN REFLECTIONS", name(settings.reflections),
+            row("HYBRID REFLECTIONS", name(settings.reflections),
                 [&] { quality(settings.reflections); });
             row("EDGE FUSION", name(settings.edgeFusion), [&] { quality(settings.edgeFusion); });
             row("TERRAIN TESSELL.", name(settings.terrainTessellation),
@@ -120,6 +120,7 @@ public:
                 settings.exposureCompensation =
                     settings.exposureCompensation >= 3 ? -3 : settings.exposureCompensation + 1;
             });
+            row("LOCAL EXPOSURE", number(settings.localExposure*100)+"%",[&]{settings.localExposure=settings.localExposure>=.49f?0:settings.localExposure+.1f;});
             row("TONE MAPPER", name(settings.toneMapper),
                 [&] { settings.toneMapper = ToneMapper((int(settings.toneMapper) + 1) % 3); });
             row("CONTRAST", number(settings.contrast * 100), [&] {
@@ -139,6 +140,8 @@ public:
             row("MOTION BLUR", name(settings.motionBlur), [&] { quality(settings.motionBlur); });
             row("VOLUMETRIC FOG", name(settings.volumetricFog),
                 [&] { quality(settings.volumetricFog); });
+            row("STOCHASTIC LIGHTS",settings.stochasticLighting?"on":"off",[&]{settings.stochasticLighting=!settings.stochasticLighting;});
+            row("DIRECT SAMPLES",number(settings.directLightSamples),[&]{settings.directLightSamples=settings.directLightSamples>=32?4:settings.directLightSamples*2;});
             row("GPU PROFILING", settings.gpuProfiling ? "on" : "off",
                 [&] { settings.gpuProfiling = !settings.gpuProfiling; });
         }

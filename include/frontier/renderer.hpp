@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.6";
+inline constexpr const char *Version = "0.5.12";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -35,6 +35,7 @@ struct Transform {
 };
 enum class TextureProjection { UV, Triplanar };
 enum class AlphaMode { Opaque, Mask, Blend, Additive };
+enum class SurfaceKind { Textured, Rock, Soil, Concrete, PaintedMetal, BareMetal, Rubber, Regolith, HullPanels, InteriorPanels, RobotArmor, DeckPlating, FabricWeave, Console };
 struct Material {
     Color albedo{};
     TextureId albedoTexture{};
@@ -49,6 +50,12 @@ struct Material {
     TextureProjection projection = TextureProjection::UV;
     float textureScale = 1, macroVariation = 0, clearcoat = 0, clearcoatRoughness = .18f, windStrength = 0,
           occlusionStrength = 1;
+    SurfaceKind surface = SurfaceKind::Textured;
+    unsigned surfaceSeed = 0;
+    bool surfaceWorld = true;
+    float wetness = 0, dust = 0, sheen = 0, anisotropy = 0;
+    // Use metre-scaled mesh UVs for detail on world-batched or animated objects.
+    bool surfaceUV = false;
 };
 struct Draw {
     MeshId mesh;
@@ -83,6 +90,19 @@ struct Environment {
     float imageRotation = 0;
     std::optional<float> sunIlluminanceLux;
 };
+// Scene-rasterized radiance, box projected inside a bounded region.
+struct ReflectionProbe {
+    uint64_t id = 1;
+    V3 position{}, halfExtent{20, 12, 20};
+    unsigned revision = 0, refreshFrames = 60;
+    float blendDistance = 2;
+};
+struct FogVolume {
+    V3 position{}, halfExtent{4, 3, 4};
+    Color albedo{.6f, .66f, .7f, 1}, emission{0, 0, 0, 1};
+    float density = .04f, noiseScale = .6f, anisotropy = .35f;
+    V3 velocity{.1f, .2f, 0};
+};
 enum class LightType { Point, Spot };
 enum class LightFalloff { Legacy, InverseSquare };
 struct Light {
@@ -95,11 +115,17 @@ struct Light {
     LightType type = LightType::Point;
     LightFalloff falloff = LightFalloff::Legacy;
     float sourceRadiusMetres = .05f;
+    // Persistent shadow identity; supported for spotlights with outerCone < pi/2.
+    bool castShadow = false;
+    uint64_t shadowId = 0;
+    unsigned shadowRevision = 0;
 };
 // Helpers accept luminous flux in lumens; returned intensity is candela.
 Light pointLightLumens(V3 position,float lumens,float rangeMetres,Color color={});
 Light spotLightLumens(V3 position,V3 direction,float lumens,float rangeMetres,
                       float innerHalfAngleRadians,float outerHalfAngleRadians,Color color={});
+// Planckian emitter chromaticity in linear sRGB, normalized to unit luminance.
+Color lightColorTemperature(float kelvin);
 struct Terrain {
     bool enabled = true;
     unsigned seed = 101;
@@ -116,6 +142,17 @@ struct Context {
     // Optional application-owned output FBO; zero/default retains window output.
     std::function<unsigned()> outputFramebuffer;
 };
+struct ProceduralScatter {
+    uint64_t id=1;
+    MeshId mesh;
+    Material material;
+    V3 center{},halfExtent{20,0,20};
+    unsigned count=1000,seed=1,revision=0;
+    float minScale=.08f,maxScale=.3f,maxSlope=.7f,heightOffset=.2f;
+    std::function<float(float,float)> height;
+    std::array<AABB,2> exclusions{};
+};
+
 enum class ParticleStyle { Dust, Steam, Spark, Sand };
 struct ParticleSprite {
     V3 position{}, velocity{};
@@ -137,6 +174,10 @@ struct Statistics {
     double preparationMilliseconds = 0;
     bool lightweightRendering = false;
     unsigned sceneColorAttachments = 4;
+    unsigned reflectionProbeFilters = 0, reflectionProbeFaces = 0, activeReflectionProbes = 0, shadowCascades = 0;
+    unsigned stochasticLightSamples = 0, fogVolumes = 0, lodInstances = 0, lodTrianglesSaved = 0;
+    unsigned proceduralInstances = 0;
+    unsigned localShadowMaps = 0, localShadowUpdates = 0;
 };
 
 struct SceneObserver {
@@ -172,6 +213,12 @@ class Renderer {
                                     float lightingHighlightLimit);
     void destroyEnvironment(EnvironmentId);
     void light(const Light &);
+    void reflectionProbe(const ReflectionProbe &);
+    void fogVolume(const FogVolume &);
+    // Candidate placement, slope checks and wind run in the vertex shader.
+    void scatter(const ProceduralScatter &);
+    // Opt-in resident scenery LODs using an estimated screen-space error.
+    MeshId createLodMesh(std::span<const Vertex> vertices, float pixelError = 1.5f);
     // Instanced, depth-faded HDR billboards. Positions/sizes use world units; color is linear.
     void particles(std::span<const ParticleSprite>);
 

@@ -13,8 +13,11 @@ struct GpuMesh {
     unsigned vao = 0, vbo = 0, ibo = 0;
     int count = 0;
     unsigned uniqueVertices = 0;
+    unsigned revision = 0;
     V3 center;
     float radius = 0;
+    std::vector<GpuMesh> lods;
+    float lodError = 0, lodPixelError = 1.5f;
 };
 struct GpuTexture {
     unsigned object = 0;
@@ -84,8 +87,8 @@ struct Renderer::Impl {
              copyProgram = 0, fxaaProgram = 0, uiProgram = 0;
     unsigned smaaEdgeProgram = 0, smaaWeightProgram = 0, smaaBlendProgram = 0, smaaArea = 0, smaaSearch = 0;
     unsigned instanceBuffer = 0, fullscreenVao = 0, uiVao = 0, uiVbo = 0, shadowSampler = 0;
-    unsigned sceneFbo = 0, sceneColor = 0, sceneNormal = 0, sceneSurface = 0, sceneDepth = 0, msaaFbo = 0;
-    std::array<unsigned, 5> msaaBuffers{};
+    unsigned sceneFbo = 0, sceneColor = 0, sceneNormal = 0, sceneSurface = 0, sceneAlbedo = 0, sceneDirect = 0, sceneDepth = 0, msaaFbo = 0;
+    std::array<unsigned, 7> msaaBuffers{};
     unsigned shadowFbo = 0, shadowDepth = 0;
     int shadowSize = 0;
     TargetBuffer aoRaw, aoA, aoB, lit, dof, display, edges, weights;
@@ -95,6 +98,9 @@ struct Renderer::Impl {
     Camera camera;
     Environment environment;
     Mat4 view, projection, vp, invProjection, lightVP;
+    std::array<Mat4,4> shadowMatrices{};
+    std::array<float,4> shadowSplits{};
+    int cascadeCount = 0;
     Mat4 previousVP = Mat4::identity(), previousView = Mat4::identity();
     std::unordered_map<uint64_t, Mat4> previousModels;
     struct StringHash {
@@ -134,12 +140,14 @@ struct Renderer::Impl {
     };
     std::map<unsigned, EnvMap> environments;
     unsigned nextEnvironment = 1;
-    std::array<TargetBuffer, 2> temporal, exposure;
+    std::array<TargetBuffer, 2> temporal, exposure, directHistory;
+    unsigned directIndex=0,directDenoiseProgram=0;
+    bool directHistoryValid=false;
     std::array<TargetBuffer, 2> focus;
     unsigned focusProgram = 0, focusIndex = 0;
     bool focusValid = false;
     TargetBuffer luminance;
-    TargetBuffer fogTarget, motionTarget;
+    TargetBuffer fogTarget, fogScattering, motionTarget;
     std::vector<TargetBuffer> bloomPyramid, bloomScratch;
     unsigned temporalIndex = 0, frameIndex = 0, exposureIndex = 0;
     bool historyValid = false;
@@ -162,7 +170,7 @@ struct Renderer::Impl {
     void drawParticles();
     void drawImages();
     std::vector<Draw> commands;
-    using BatchKey = std::array<unsigned, 23>;
+    using BatchKey = std::array<unsigned, 31>;
     struct PreparedDraw {
         const Draw *source;
         const GpuMesh *mesh;
@@ -187,7 +195,7 @@ struct Renderer::Impl {
     explicit Impl(Context, GraphicsSettings);
     ~Impl();
     const GraphicsSettings &settings() const { return report.effective; }
-    bool minimalFrame()const{const auto&s=settings();return !customMaterialShader&&s.textureQuality==TextureQuality::Lowest&&s.antiAliasing==AntiAliasing::Off&&s.shadows==Quality::Off&&s.ambientOcclusion==Quality::Off&&s.depthOfField==Quality::Off&&s.globalIllumination==GlobalIllumination::Off&&s.reflections==Quality::Off&&s.edgeFusion==Quality::Off&&s.terrainTessellation==Quality::Off&&s.bloom==Quality::Off&&!s.autoExposure&&s.motionBlur==Quality::Off&&s.volumetricFog==Quality::Off;}
+    bool minimalFrame()const{const auto&s=settings();return !customMaterialShader&&s.textureQuality==TextureQuality::Lowest&&s.antiAliasing==AntiAliasing::Off&&s.shadows==Quality::Off&&s.ambientOcclusion==Quality::Off&&s.depthOfField==Quality::Off&&s.globalIllumination==GlobalIllumination::Off&&s.reflections==Quality::Off&&s.edgeFusion==Quality::Off&&s.terrainTessellation==Quality::Off&&s.bloom==Quality::Off&&!s.autoExposure&&s.localExposure==0&&s.motionBlur==Quality::Off&&s.volumetricFog==Quality::Off;}
     unsigned surfaceProgram()const{return compactScene?minimalProgram:sceneProgram;}
     unsigned program(const std::string &vs, const std::string &fs, const char *tcs = nullptr,
                      const char *tes = nullptr);
@@ -222,6 +230,40 @@ struct Renderer::Impl {
     void uploadLights();
     void bindAdvanced(unsigned program);
     unsigned postAdvanced(unsigned source);
+    struct ProbeCache {
+        ReflectionProbe spec;
+        unsigned raw=0, specular=0, irradiance=0, pendingSpecular=0,pendingIrradiance=0,fbo=0, depth=0;
+        unsigned environment=0, lastFrame=0, nextFace=0, filterTask=0;
+        bool ready=false, refreshing=false;
+    };
+    std::map<uint64_t,ProbeCache> probeCache;
+    std::optional<ReflectionProbe> requestedProbe;
+    ProbeCache* activeProbe=nullptr;
+    bool probeCapture=false, contactDepthValid=false;
+    unsigned probeSkyProgram=0, probeFilterProgram=0, fogCompositeProgram=0;
+    std::vector<FogVolume> fogVolumes;
+    void initializeLighting();
+    void releaseLighting();
+    void updateProbe();
+    void bindProbe(unsigned);
+    void drawShadows();
+    struct LocalShadow {
+        uint64_t id=0, sceneStamp=0;
+        unsigned revision=0,lastFrame=0;
+        int light=-1;
+        Light spec{};
+        Mat4 matrix=Mat4::identity();
+        bool ready=false;
+    };
+    std::array<LocalShadow,4> localShadows{};
+    bool localShadowPass=false;
+    void updateLocalShadows();
+    void bindLocalShadows(unsigned);
+    struct ScatterCache{unsigned height=0,revision=~0u;V3 center{},extent{};std::vector<float> samples;};
+    std::map<uint64_t,ScatterCache> scatterCache;
+    std::vector<ProceduralScatter> scatterCommands;
+    unsigned scatterProgram=0,scatterMinimalProgram=0,scatterShadowProgram=0;
+    void drawScatter(bool shadow,bool depthOnly=false);
     void temporalResolve(unsigned source);
     void bind(unsigned program, const char *name, unsigned texture, int unit, unsigned target);
     void streamTerrain();

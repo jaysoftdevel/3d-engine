@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
-exec ./run-demo.sh "$@"
+exec bash ./run-demo.sh "$@"

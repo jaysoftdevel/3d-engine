@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
                        "minimal|low|medium|high|max\n--aa off|fxaa|smaa|msaa|taa --msaa 2|4|8\n--textures "
                        "lowest|low|medium|high|ultra --anisotropy 1|2|4|8|16\n--shadows off|low|medium|high|ultra "
                        "--view-distance METERS\n--ao QUALITY --dof QUALITY --auto-focus 0|1 --focus-speed 0.1..30 --focus METERS\n--gi "
-                       "off|ambient-probe|screen-space --gi-quality QUALITY\n--ssr QUALITY --edge-fusion "
+                       "off|ambient-probe|screen-space|hybrid-probes|probe-lite --gi-quality QUALITY\n--ssr QUALITY --edge-fusion "
                        "QUALITY --tessellation QUALITY\n--terrain-backend "
                        "automatic|mesh|hardware\n--offscreen --frames N --width N --height N "
                        "--no-ui\n--render-scale .5..2 --sharpening 0..1 --bloom QUALITY --bloom-strength "
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
                 settings.autoFocus = false;
             }
             else if (key == "--gi")
-                settings.globalIllumination = parse<GlobalIllumination>(v, 3);
+                settings.globalIllumination = parse<GlobalIllumination>(v, 5);
             else if (key == "--gi-quality")
                 settings.illuminationQuality = parse<Quality>(v, 5);
             else if (key == "--ssr")

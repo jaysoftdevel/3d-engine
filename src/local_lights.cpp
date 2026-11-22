@@ -63,7 +63,7 @@ void Renderer::Impl::uploadLights() {
     };
     upload(lightDataBuffer, lightDataTexture, 0x8814, data.data(), data.size() * sizeof(data[0]));
     upload(lightGridBuffer, lightGridTexture, 0x823C, ranges.data(), ranges.size() * sizeof(ranges[0]));
-    upload(lightIndexBuffer, lightIndexTexture, 0x8236, indices.data(), indices.size() * sizeof(unsigned));
+    upload(lightIndexBuffer, lightIndexTexture, 0x8236, indices.data(), indices.size() * sizeof(indices[0]));
     stats.localLights = lights.size();
 }
 namespace {
@@ -82,5 +82,19 @@ Light pointLightLumens(V3 position,float lumens,float range,Color color){
 Light spotLightLumens(V3 position,V3 direction,float lumens,float range,float inner,float outer,Color color){
     auto l=pointLightLumens(position,lumens,range,color);l.type=LightType::Spot;l.direction=direction;
     l.innerCone=inner;l.outerCone=outer;l.intensity=float(spotCandela(lumens,inner,outer));return l;
+}
+Color lightColorTemperature(float kelvin){
+    if(!std::isfinite(kelvin)||kelvin<1000||kelvin>25000)throw std::invalid_argument("Light temperature must be 1000–25000 K");
+    // Planck spectrum integrated with Wyman/Sloan/Shirley's piecewise Gaussian
+    // CIE 1931 fits (JCGT 2(2), 2013), sampled every 5 nm.
+    auto gaussian=[](double w,double center,double left,double right){double t=(w-center)*(w<center?left:right);return std::exp(-.5*t*t);};
+    double X=0,Y=0,Z=0;
+    for(int w=380;w<=780;w+=5){
+        double energy=std::pow(550./w,5)/std::expm1(1.438776877e7/(w*double(kelvin)));
+        X+=energy*(.362*gaussian(w,442,.0624,.0374)+1.056*gaussian(w,599.8,.0264,.0323)-.065*gaussian(w,501.1,.049,.0382));
+        Y+=energy*(.821*gaussian(w,568.8,.0213,.0247)+.286*gaussian(w,530.9,.0613,.0322));
+        Z+=energy*(1.217*gaussian(w,437,.0845,.0278)+.681*gaussian(w,459,.0385,.0725));
+    }
+    return photometricColor({float(std::max(0.,3.2406*X-1.5372*Y-.4986*Z)),float(std::max(0.,-.9689*X+1.8758*Y+.0415*Z)),float(std::max(0.,.0557*X-.204*Y+1.057*Z)),1});
 }
 } // namespace rf::gfx

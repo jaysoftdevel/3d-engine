@@ -12,7 +12,7 @@ jsd_require_tools() {
     fi
     if (( jsd_missing || jsd_desktop_missing )) && [[ "${JSD_AUTO_INSTALL_DEPS:-1}" != 0 ]]; then
         printf 'Installing missing compiler/build tools and Linux development headers. SDL2 itself is built from bundled source.\n'
-        "$jsd_engine_root/install_deps.sh"
+        bash "$jsd_engine_root/install_deps.sh"
     fi
     for jsd_tool in "${CMAKE:-cmake}" "${CC:-cc}" "${CXX:-c++}"; do
         if ! command -v "$jsd_tool" >/dev/null 2>&1; then

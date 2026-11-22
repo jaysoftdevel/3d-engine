@@ -53,6 +53,35 @@ int main() {
         V3 rolling = cross(contact.axle(3) * float(contact.wheel(3).angularSpeed()),
                            contact.surfaceNormal(3) * float(-radius));
         check(length(velocity + rolling) < 1e-4f, "assembled rover wheel has zero-slip contact velocity");
+        jsd::PhysicsWorld world({0,0,0},1);
+        jsd::BodySettings ground;ground.motion=jsd::MotionType::Static;ground.position={0,-.5f,0};ground.halfExtent={20,.5f,60};auto floor=world.box(ground);
+        auto slab=ground;slab.motion=jsd::MotionType::Kinematic;slab.position={0,.05f,0};slab.halfExtent={8,.27f,5};auto platform=world.box(slab);
+        sundog::RoverMotion crossing(radius);crossing.bindWorld(world);crossing.reset();
+        bool frontFirst=false,pitched=false,allFinite=true;float maxStroke=0,maxHubStep=0;
+        std::array<V3,6> last{};
+        crossing.advanceToZ(-9,1);for(size_t i=0;i<6;i++)last[i]=crossing.center(i);
+        for(int j=1;j<=600;j++){
+            crossing.advanceToZ(-9+j*.015f,1./120);
+            for(size_t i=0;i<6;i++){
+                maxStroke=std::max(maxStroke,std::abs(crossing.compression(i)));
+                maxHubStep=std::max(maxHubStep,std::abs(crossing.center(i).y-last[i].y));last[i]=crossing.center(i);
+                allFinite&=std::isfinite(crossing.center(i).y);
+            }
+            frontFirst|=crossing.supportBody(2)==platform&&crossing.supportBody(0)==floor&&crossing.center(2).y>crossing.center(0).y+.04f;
+            pitched|=crossing.body().m[6]<-.01f;
+        }
+        for(int i=0;i<180;i++)crossing.advanceToZ(0,1./120);
+        check(allFinite,"wheel contact remains finite over the slab edge");
+        check(frontFirst&&pitched,"front axle climbs the actual raised platform before the rear axle and pitches the hull");
+        check(maxStroke>.025f&&maxHubStep<.09f,"individual suspension stroke is visible and tire contact does not jump across the edge");
+        for(size_t i=0;i<6;i++)check(std::abs(crossing.center(i).y-float(radius)-.32f)<.003f&&crossing.supportBody(i)==platform,
+            "all six tire hubs settle on the collider top, not the terrain height");
+        float previousBody=crossing.body().m[13];
+        world.teleport(platform,{0,.25f,0});crossing.advanceToZ(0,1./120);
+        check(crossing.center(2).y>float(radius)+.5f&&crossing.body().m[13]<previousBody+.03f,
+              "moving support is queried again while chassis heave remains damped");
+        jsd::SuspensionSpring spring;spring.reset(0);spring.update(1,1./120);
+        check(spring.position()>0&&spring.position()<.1,"spring responds to a contact change without snapping");
         std::cout << checks << " rover checks passed.\n";
         return 0;
     } catch (const std::exception &error) {

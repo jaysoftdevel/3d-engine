@@ -31,13 +31,16 @@ def component(base, target, pid, destination):
     for rel, path in sorted(after.items()):
         sha = digest(path)
         previous = digest(before[rel]) if rel in before else None
-        if sha == previous:
+        mode = 0o755 if path.suffix == ".sh" and not rel.startswith("third_party/") else path.stat().st_mode & 0o777
+        previous_mode = before[rel].stat().st_mode & 0o777 if rel in before else None
+        if sha == previous and mode == previous_mode:
             continue
         require(path.stat().st_mode & 0o777 in (0o644, 0o755), f'Unsupported file mode: {path}')
         output = destination / 'files' / pid / rel
         output.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, output)
-        files.append({'path': rel, 'before_sha256': previous, 'sha256': sha, 'mode': path.stat().st_mode & 0o777})
+        output.chmod(mode)
+        files.append({'path': rel, 'before_sha256': previous, 'sha256': sha, 'mode': mode})
     anchors = ['CMakeLists.txt', 'JSD_PROJECT.json']
     if pid == 'jsd.engine':
         anchors += ['include/jsd/engine.hpp', 'include/frontier/renderer.hpp', 'src/runtime/runtime.cpp']
@@ -71,7 +74,7 @@ def main():
         for name in ('apply_update.py', 'project_guard.py'):
             shutil.copy2(Path(__file__).parent / name, args.output / name)
         launcher = args.output / 'apply.sh'
-        launcher.write_text('#!/usr/bin/env bash\nset -euo pipefail\npackage_root=$(cd -- "$(dirname -- "$0")" && pwd -P)\nexec python3 "$package_root/apply_update.py" --package "$package_root" "$@"\n')
+        launcher.write_text('#!/usr/bin/env bash\nset -euo pipefail\npackage_root=$(cd -- "$(dirname -- "$0")" && pwd -P)\nexec python3 -B "$package_root/apply_update.py" --package "$package_root" "$@"\n')
         launcher.chmod(0o755)
         manifest(args.output)
     except BaseException:

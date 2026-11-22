@@ -62,8 +62,8 @@ const char *name(TextureQuality q) {
     return n[std::clamp(int(q), 0, 4)];
 }
 const char *name(GlobalIllumination q) {
-    static const char *n[] = {"off", "ambient-probe", "screen-space"};
-    return n[std::clamp(int(q), 0, 2)];
+    static const char *n[] = {"off", "ambient-probe", "screen-space", "hybrid-probes", "probe-lite"};
+    return n[std::clamp(int(q), 0, 4)];
 }
 const char *name(TessellationBackend q) {
     static const char *n[] = {"automatic", "mesh", "hardware"};
@@ -110,7 +110,8 @@ GraphicsSettings GraphicsSettings::high() {
     s.anisotropy = 16;
     s.shadows = Quality::High;
     s.ambientOcclusion = Quality::High;
-    s.globalIllumination = GlobalIllumination::ScreenSpace;
+    s.globalIllumination = GlobalIllumination::Hybrid;
+    s.stochasticLighting = true;
     s.illuminationQuality = Quality::High;
     s.reflections = Quality::High;
     s.edgeFusion = Quality::Medium;
@@ -145,17 +146,17 @@ SettingsReport resolveSettings(GraphicsSettings requested, const Capabilities &c
         quality(*q);
     s.antiAliasing = AntiAliasing(std::clamp(int(s.antiAliasing), 0, 4));
     s.textureQuality = TextureQuality(std::clamp(int(s.textureQuality), 0, 4));
-    s.globalIllumination = GlobalIllumination(std::clamp(int(s.globalIllumination), 0, 2));
+    s.globalIllumination = GlobalIllumination(std::clamp(int(s.globalIllumination), 0, 4));
     s.tessellationBackend = TessellationBackend(std::clamp(int(s.tessellationBackend), 0, 2));
     auto originalTexture = s.textureQuality;
     if(textureEdgeLimit(s.textureQuality)>c.maxTextureSize){auto chosen=TextureQuality::Lowest;for(auto tier:{TextureQuality::Lowest,TextureQuality::Low,TextureQuality::Medium,TextureQuality::High,TextureQuality::Ultra})if(textureEdgeLimit(tier)<=c.maxTextureSize&&textureEdgeLimit(tier)<=textureEdgeLimit(originalTexture))chosen=tier;s.textureQuality=chosen;}
     if (s.textureQuality != originalTexture)
         note("Texture quality reduced to maximum driver texture size");
     auto originalShadow = s.shadows;
-    while (int(s.shadows) > 0 && std::array{0, 512, 1024, 2048, 4096}[int(s.shadows)] > c.maxTextureSize)
+    while (int(s.shadows) > 0 && std::array{0, 512, 1024, 2048, 4096}[int(s.shadows)] > c.maxTextureSize/2)
         s.shadows = Quality(int(s.shadows) - 1);
     if (s.shadows != originalShadow)
-        note("Shadow quality reduced to maximum driver texture size");
+        note("Shadow quality reduced to fit the shared sun/local atlas in the driver texture limit");
     auto number = [&](float &v, float lo, float hi, float fallback) {
         if (!std::isfinite(v)) {
             v = fallback;
@@ -166,6 +167,7 @@ SettingsReport resolveSettings(GraphicsSettings requested, const Capabilities &c
             note("Numeric setting clamped");
         v = n;
     };
+    s.directLightSamples = std::clamp(s.directLightSamples, 1, 32);
     number(s.motionBlurStrength, 0, 2, .5f);
     number(s.fogDensity, 0, .2f, .015f);
     number(s.fogHeightFalloff, 0, 2, .12f);
@@ -176,6 +178,9 @@ SettingsReport resolveSettings(GraphicsSettings requested, const Capabilities &c
     number(s.bloomStrength, 0, 3, .12f);
     number(s.exposureCompensation, -10, 10, 0);
     number(s.exposureAdaptation, .1f, 20, 3);
+    number(s.minExposureEV,-12,12,-4);number(s.maxExposureEV,-12,12,4);
+    if(s.minExposureEV>s.maxExposureEV){std::swap(s.minExposureEV,s.maxExposureEV);note("Exposure range endpoints swapped");}
+    number(s.localExposure,0,1,0);
     number(s.contrast, .1f, 3, 1);
     number(s.saturation, 0, 3, 1);
     number(s.temperature, -1, 1, 0);
@@ -238,13 +243,14 @@ bool saveSettings(const std::filesystem::path &p, const GraphicsSettings &s, std
           << "\ntemporal_weight=" << s.temporalWeight << "\nbloom=" << name(s.bloom)
           << "\nbloom_threshold=" << s.bloomThreshold << "\nbloom_strength=" << s.bloomStrength
           << "\nauto_exposure=" << s.autoExposure << "\nexposure_compensation=" << s.exposureCompensation
-          << "\nexposure_adaptation=" << s.exposureAdaptation << "\ntone_mapper=" << name(s.toneMapper)
+          << "\nexposure_adaptation=" << s.exposureAdaptation << "\nmin_exposure_ev=" << s.minExposureEV << "\nmax_exposure_ev=" << s.maxExposureEV << "\nlocal_exposure=" << s.localExposure << "\ntone_mapper=" << name(s.toneMapper)
           << "\ncontrast=" << s.contrast << "\nsaturation=" << s.saturation
           << "\ntemperature=" << s.temperature << "\nvignette=" << s.vignette
           << "\ngpu_profiling=" << s.gpuProfiling << '\n';
         o << "motion_blur=" << name(s.motionBlur) << "\nmotion_blur_strength=" << s.motionBlurStrength
           << "\nvolumetric_fog=" << name(s.volumetricFog) << "\nfog_density=" << s.fogDensity
           << "\nfog_height_falloff=" << s.fogHeightFalloff << '\n';
+        o << "stochastic_lighting=" << s.stochasticLighting << "\ndirect_light_samples=" << s.directLightSamples << '\n';
         o << "auto_focus=" << s.autoFocus << "\nfocus_adaptation=" << s.focusAdaptation << '\n';
         o.close();
         if (!o)
@@ -332,9 +338,13 @@ bool loadSettings(const std::filesystem::path &p, GraphicsSettings &result, std:
             else if (key == "depth_of_field")
                 parseEnum(v, s.depthOfField, 4);
             else if (key == "global_illumination")
-                parseEnum(v, s.globalIllumination, 2);
+                parseEnum(v, s.globalIllumination, 4);
             else if (key == "illumination_quality")
                 parseEnum(v, s.illuminationQuality, 4);
+            else if (key == "stochastic_lighting")
+                { int b=integer(v); if(b!=0&&b!=1)throw std::runtime_error("Invalid lighting boolean"); s.stochasticLighting=b!=0; }
+            else if (key == "direct_light_samples")
+                s.directLightSamples = integer(v);
             else if (key == "reflections")
                 parseEnum(v, s.reflections, 4);
             else if (key == "edge_fusion")
@@ -367,6 +377,9 @@ bool loadSettings(const std::filesystem::path &p, GraphicsSettings &result, std:
                 s.exposureCompensation = real(v);
             else if (key == "exposure_adaptation")
                 s.exposureAdaptation = real(v);
+            else if(key=="min_exposure_ev")s.minExposureEV=real(v);
+            else if(key=="max_exposure_ev")s.maxExposureEV=real(v);
+            else if(key=="local_exposure")s.localExposure=real(v);
             else if (key == "tone_mapper")
                 parseEnum(v, s.toneMapper, 2);
             else if (key == "contrast")

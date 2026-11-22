@@ -1,4 +1,5 @@
 #include <jsd/project_runtime.hpp>
+#include <jsd/project_capture.hpp>
 #include <iostream>
 using namespace jsd;using namespace jsd::project;
 int main(){unsigned count=0;auto check=[&](bool ok,const char*name){if(!ok)throw std::runtime_error(name);++count;std::cout<<"PASS "<<name<<'\n';};auto temp=std::filesystem::temp_directory_path()/("jsd-project-tests-"+std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));try{
@@ -14,5 +15,23 @@ int main(){unsigned count=0;auto check=[&](bool ok,const char*name){if(!ok)throw
  Document physics;physics.materials.push_back(Surface{});auto floor=physics.add(Kind::Collider,"Floor",primitive(0));physics.find(floor)->physics.mode=1;physics.find(floor)->transform.scale={10,1,10};physics.find(floor)->transform.position.y=-.5;auto body=physics.add(Kind::Mesh,"Body");physics.find(body)->sharedMesh=relocated.find(id)->sharedMesh;physics.find(body)->meshRef="box";physics.find(body)->transform.position.y=3;physics.find(body)->physics.mode=3;Simulation simulation;simulation.enabled=true;simulation.seek(physics,2);check(rf::transformPoint(simulation.pose().at(body),{}).y>.48f,"shared geometry collides with dedicated collider nodes");
  auto bad=d;bad.find(box)->transform.quaternion=Quat{0,0,0,0};bool rejected=false;try{bad.validate();}catch(...){rejected=true;}check(rejected,"invalid quaternion rejected");bad=d;bad.terrain.resolution=2049;rejected=false;try{bad.validate();}catch(...){rejected=true;}check(rejected,"oversized terrain grid rejected");
  auto root=d.add(Kind::Empty,"Hidden root");d.find(root)->visible=false;d.find(id)->parent=root;check(!active(d,*d.find(id),1),"parent visibility applies to showcase source parts");
+ d.materials[0].engine={{"surface",1},{"surfaceSeed",98217},{"surfaceWorld",false},{"wetness",.7f},{"dust",.1f},{"sheen",.2f},{"anisotropy",.6f}};
+ d.environment["reflectionProbes"]=Json::array({{{"id",42},{"position",{0,2,0}},{"halfExtent",{4,3,4}},{"refreshFrames",90}}});
+ d.environment["fogVolumes"]=Json::array({{{"position",{0,2,0}},{"halfExtent",{1,1,1}},{"density",.03},{"emission",{.2,.03,0,1}}}});
+ auto recipes=Document::fromJson(d.json());
+ {
+  ProjectCapture capture(temp/"spotlight.jsdproject");gfx::Light l;l.type=gfx::LightType::Spot;l.position={2,4,6};l.direction=rf::normalized(V3{-1,-2,1});l.falloff=gfx::LightFalloff::InverseSquare;l.intensity=1200;l.radius=18;l.innerCone=.3f;l.outerCone=.8f;l.sourceRadiusMetres=.24f;l.castShadow=true;l.shadowId=1;
+  capture.frame(0);capture.lightSubmitted(l);capture.frame(1);l.direction=rf::normalized(V3{1,-2,1});capture.lightSubmitted(l);capture.finish();
+  auto loaded=Document::load(temp/"spotlight.jsdproject");auto light=std::find_if(loaded.objects.begin(),loaded.objects.end(),[](auto&o){return o.kind==Kind::SpotLight;});
+  check(light!=loaded.objects.end()&&light->lumens==1200&&light->components.value("photometricCandela",false)&&light->components.value("castShadow",false)&&std::abs(light->components.value("sourceRadiusMetres",0.f)-.24f)<.00001f&&std::abs(light->outerCone-.8f)<.00001f,"exported spotlights preserve candela, cone and finite-emitter shadow settings");
+  auto transform=matrix(evaluate(*light,1));auto direction=rf::normalized(rf::transformVector(transform,{0,0,-1}));
+  check(rf::dot(direction,l.direction)>.9999f,"spotlight direction animation survives capture and portable project loading");
+ }
+ check(recipes.environment==d.environment,"probe and bounded-fog definitions roundtrip through projects");
+ check(recipes.materials[0].engine==d.materials[0].engine,"procedural recipes retain seed and coordinate frame in project files");
+ auto invalid=recipes;invalid.materials[0].engine["surface"]=99;rejected=false;try{invalid.validate();}catch(...){rejected=true;}
+ check(rejected,"unknown procedural surface recipe is rejected");
+ invalid=recipes;invalid.materials[0].engine["wetness"]=1.2f;rejected=false;try{invalid.validate();}catch(...){rejected=true;}check(rejected,"invalid layer weight is rejected before rendering");
+ invalid=recipes;invalid.environment["fogVolumes"][0]["density"]=-1;rejected=false;try{invalid.validate();}catch(...){rejected=true;}check(rejected,"invalid volumetric density is rejected before rendering");
  std::filesystem::remove_all(temp);std::cout<<count<<" project checks passed\n";return 0;
  }catch(const std::exception&e){std::cerr<<"FAILED "<<e.what()<<'\n';std::filesystem::remove_all(temp);return 1;}}

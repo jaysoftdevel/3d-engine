@@ -1,7 +1,9 @@
 #include "advanced_shaders.hpp"
 #include "internal.hpp"
 #include "shaders.hpp"
+#include "fog_shader.hpp"
 #include <stdexcept>
+#include <numeric>
 namespace rf::gfx {
 using namespace vl;
 void Renderer::Impl::initializeAdvanced() {
@@ -28,7 +30,8 @@ void main(){
     outputColor=vec4(focus,0,0,1);
 })GLSL");
     skyProgram = program(shader::fullscreen, advanced::sky);
-    fogProgram = program(shader::fullscreen, advanced::fog);
+    fogProgram = program(shader::fullscreen, lighting::volumeFog);
+    fogCompositeProgram=program(shader::fullscreen,lighting::fogComposite);
     motionProgram = program(shader::fullscreen, advanced::motionBlur);
     taaProgram = program(shader::fullscreen, advanced::taa);
     upscaleProgram = program(shader::fullscreen, advanced::upscale);
@@ -51,7 +54,7 @@ in vec2 texcoord;in vec4 tint;uniform sampler2D albedoMap;uniform int textured;l
 }
 void Renderer::Impl::releaseAdvanced() {
     for (unsigned p :
-         {focusProgram, skyProgram, fogProgram, motionProgram, reactiveProgram, taaProgram, upscaleProgram, bloomProgram,
+         {fogCompositeProgram,focusProgram, skyProgram, fogProgram, motionProgram, reactiveProgram, taaProgram, upscaleProgram, bloomProgram,
           bloomBlurProgram, exposureProgram, exposureAdaptProgram, iblProgram, brdfProgram})
         if (p)
             gl.DeleteProgram(p);
@@ -68,11 +71,13 @@ void Renderer::Impl::releaseAdvanced() {
     }
 }
 void Renderer::Impl::allocateAdvanced() {
+    if(settings().stochasticLighting)for(auto &t:directHistory)t=target();
     if (settings().depthOfField != Quality::Off)
         for (auto &buffer : focus) buffer = target(0x822E, 0x1903, 1, 1);
     focusValid = false;
-    if (settings().volumetricFog != Quality::Off)
-        fogTarget = target();
+    if (settings().volumetricFog != Quality::Off){
+        fogTarget = target();fogScattering=target(GL_RGBA16F,GL_RGBA,std::max(1,width/2),std::max(1,height/2));
+    }
     if (settings().motionBlur != Quality::Off)
         motionTarget = target();
     if (settings().antiAliasing == AntiAliasing::TAA)
@@ -128,21 +133,42 @@ void Renderer::Impl::bindAdvanced(unsigned p) {
 unsigned Renderer::Impl::postAdvanced(unsigned source) {
     if (fogTarget.fbo) {
         gl.UseProgram(fogProgram);
-        sampler(fogProgram, "source", source, 0);
         sampler(fogProgram, "depthMap", sceneDepth, 1);
         sampler(fogProgram, "shadowMap", shadowDepth, 2);
         matrix(fogProgram, "invVP", inverse(vp));
-        matrix(fogProgram, "lightVP", lightVP);
-        vector(fogProgram, "eye", camera.position);
-        vector(fogProgram, "sun", environment.sunDirection);
-        vector(fogProgram, "sunColor",
-               {environment.sunColor.r, environment.sunColor.g, environment.sunColor.b});
-        scalar(fogProgram, "density", settings().fogDensity);
-        scalar(fogProgram, "falloff", settings().fogHeightFalloff);
-        scalar(fogProgram, "intensity", environment.sunIntensity);
-        integer(fogProgram, "steps", std::array{0, 12, 24, 40, 64}[int(settings().volumetricFog)]);
-        integer(fogProgram, "shadows", shadowDepth != 0);
-        fullscreen(fogProgram, fogTarget.fbo);
+        for(int c=0;c<4;c++)matrix(fogProgram,("shadowMatrices["+std::to_string(c)+"]").c_str(),shadowMatrices[c]);
+        vector(fogProgram, "eye", camera.position);vector(fogProgram, "sun", environment.sunDirection);
+        vector(fogProgram, "sunColor",{environment.sunColor.r,environment.sunColor.g,environment.sunColor.b});
+        vector(fogProgram,"ambientColor",{environment.skyColor.r*environment.ambientIntensity*.35f,environment.skyColor.g*environment.ambientIntensity*.35f,environment.skyColor.b*environment.ambientIntensity*.35f});
+        scalar(fogProgram,"density",settings().fogDensity);scalar(fogProgram,"falloff",settings().fogHeightFalloff);
+        scalar(fogProgram,"intensity",environment.sunIntensity);scalar(fogProgram,"time",environment.atmosphere.time);
+        integer(fogProgram,"steps",std::array{0,16,24,40,64}[int(settings().volumetricFog)]);
+        integer(fogProgram,"shadows",shadowDepth!=0);integer(fogProgram,"volumeCount",int(fogVolumes.size()));stats.fogVolumes=fogVolumes.size();
+        auto vec4=[&](const char*name,int j,float x,float y,float z,float w){auto key=std::string(name)+"["+std::to_string(j)+"]";gl.Uniform4f(uniform(fogProgram,key.c_str()),x,y,z,w);};
+        for(size_t j=0;j<fogVolumes.size();j++){auto&v=fogVolumes[j];
+            vec4("volumePosition",j,v.position.x,v.position.y,v.position.z,0);
+            vec4("volumeExtent",j,v.halfExtent.x,v.halfExtent.y,v.halfExtent.z,v.density);
+            vec4("volumeColor",j,v.albedo.r,v.albedo.g,v.albedo.b,v.anisotropy);
+            vec4("volumeEmission",j,v.emission.r,v.emission.g,v.emission.b,v.noiseScale);
+            vec4("volumeVelocity",j,v.velocity.x,v.velocity.y,v.velocity.z,0);
+        }
+        std::vector<size_t> order(lights.size());std::iota(order.begin(),order.end(),0);
+        std::stable_sort(order.begin(),order.end(),[&](size_t a,size_t b){auto weight=[&](size_t j){auto&l=lights[j];return l.intensity*(l.color.r+l.color.g+l.color.b)/(1+dot(l.position-camera.position,l.position-camera.position));};return weight(a)>weight(b);});
+        int count=std::min(size_t(12),order.size());integer(fogProgram,"lightCount",count);
+        for(int j=0;j<4;j++)matrix(fogProgram,("localShadowMatrices["+std::to_string(j)+"]").c_str(),localShadows[j].matrix);
+        for(int j=0;j<count;j++){auto&l=lights[order[j]];auto d=normalized(l.direction);
+            int slot=-1;for(int k=0;k<4;k++)if(localShadows[k].ready&&localShadows[k].light==int(order[j]))slot=k;
+            integer(fogProgram,("fogLightShadow["+std::to_string(j)+"]").c_str(),slot);
+            vec4("fogLightPosition",j,l.position.x,l.position.y,l.position.z,l.radius);
+            vec4("fogLightColor",j,l.color.r,l.color.g,l.color.b,l.intensity);
+            vec4("fogLightDirection",j,d.x,d.y,d.z,std::cos(l.outerCone));
+            vec4("fogLightCone",j,std::cos(l.innerCone),float(l.type==LightType::Spot),float(l.falloff==LightFalloff::InverseSquare),l.sourceRadiusMetres);
+        }
+        gl.BindFramebuffer(GL_FRAMEBUFFER,fogScattering.fbo);gl.Viewport(0,0,std::max(1,width/2),std::max(1,height/2));
+        gl.BindVertexArray(fullscreenVao);gl.DrawArrays(GL_TRIANGLES,0,3);stats.drawCalls++;stats.postPasses++;
+        gl.Viewport(0,0,width,height);gl.UseProgram(fogCompositeProgram);
+        sampler(fogCompositeProgram,"source",source,0);sampler(fogCompositeProgram,"scattering",fogScattering.texture,1);sampler(fogCompositeProgram,"depthMap",sceneDepth,2);
+        projectionTerms(fogCompositeProgram,false);fullscreen(fogCompositeProgram,fogTarget.fbo);
         source = fogTarget.texture;
     }
     if (motionTarget.fbo) {
@@ -158,9 +184,10 @@ unsigned Renderer::Impl::postAdvanced(unsigned source) {
         source = motionTarget.texture;
     }
 
-    if (settings().autoExposure && !(camera.optics && camera.optics->physicalExposure)) {
+    if ((settings().autoExposure && !(camera.optics && camera.optics->physicalExposure))||settings().localExposure>0) {
         gl.UseProgram(exposureProgram);
         sampler(exposureProgram, "source", source, 0);
+        sampler(exposureProgram,"depthMap",sceneDepth,1);
         gl.BindFramebuffer(GL_FRAMEBUFFER, luminance.fbo);
         gl.Viewport(0, 0, 128, 128);
         gl.BindVertexArray(fullscreenVao);
@@ -178,6 +205,7 @@ unsigned Renderer::Impl::postAdvanced(unsigned source) {
         scalar(exposureAdaptProgram, "level", 7);
         scalar(exposureAdaptProgram, "dt", std::clamp(environment.deltaSeconds, .0001f, .25f));
         scalar(exposureAdaptProgram, "speed", settings().exposureAdaptation);
+        scalar(exposureAdaptProgram,"minEV",settings().minExposureEV);scalar(exposureAdaptProgram,"maxEV",settings().maxExposureEV);
         gl.BindFramebuffer(GL_FRAMEBUFFER, exposure[next].fbo);
         gl.Viewport(0, 0, 1, 1);
         gl.BindVertexArray(fullscreenVao);
@@ -192,6 +220,9 @@ unsigned Renderer::Impl::postAdvanced(unsigned source) {
         gl.UseProgram(bloomProgram);
         sampler(bloomProgram, "source", previous, 0);
         scalar(bloomProgram, "threshold", settings().bloomThreshold);
+        sampler(bloomProgram,"exposureMap",exposure[exposureIndex].texture,1);
+        scalar(bloomProgram,"exposureEV",settings().exposureCompensation+(camera.optics&&camera.optics->physicalExposure?float(std::log2(camera.optics->exposureMultiplier())):0));
+        integer(bloomProgram,"autoExposure",settings().autoExposure&&!(camera.optics&&camera.optics->physicalExposure));
         integer(bloomProgram, "first", i == 0);
         gl.BindFramebuffer(GL_FRAMEBUFFER, bloomPyramid[i].fbo);
         gl.Viewport(0, 0, w, h);
@@ -250,7 +281,8 @@ void Renderer::Impl::temporalResolve(unsigned source) {
 }
 void Renderer::resetHistory() {
     impl->historyValid = false;
-    impl->focusValid = false;
+    impl->focusValid = false;impl->directHistoryValid=false;
+    for(auto &[id,p]:impl->probeCache){(void)id;p.ready=false;p.nextFace=0;p.filterTask=0;p.refreshing=true;}
 }
 void Renderer::light(const Light &light) {
     if (impl->lights.size() >= 1024)
@@ -267,6 +299,12 @@ void Renderer::light(const Light &light) {
         light.color.r < 0 || light.color.g < 0 || light.color.b < 0 ||
         (light.type == LightType::Spot && length(light.direction) < 1e-8f))
         throw std::invalid_argument("invalid local light");
+    if(light.castShadow){
+        if(light.type!=LightType::Spot||!light.shadowId||light.outerCone>=pi*.5f-.001f||light.radius<=.1f)
+            throw std::invalid_argument("Shadowed spotlights require a persistent ID, range > 0.1 m and outer half angle < 90 degrees");
+        for(auto &existing:impl->lights)if(existing.castShadow&&existing.shadowId==light.shadowId)
+            throw std::invalid_argument("Duplicate spotlight shadow ID");
+    }
     if(impl->observer)impl->observer->lightSubmitted(light);
     impl->lights.push_back(light);
     impl->physicalLighting |= light.falloff == LightFalloff::InverseSquare;
@@ -286,6 +324,8 @@ void Renderer::updateMesh(MeshId id, std::span<const Vertex> v) {
     // Streaming/deforming meshes keep their VAO/VBO. Do not run static-mesh
     // deduplication or allocate new GL objects on every animation frame.
     auto &mesh = it->second;
+    mesh.revision++;
+    for(auto &lod:mesh.lods)impl->destroy(lod);mesh.lods.clear();
     auto &gl = impl->gl;
     gl.BindVertexArray(mesh.vao);
     gl.BindBuffer(0x8893, 0);

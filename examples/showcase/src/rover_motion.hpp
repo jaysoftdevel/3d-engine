@@ -8,6 +8,11 @@ namespace sundog {
 class RoverMotion {
     using Height = float (*)(float, float);
     Height height_ = nullptr;
+    const jsd::PhysicsWorld* world_ = nullptr; jsd::Body ignore_{};
+    jsd::SuspensionSpring heave_,pitch_,roll_;
+    std::array<float,6> compression_{};
+    std::array<bool,6> grounded_{};
+    std::array<jsd::Body,6> supports_{};
     double radius_ = 1, speed_ = 0;
     jsd::Mat4 body_ = jsd::Mat4::identity();
     std::array<jsd::Mat4, 6> mounts_{};
@@ -29,42 +34,51 @@ class RoverMotion {
         return rf::normalized({ground(x - step, z) - ground(x + step, z), 2 * step,
                                ground(x, z - step) - ground(x, z + step)});
     }
-    void poseAtZ(float z) {
+    void poseAtZ(float z,double dt=0) {
         if (!std::isfinite(z)) throw std::invalid_argument("Invalid rover position");
-        float left = 0, right = 0, front = 0, rear = 0;
-        for (float offset : {-HalfWheelbase, 0.f, HalfWheelbase}) {
-            left += ground(-1 - HalfTrack, z + offset);
-            right += ground(-1 + HalfTrack, z + offset);
+        std::array<float,6> heights{};
+        size_t index=0;
+        for(float x:{-HalfTrack,HalfTrack})for(float offset:{-HalfWheelbase,0.f,HalfWheelbase}){
+            float h=ground(-1+x,z+offset);
+            if(world_){auto contact=jsd::wheelSupport(*world_,{-1+x,float(heave_.position())+HubHeight,z+offset},
+                {1,0,0},float(radius_),height_,{ignore_,false});
+                if(contact)h=contact->hubHeight-float(radius_);}
+            heights[index++]=h;
         }
-        for (float x : {-1 - HalfTrack, -1 + HalfTrack}) {
-            front += ground(x, z + HalfWheelbase);
-            rear += ground(x, z - HalfWheelbase);
-        }
-        float roll = std::atan2((right - left) / 3, 2 * HalfTrack);
-        float pitch = -std::atan2((front - rear) / 2, 2 * HalfWheelbase);
-        auto rotation = rf::compose({}, axis({0, 0, 1}, roll)) *
-                        rf::compose({}, axis({1, 0, 0}, pitch));
-        body_ = rf::compose({-1, 0, z}) * rotation;
-        std::array<float, 6> contactHeight{};
-        double heave = 0;
-        size_t index = 0;
-        for (float x : {-HalfTrack, HalfTrack})
-            for (float offset : {-HalfWheelbase, 0.f, HalfWheelbase}) {
-                auto mount = body_ * rf::compose({x, HubHeight, offset},
-                    axis({0, 0, 1}, x > 0 ? -rf::pi / 2 : rf::pi / 2));
-                auto center = rf::transformPoint(mount, {});
-                auto axle = rf::normalized(rf::transformVector(mount, {0, 1, 0}));
-                auto n = normal(center.x, center.z);
-                float alignment = rf::dot(axle, n);
-                // Circular wheel support against the local terrain plane, including camber.
-                float support = float(radius_) * std::sqrt(std::max(0.f, 1 - alignment * alignment));
-                contactHeight[index] = ground(center.x, center.z) + support / std::max(.001f, n.y);
-                heave += contactHeight[index] - center.y;
-                mounts_[index] = mount;
-                normals_[index++] = n;
+        float left=heights[0]+heights[1]+heights[2],right=heights[3]+heights[4]+heights[5];
+        float front=heights[2]+heights[5],rear=heights[0]+heights[3];
+        float roll=std::atan2((right-left)/3,2*HalfTrack),pitch=-std::atan2((front-rear)/2,2*HalfWheelbase);
+        if(dt<=0||dt>.25){roll_.reset(roll);pitch_.reset(pitch);}
+        else{roll_.update(roll,dt,2.6);pitch_.update(pitch,dt,2.6);}
+        auto rotation=rf::compose({},axis({0,0,1},roll_.position()))*
+                      rf::compose({},axis({1,0,0},pitch_.position()));
+        body_=rf::compose({-1,0,z})*rotation;
+        std::array<float,6> contactHeight{};double heave=0;
+        index=0;
+        for(float x:{-HalfTrack,HalfTrack})for(float offset:{-HalfWheelbase,0.f,HalfWheelbase}){
+            auto mount=body_*rf::compose({x,HubHeight,offset},axis({0,0,1},x>0?-rf::pi/2:rf::pi/2));
+            auto center=rf::transformPoint(mount,{}),axle=rf::normalized(rf::transformVector(mount,{0,1,0}));
+            auto n=normal(center.x,center.z);float alignment=rf::dot(axle,n);
+            float support=float(radius_)*std::sqrt(std::max(0.f,1-alignment*alignment));
+            float y=ground(center.x,center.z)+support/std::max(.001f,n.y);
+            supports_[index]={};grounded_[index]=true;
+            if(world_){auto contact=jsd::wheelSupport(*world_,center+jsd::V3{0,float(heave_.position()),0},axle,float(radius_),height_,{ignore_,false});
+                if(contact){y=contact->hubHeight;n=contact->normal;supports_[index]=contact->body;}
+                else grounded_[index]=false;
             }
-        body_.m[13] = float(heave / 6);
-        for (size_t i = 0; i < mounts_.size(); ++i) mounts_[i].m[13] = contactHeight[i];
+            contactHeight[index]=y;heave+=y-center.y;
+            mounts_[index]=mount;normals_[index++]=n;
+        }
+        if(dt<=0||dt>.25)heave_.reset(heave/6);else heave_.update(heave/6,dt,3);
+        body_.m[13]=float(heave_.position());
+        for(size_t i=0;i<mounts_.size();i++){
+            float nominal=mounts_[i].m[13]+body_.m[13];
+            // Compression is constrained by contact; droop is finite over a drop/void.
+            float y=std::max(contactHeight[i],nominal-.32f);
+            compression_[i]=y-nominal;
+            grounded_[i]=grounded_[i]&&std::abs(y-contactHeight[i])<.002f;
+            mounts_[i].m[13]=y;
+        }
     }
 
   public:
@@ -72,6 +86,10 @@ class RoverMotion {
         for (auto &wheel : wheels_) wheel = jsd::RollingWheel(radius);
         reset();
     }
+    void bindWorld(const jsd::PhysicsWorld&world,jsd::Body ignore={}){world_=&world;ignore_=ignore;}
+    float compression(size_t i)const{return compression_.at(i);}
+    bool grounded(size_t i)const{return grounded_.at(i);}
+    jsd::Body supportBody(size_t i)const{return supports_.at(i);}
     void reset(double seconds = 0) {
         poseAtZ(routeZ(seconds));
         speed_ = 0;
@@ -89,7 +107,7 @@ class RoverMotion {
         if (!std::isfinite(step) || step <= 0)
             throw std::invalid_argument("Invalid rover step duration");
         float before = body_.m[14];
-        poseAtZ(z);
+        poseAtZ(z,step);
         speed_ = (double(body_.m[14]) - before) / step;
         for (size_t i = 0; i < wheels_.size(); ++i)
             wheels_[i].advance(center(i), axle(i), normals_[i], step);

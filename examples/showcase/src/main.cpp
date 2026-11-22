@@ -5,16 +5,18 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <thread>
 using namespace jsd;
 int main(int argc, char **argv) {
   try {
     bool validate = false;
     bool particles = true;
-    bool fullscreen = true, vsync = false, showFps = true;
+    bool fullscreen = true, vsync = true, showFps = true;
     bool offscreen = false, noAudio = false, hud = true, freeCamera = false,
          paused = false;
     int frames = 0, width = 1920, height = 1080;
-    float start = 0, fps = 60;
+    float start = 0, fps = 60,frameLimit=0,explicitScale=1;
+    bool cinematicDof=false,enableMotionBlur=false;
     std::string debugDir, profile;
     std::string capture, sequence, quality = "high";
     std::filesystem::path assets,exportProject;
@@ -45,6 +47,10 @@ int main(int argc, char **argv) {
         debugDir = value(i);
       else if (a == "--no-particles")
         particles = false;
+      else if(a=="--cinematic-dof")cinematicDof=true;
+      else if(a=="--motion-blur")enableMotionBlur=true;
+      else if(a=="--render-scale")explicitScale=std::stof(value(i));
+      else if(a=="--frame-limit")frameLimit=std::stof(value(i));
       else if (a == "--offscreen")
         offscreen = true;
       else if (a == "--no-audio")
@@ -77,7 +83,7 @@ int main(int argc, char **argv) {
       else if (a == "--write-settings")
         writeConfig = value(i);
       else if (a == "--help") {
-        std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.5.6 "
+        std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.5.12 "
                      "showcase\n160-second "
                      "autonomous recovery mission; loops automatically.\nSPACE "
                      "pause; TAB explore "
@@ -89,8 +95,8 @@ int main(int argc, char **argv) {
                      "--write-settings FILE.ini --assets PATH --no-ui "
                      "--no-audio --free-camera\n--no-particles --validate "
                      "--debug-dir DIRECTORY\n"
-                     "--fullscreen (default) --windowed --vsync --no-vsync "
-                     "(default)\n"
+                     "--fullscreen (default) --windowed --vsync (default) --no-vsync\n"
+                     "--frame-limit FPS --render-scale SCALE (default 1) --cinematic-dof --motion-blur\n"
                      "F11 toggles fullscreen; --no-fps hides measured FPS\n"
                      "--profile FILE.csv records frame, CPU submission and GPU "
                      "times\n";
@@ -103,7 +109,7 @@ int main(int argc, char **argv) {
       throw std::invalid_argument("unknown quality preset");
     if (width < 320 || height < 180 || width > 3840 || height > 2160 ||
         frames < 0 || !std::isfinite(start + fps) || start < 0 || fps < 1 ||
-        fps > 240)
+        fps > 240 || !std::isfinite(frameLimit+explicitScale)||frameLimit<0||frameLimit>360||explicitScale<.5f||explicitScale>2)
       throw std::invalid_argument("invalid capture options");
     if (offscreen && frames == 0)
       frames = 1;
@@ -121,14 +127,21 @@ int main(int argc, char **argv) {
       if (!gfx::loadSettings(config, settings, error))
         throw std::runtime_error(error);
     }
+    // Sharp presentation is the showcase default, including when an older
+    // saved config contains an aggressive Max lens or a low render scale.
+    settings.depthOfField=cinematicDof?gfx::Quality::Medium:gfx::Quality::Off;
+    settings.motionBlur=enableMotionBlur?gfx::Quality::Low:gfx::Quality::Off;
+    settings.aperture=.35f;settings.maximumBlur=2.5f;settings.focusAdaptation=2.5f;
+    settings.temporalWeight=std::min(settings.temporalWeight,.76f);settings.renderScale=explicitScale;
     Platform platform(offscreen, width, height);
     if (!offscreen) {
       if (fullscreen && !platform.setFullscreen(true))
         throw std::runtime_error(std::string("fullscreen unavailable: ") +
                                  SDL_GetError());
-      if (!platform.setVSync(vsync))
-        std::cerr << "Swap interval request was not accepted by the driver: "
-                  << SDL_GetError() << '\n';
+      if (!platform.setVSync(vsync)){
+        std::cerr << "Swap interval request was not accepted by the driver: " << SDL_GetError() << '\n';
+        if(vsync&&frameLimit==0)frameLimit=60;
+      }
     }
     gfx::Renderer renderer(platform, settings);
     std::cout << "Renderer: " << renderer.capabilities().renderer << " / "
@@ -160,7 +173,7 @@ int main(int argc, char **argv) {
     input.bind("forward", 22, -1);
     input.bind("side", 7);
     input.bind("side", 4, -1);
-    FixedStep fixed(1. / 120, 16);
+    FixedStep fixed(1. / 120, 32);
     for (int n = 0; n < int(std::fmod(start, sundog::Showcase::Duration) * 120);
          n++)
       scene.update(1.f / 120);
@@ -171,6 +184,7 @@ int main(int argc, char **argv) {
     rf::examples::GraphicsSettingsOverlay graphicsOverlay;
     int mouseX = 0, mouseY = 0;
     int frame = 0;
+    V3 flightVelocity{};
     FrameRateCounter frameRate;
     std::ofstream profileFile;
     if (!profile.empty()) {
@@ -178,11 +192,12 @@ int main(int argc, char **argv) {
       if (!profileFile)
         throw std::runtime_error("cannot open frame profile");
       profileFile
-          << "frame,frame_ms,cpu_submission_ms,gpu_ms,draws,triangles,prepare_ms,workers\n";
+          << "frame,frame_ms,cpu_submission_ms,gpu_ms,draws,triangles,prepare_ms,workers,probe_faces,light_budget,shadow_cascades,pcg_candidates,lod_draws,lod_triangles_saved,fog_volumes,probe_filters,shadowed_spots,spot_shadow_updates\n";
     }
     auto previous = std::chrono::steady_clock::now(), begin = previous;
     if (!sequence.empty())
       std::filesystem::create_directories(sequence);
+    auto nextPresent=begin;
     while (running && (!frames || frame < frames)) {
       auto now = std::chrono::steady_clock::now();
       if (frame > 0)
@@ -190,7 +205,7 @@ int main(int argc, char **argv) {
       float dt =
           offscreen
               ? 1 / fps
-              : std::min(.1f,
+              : std::min(.25f,
                          std::chrono::duration<float>(now - previous).count());
       previous = now;
       input.beginFrame();
@@ -237,10 +252,13 @@ int main(int argc, char **argv) {
             std::cerr << "Fullscreen change failed: " << SDL_GetError() << '\n';
           renderer.resetHistory();
         }
-        if (input.pressed(21))
-          scene.reset();
+        if (input.pressed(21)){
+          scene.reset();fixed=FixedStep(1./120,32);camera=scene.camera();flightVelocity={};
+          yaw=std::atan2(camera.direction.x,camera.direction.z);pitch=std::asin(camera.direction.y);
+        }
         if (input.pressed(43)) {
           freeCamera = !freeCamera;
+          flightVelocity={};
           captured = freeCamera && !showGraphicsSettings;
           platform.captureMouse(captured);
           camera = scene.camera();
@@ -251,7 +269,7 @@ int main(int argc, char **argv) {
       if (!paused)
         fixed.advance(dt, [&](float h) { scene.update(h); });
       if (!freeCamera)
-        camera = scene.camera();
+        {auto desired=scene.viewAt(scene.time()+fixed.alpha()/120.f);desired.position=scene.moveCamera(camera.position,desired.position);camera=desired;}
       else if (!showGraphicsSettings) {
         auto [dx, dy] = input.mouseDelta();
         if (captured && !settingsToggled) {
@@ -259,13 +277,10 @@ int main(int argc, char **argv) {
           pitch = rf::clamp(pitch - dy * .002f, -1.45f, 1.45f);
         }
         camera.direction = rf::forward(yaw, pitch);
-        camera.position += camera.direction * input.axis("forward") * dt * 8;
-        camera.position += rf::rotate(rf::forward(yaw), -rf::pi / 2) *
-                           input.axis("side") * dt * 8;
-        if (input.down(44))
-          camera.position.y += dt * 6;
-        if (input.down(224))
-          camera.position.y -= dt * 6;
+        V3 wanted=camera.direction*input.axis("forward")*8+rf::rotate(rf::forward(yaw),-rf::pi/2)*input.axis("side")*8;
+        if(input.down(44))wanted.y+=6;if(input.down(224))wanted.y-=6;
+        flightVelocity=rf::mix(flightVelocity,wanted,1-std::exp(-12*dt));
+        camera.position=scene.moveCamera(camera.position,camera.position+flightVelocity*dt);
       }
       platform.dimensions();
       scene.render(camera, hud, particles, showFps ? frameRate.fps() : -1, [&] {
@@ -277,7 +292,7 @@ int main(int argc, char **argv) {
               mouseX * 1280.f / std::max(1, windowWidth),
               mouseY * 720.f / std::max(1, windowHeight), true, sundog::graphicsPreset);
         }
-      }, dt,float(platform.width)/std::max(1,platform.height));
+      }, dt,float(platform.width)/std::max(1,platform.height),fixed.alpha()/120.f);
       if (validate) {
         renderer.check();
         renderer.validateFrame();
@@ -296,6 +311,11 @@ int main(int argc, char **argv) {
       if (frame == frames && !debugDir.empty())
         renderer.captureBuffers(debugDir);
       platform.present();
+      if(!offscreen&&frameLimit>0){
+        auto interval=std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1./frameLimit));
+        nextPresent+=interval;auto ready=std::chrono::steady_clock::now();
+        if(nextPresent>ready)std::this_thread::sleep_until(nextPresent);else nextPresent=ready;
+      }
       double frameSeconds =
           std::chrono::duration<double>(std::chrono::steady_clock::now() - now)
               .count();
@@ -304,7 +324,7 @@ int main(int argc, char **argv) {
         profileFile << frame << ',' << frameSeconds * 1000 << ','
                     << s.cpuMilliseconds << ',' << s.gpuMilliseconds << ','
                     << s.drawCalls << ',' << s.triangles << ',' << s.preparationMilliseconds
-                    << ',' << s.preparationWorkers << '\n';
+                    << ',' << s.preparationWorkers << ',' << s.reflectionProbeFaces << ',' << s.stochasticLightSamples << ',' << s.shadowCascades << ',' << s.proceduralInstances << ',' << s.lodInstances << ',' << s.lodTrianglesSaved << ',' << s.fogVolumes << ',' << s.reflectionProbeFilters << ',' << s.localShadowMaps << ',' << s.localShadowUpdates << '\n';
       }
       if (offscreen && (frame % 30 == 0 || frame == frames)) {
         auto &s = renderer.statistics();

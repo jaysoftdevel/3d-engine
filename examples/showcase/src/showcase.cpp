@@ -23,6 +23,7 @@ float random(unsigned n) { return rf::random01(rf::hash(n + 8341)); }
 std::vector<g::Vertex> mesa(unsigned seed) {
   std::vector<g::Vertex> out;
   auto point = [&](float a, float t) {
+    a=std::fmod(a,2*rf::pi);if(std::abs(a)<.00001f||std::abs(a-2*rf::pi)<.00001f)a=0;
     float ridge = .065f * std::sin(a * 7 + seed) +
                   .04f * std::sin(a * 17 + seed * .7f) +
                   .018f * std::sin(a * 43 + seed * .3f);
@@ -55,6 +56,11 @@ std::vector<g::Vertex> mesa(unsigned seed) {
     g::Vertex c{{0, .94f, 0}, {0, 1, 0}, {.9f, .87f, .8f, 1}, .5f, .5f};
     out.insert(out.end(), {a, c, b});
   }
+  for(int i=0;i<96;i++){
+    auto a=vertex(i*2*rf::pi/96,0),b=vertex((i+1)*2*rf::pi/96,0);a.n=b.n={0,-1,0};
+    g::Vertex c{{0,0,0},{0,-1,0},{},.5f,.5f};out.insert(out.end(),{a,b,c});
+  }
+  for(auto &v:out)v.p={std::round(v.p.x*1000000)/1000000,std::round(v.p.y*1000000)/1000000,std::round(v.p.z*1000000)/1000000};
   return out;
 }
 std::vector<g::Vertex> plane(float w, float h) {
@@ -77,7 +83,7 @@ void Model::draw(g::Renderer &r, const Mat4 &root, uint64_t id) const {
 }
 g::MeshId Showcase::mesh(std::vector<g::Vertex> v) {
   auto id = graphics.createMesh(v);
-  ownedMeshes.push_back(id);
+  ownedMeshes.push_back(id);cameraMeshes[id.value]=v;
   return id;
 }
 g::TextureId Showcase::texture(const std::string &name, bool srgb) {
@@ -106,8 +112,11 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a,jsd::project::
   cylinder = mesh(g::makeCylinder(40));
   sphere = mesh(g::makeSphere(32, 20));
   torus = mesh(g::makeTorus(.4f, .11f, 40, 12));
+  std::vector<V3> coil;
+  for(int i=0;i<=96;i++){float t=i/96.f,a=t*16*rf::pi;coil.push_back({.105f*std::cos(a),t-.5f,.105f*std::sin(a)});}
+  suspensionCoil=mesh(g::makeTube(coil,.012f,6));
   for (unsigned i = 0; i < rocks.size(); i++)
-    rocks[i] = mesh(g::makeDetailedRock(321 + i * 733, i < 4 ? 16 : 7));
+    {auto vertices=g::makeDetailedRock(321+i*733,i<4?16:7);rocks[i]=graphics.createLodMesh(vertices,1.25f);ownedMeshes.push_back(rocks[i]);cameraMeshes[rocks[i].value]=vertices;}
   buildMaterials();
   buildModels();
   for (int i = 0; i < 2; i++) {
@@ -118,6 +127,7 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a,jsd::project::
   }
   buildScenery();
   buildCave();
+  buildCameraRoute();
   auto hdr = loadHdr(assetRoot / "showcase/scans/kloofendal-4k.hdr");
   double logLuma = 0, totalWeight = 0;
   float peak = 0;
@@ -163,15 +173,16 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a,jsd::project::
   credits = texture("credits.png", false);
   BodySettings floor;
   floor.dynamic = false;
-  floor.position = {0, -.35f, 8};
+  floor.position = {0, -.39f, 8};
   floor.halfExtent = {25, .35f, 35};
   physics.box(floor);
   BodySettings chassis;
   chassis.motion = MotionType::Kinematic;
   chassis.mass = 1800;
-  chassis.halfExtent = {2.1f, 1.45f, 2.5f};
+  chassis.halfExtent = {1.5f, 1.05f, 2.5f};
   chassis.position = rf::transformPoint(roverMotion.body(), {0, 1.6f, 0});
   roverBody = physics.box(chassis);
+  roverMotion.bindWorld(physics,roverBody);
   dustLeft.setSurface(height);
   dustRight.setSurface(height);
   sand.setOrigin({-5.9f, 2.9f, 8});
@@ -184,7 +195,7 @@ Showcase::Showcase(g::Renderer &r, const std::filesystem::path &a,jsd::project::
   sparks.setVelocity({1.4f, .8f, -1.1f});
   resetSimulation();
   std::cout << "SUNDOG scene: " << scenery.size() << " objects / "
-            << ownedMeshes.size() << " meshes / original PBR assets\n";
+            << ownedMeshes.size() << " meshes / generated PBR surfaces\n";
 }
 Showcase::~Showcase() {
   graphics.destroyEnvironment(daylight);
@@ -195,104 +206,39 @@ Showcase::~Showcase() {
     graphics.destroyTexture(t);
 }
 Model Showcase::importModel(const std::string &name) {
-  auto asset = loadGltf(assetRoot / "showcase/scans" / name);
-  for (auto &m : asset.materials)
-    if (m.orm >= 0) {
-      auto &pixels = asset.images.at(m.orm).rgba;
-      for (size_t i = 1; i < pixels.size(); i += 4)
-        pixels[i] = std::max<unsigned char>(190, pixels[i]);
-    }
-  Model result;
-  std::map<std::pair<int, bool>, g::TextureId> local;
-  auto image = [&](int index, bool srgb) {
-    if (index < 0)
-      return g::TextureId{};
-    auto key = std::pair{index, srgb};
-    if (local.contains(key))
-      return local[key];
-    auto &im = asset.images.at(index);
-    uint64_t hash = 1469598103934665603ull;
-    for (auto c : im.rgba)
-      hash = (hash ^ c) * 1099511628211ull;
-    hash ^= uint64_t(srgb) << 63;
-    hash ^= uint64_t(im.width) << 24;
-    auto it = imageCache.find(hash);
-    if (it != imageCache.end())
-      return local[key] = it->second;
-    auto id = graphics.createTexture(im.width, im.height, im.rgba, srgb);
-    ownedTextures.push_back(id);
-    imageCache[hash] = id;
-    return local[key] = id;
-  };
-  std::vector<g::Material> mats;
-  for (auto &m : asset.materials) {
-    auto v = m.material;
-    v.albedoTexture = image(m.albedo, true);
-    v.normalTexture = image(m.normal, false);
-    v.ormTexture = image(m.orm, false);
-    v.emissiveTexture = image(m.emissive, true);
-    v.normalScale = .65f;
-    v.occlusionStrength = .35f;
-    mats.push_back(v);
-  }
-  auto pose = sampleAnimation(asset, -1, 0);
-  std::vector<std::pair<std::vector<g::Vertex>, int>> parts;
-  V3 low{1e9, 1e9, 1e9}, high{-1e9, -1e9, -1e9};
-  for (size_t i = 0; i < asset.nodes.size(); i++)
-    for (auto index : asset.nodes[i].meshes) {
-      auto &source = asset.meshes.at(index);
-      std::vector<g::Vertex> v;
-      g::appendMesh(v, source.vertices, pose[i]);
-      for (auto &p : v) {
-        low = {std::min(low.x, p.p.x), std::min(low.y, p.p.y),
-               std::min(low.z, p.p.z)};
-        high = {std::max(high.x, p.p.x), std::max(high.y, p.p.y),
-                std::max(high.z, p.p.z)};
-      }
-      parts.push_back({std::move(v), source.material});
-    }
-  float extent = std::max({high.x - low.x, high.y - low.y, high.z - low.z});
-  V3 center = (low + high) * .5f;
-  result.halfExtent = (high - low) / (extent * 2);
-  for (auto &[vertices, material] : parts) {
-    for (auto &v : vertices)
-      v.p = (v.p - center) / extent;
-    result.parts.push_back({mesh(std::move(vertices)),
-                            material >= 0 ? mats.at(material) : g::Material{}});
-  }
-  return result;
+  // Closed seeded volumes replace scans whose photographed backs/bases are absent.
+  std::string identity=name;auto suffix=identity.find("-near");if(suffix==std::string::npos)suffix=identity.find("-far");if(suffix!=std::string::npos)identity.resize(suffix);
+  unsigned seed=2166136261u;for(unsigned char c:identity)seed=(seed^c)*16777619u;
+  auto vertices=g::makeDetailedRock(seed,name.find("-far")!=std::string::npos?10:24);
+  V3 lo{1e6,1e6,1e6},hi{-1e6,-1e6,-1e6};
+  for(auto &v:vertices){if(identity.find("cliff")!=std::string::npos){v.p.y*=1.1f;v.p.z*=.72f;v.n=rf::normalized({v.n.x,v.n.y/1.1f,v.n.z/.72f});}
+    lo={std::min(lo.x,v.p.x),std::min(lo.y,v.p.y),std::min(lo.z,v.p.z)};hi={std::max(hi.x,v.p.x),std::max(hi.y,v.p.y),std::max(hi.z,v.p.z)};}
+  Model result;result.halfExtent=(hi-lo)*.5f;V3 center=(hi+lo)*.5f;for(auto&v:vertices)v.p=v.p-center;
+  auto id=graphics.createLodMesh(vertices,1.2f);ownedMeshes.push_back(id);cameraMeshes[id.value]=vertices;
+  auto mat=materials.at("rock");mat.surfaceSeed=seed&2147483647u;result.parts.push_back({id,mat});return result;
 }
+
 void Showcase::place(const Model &m, V3 p, V3 scale, float yaw) {
   staticModels.push_back({&m, matrix(p, scale, yaw), nextId++ * 100});
 }
 void Showcase::buildMaterials() {
-  for (auto name : {"sand", "rock", "paint", "steel", "ivory", "dark", "rubber",
-                    "concrete"}) {
-    g::Material m;
-    m.albedoTexture = texture(std::string(name) + "-color.png");
-    m.normalTexture = texture(std::string(name) + "-normal.png", false);
-    m.ormTexture = texture(std::string(name) + "-orm.png", false);
-    m.roughness = 1;
-    m.metallic = 1;
-    m.projection = g::TextureProjection::Triplanar;
-    m.textureScale = (std::string(name) == "sand"   ? .42f
-                      : std::string(name) == "rock" ? .35f
-                                                    : 1.1f);
-    m.macroVariation = std::string(name) == "rock" ? .7f : .15f;
-    m.normalScale = std::string(name) == "rock" ? .55f : .38f;
-    if (std::string(name) == "paint" || std::string(name) == "ivory") {
-      m.clearcoat = .25f;
-      m.clearcoatRoughness = .24f;
-    }
-    materials[name] = m;
+  using S=g::SurfaceKind;
+  struct Recipe{const char*name;S surface;Color color;float roughness,metallic;};
+  for(auto recipe:std::array<Recipe,8>{{
+   {"sand",S::Soil,{.26f,.145f,.07f,1},.94f,0},
+   {"rock",S::Rock,{.26f,.205f,.155f,1},.94f,0},
+   {"paint",S::PaintedMetal,{.48f,.23f,.06f,1},.5f,.18f},
+   {"steel",S::BareMetal,{.48f,.53f,.56f,1},.42f,.85f},
+   {"ivory",S::PaintedMetal,{.63f,.7f,.65f,1},.53f,.25f},
+   {"dark",S::BareMetal,{.05f,.065f,.075f,1},.6f,.7f},
+   {"rubber",S::Rubber,{.014f,.012f,.01f,1},.92f,0},
+   {"concrete",S::Concrete,{.32f,.31f,.28f,1},.88f,0}}}){
+    g::Material m;m.surface=recipe.surface;m.surfaceSeed=171+unsigned(recipe.surface)*319;
+    m.albedo=recipe.color;m.roughness=recipe.roughness;m.metallic=recipe.metallic;
+    m.textureScale=1;m.normalScale=1;m.macroVariation=0;
+    if(m.surface==S::PaintedMetal){m.clearcoat=.2f;m.clearcoatRoughness=.28f;}
+    materials[recipe.name]=m;
   }
-  auto &ground = materials.at("sand");
-  ground.albedoTexture = texture("scans/ground/diff.jpg");
-  ground.normalTexture = texture("scans/ground/nor_gl.jpg", false);
-  ground.ormTexture = texture("scans/ground/arm.jpg", false);
-  ground.textureScale = .4f;
-  ground.normalScale = .5f;
-  ground.macroVariation = .25f;
   g::Material glass;
   glass.albedo = {.035f, .075f, .09f, 1};
   glass.roughness = .15f;
@@ -336,7 +282,7 @@ void Showcase::buildModels() {
           extent.y=std::max(extent.y,std::abs(v.p.y));
           extent.z=std::max(extent.z,std::abs(v.p.z));
         }
-        auto baked=mesh(std::move(vertices));model.parts.push_back({baked, materials.at(name)});
+        auto baked=mesh(std::move(vertices));auto mat=materials.at(name);mat.surfaceWorld=false;model.parts.push_back({baked,mat});
         if(authoring)authoring->parts(baked,authoredParts[name]);
       }
     model.halfExtent=extent;
@@ -365,8 +311,6 @@ void Showcase::buildModels() {
     put("amber", B, {x, 1.43f, -2.45f}, {.18f, .17f, .05f});
     for (int axle = -1; axle <= 1; axle++) {
       float z = axle * 1.64f;
-      put("steel", C, {x, 1.12f, z}, {.13f, 1.0f, .13f}, 0, 0,
-          x > 0 ? .5f : -.5f);
       put("paint", B, {x * 1.08f, 1.45f, z}, {.34f, .18f, 1.25f});
     }
     for (int i = 0; i < 6; i++)
@@ -508,20 +452,18 @@ void Showcase::buildScenery() {
       {{-47, 0, 48}, {44, 32, 37}, 41}, {{-22, 0, 95}, {48, 43, 42}, 77},
       {{30, 0, 113}, {53, 48, 42}, 93}, {{72, 0, 64}, {47, 41, 37}, 114},
       {{-92, 0, 86}, {51, 43, 45}, 53}, {{194, 0, 152}, {62, 55, 48}, 199}};
-  for (auto &m : massifs) {
-    V3 scale{m.scale.x, m.scale.y * 1.15f, m.scale.z};
-    place(scanCliff[0],
-          {m.p.x,
-           height(m.p.x, m.p.z) + scanCliff[0].halfExtent.y * scale.y - 3,
-           m.p.z},
-          scale, 0);
+  for(auto &m:massifs){
+    auto vertices=mesa(m.seed);auto shape=mesh(std::move(vertices));
+    auto mat=materials.at("rock");mat.surfaceSeed=m.seed;
+    float base=1e6f;for(int iz=0;iz<=12;iz++)for(int ix=0;ix<=12;ix++)base=std::min(base,height(m.p.x+(ix/12.f-.5f)*m.scale.x*1.3f,m.p.z+(iz/12.f-.5f)*m.scale.z*1.3f));
+    add(shape,mat,{m.p.x,base-1,m.p.z},{m.scale.x,m.scale.y,m.scale.z});
   }
   // Service compound: layered modular structure, ventilation, exposed pipework,
   // roof equipment.
   auto dark = materials.at("dark"), steel = materials.at("steel"),
        ivory = materials.at("ivory"), paint = materials.at("paint"),
        concrete = materials.at("concrete");
-  add(bevel, concrete, {0, -.07f, 9}, {24, .22f, 22});
+  add(bevel, concrete, {0, .05f, 9}, {24, .54f, 22});
   add(bevel, dark, {-7, 3.0f, 17}, {8, 6, 7});
   for (int i = 0; i < 7; i++) {
     add(bevel, ivory, {-10.35f + i * 1.1f, 3.2f, 13.4f}, {1.04f, 5.4f, .16f});
@@ -638,6 +580,13 @@ void Showcase::buildScenery() {
     float x = -11.5f + i * .5f;
     add(bevel, steel, {x, .25f, 10.5f}, {.34f, .3f, 1.5f});
   }
+  {
+    auto wet=materials.at("concrete");wet.albedo={.18f,.2f,.19f,1};wet.wetness=.92f;wet.clearcoat=.65f;wet.roughness=.25f;wet.normalScale=.18f;
+    std::vector<g::Vertex> patch;V3 center{7,.326f,9};
+    for(int i=0;i<27;i++){auto point=[&](int j){float a=j*2*rf::pi/27,r=1.f+.18f*random(61000+j%27);return center+V3{std::cos(a)*2.8f*r,0,std::sin(a)*1.25f*r};};
+      for(auto q:{center,point(i+1),point(i)})patch.push_back({q,{0,1,0},{},q.x,q.z});}
+    add(mesh(std::move(patch)),wet,{});
+  }
   // Dense, irregular rock and gravel distribution. Instancing keeps draw counts
   // bounded.
   for (unsigned i = 0; i < 1450; i++) {
@@ -651,7 +600,7 @@ void Showcase::buildScenery() {
     unsigned variant = size < 1.1f ? 4 + i % 4 : i % 4;
     auto mat = materials.at("rock");
     float tint = .74f + random(i * 8 + 3) * .4f;
-    mat.albedo = {tint, tint * .98f, tint * .94f, 1};
+    mat.albedo = {tint*.28f, tint * .24f, tint * .19f, 1};
     float y = height(x, z);
     if (size > .5f && near < 65) {
       auto &scan = i % 2 ? scanBoulder[1] : scanRock[1];
@@ -675,37 +624,20 @@ void Showcase::buildScenery() {
     place(scan, {x, height(x, z) + scan.halfExtent.y * size - .08f, z}, scale,
           random(i * 5 + 4) * 6.28f);
   }
-  // Wind-shaped tufts. Every blade is real geometry with roots and curved tips.
-  std::vector<g::Vertex> grass;
-  for (unsigned i = 0; i < 2400; i++) {
-    float x = (random(17000 + i * 5) - .5f) * 90,
-          z = (random(17001 + i * 5) - .2f) * 95;
-    if (std::abs(x) < 15 && z > 0 && z < 22)
-      continue;
-    float y = height(x, z), angle = random(i + 33) * 6.28f,
-          height = .18f + random(i + 35) * .47f;
-    for (int b = 0; b < 3; b++) {
-      V3 p{x + std::cos(b * 2.1f) * .09f, y, z + std::sin(b * 2.1f) * .09f},
-          R{std::cos(angle + b) * .019f, 0, std::sin(angle + b) * .019f},
-          tip = p + V3{.12f, height, .04f};
-      V3 n = rf::normalized(rf::cross(R, tip - p));
-      Color root{.17f, .14f, .06f, 1}, top{.48f, .39f, .19f, 1};
-      grass.insert(grass.end(), {{p - R, n, root, 0, 0},
-                                 {p + R, n, root, 1, 0},
-                                 {tip, n, top, .5f, 1},
-                                 {p - R, n * -1, root, 0, 0},
-                                 {tip, n * -1, top, .5f, 1},
-                                 {p + R, n * -1, root, 1, 0}});
-    }
+  // A reusable tuft and pebble; positions, slope rejection and wind are GPU generated.
+  scatterPebble=mesh(g::makeDetailedRock(6412,2));
+  std::vector<g::Vertex> tuft;
+  for(int blade=0;blade<5;blade++){
+    float a=blade*2.39996f,height=.45f+random(7100+blade)*.5f;
+    V3 r{std::cos(a)*.026f,0,std::sin(a)*.026f},base{std::cos(a)*.07f,0,std::sin(a)*.07f},middle=base+V3{.06f,height*.55f,.025f},tip=base+V3{.22f,height,.07f};
+    V3 n=rf::normalized(rf::cross(r,tip-base));Color root{.18f,.14f,.065f,1},top{.43f,.33f,.15f,1};
+    tuft.insert(tuft.end(),{{base-r,n,root,0,0},{base+r,n,root,1,0},{middle+r*.6f,n,top,1,.55f},{base-r,n,root,0,0},{middle+r*.6f,n,top,1,.55f},{middle-r*.6f,n,top,0,.55f},{middle-r*.6f,n,top,0,.55f},{middle+r*.6f,n,top,1,.55f},{tip,n,top,.5f,1}});
   }
-  g::Material dryGrass;
-  dryGrass.roughness = .9f;
-  dryGrass.doubleSided = true;
-  dryGrass.windStrength = .12f;
-  dryGrass.temporalReactive = true;
-  add(mesh(std::move(grass)), dryGrass, {});
+  scatterGrass=mesh(std::move(tuft));
 }
 void Showcase::resetSimulation() {
+  std::vector<V3> lead;for(int j=0;j<13;j++)lead.push_back({3.9f+j*.025f,4.4f-j*.18f,10.6f});serviceLead.reset(lead);
+  if(!serviceLeadMesh.value)serviceLeadMesh=mesh(g::makeTube(lead,.025f,6));
   for (auto b : crates)
     physics.remove(b);
   crates.clear();
@@ -759,12 +691,12 @@ void Showcase::update(float dt) {
   }
   float speed = float(std::abs(roverMotion.speed()));
   float z = roverMotion.body().m[14];
-  dustLeft.setOrigin({-2.45f, .22f + height(-2.45f, z - 1.5f), z - 1.5f});
-  dustRight.setOrigin({.45f, .22f + height(.45f, z - 1.5f), z - 1.5f});
-  dustLeft.setVelocity({-.35f, .4f, -.65f * speed});
-  dustRight.setVelocity({.4f, .35f, -.7f * speed});
-  dustLeft.setEmitting(speed > .02f);
-  dustRight.setEmitting(speed > .02f);
+  auto left=roverMotion.center(0),right=roverMotion.center(3);
+  float tireRadius=float(roverMotion.wheel(0).radius());
+  dustLeft.setOrigin(left-V3{0,tireRadius-.1f,0});dustRight.setOrigin(right-V3{0,tireRadius-.1f,0});
+  dustLeft.setVelocity({-.35f,.4f,-.65f*speed});dustRight.setVelocity({.4f,.35f,-.7f*speed});
+  dustLeft.setEmitting(speed>.02f&&roverMotion.grounded(0)&&left.y-tireRadius<=height(left.x,left.z)+.05f);
+  dustRight.setEmitting(speed>.02f&&roverMotion.grounded(3)&&right.y-tireRadius<=height(right.x,right.z)+.05f);
   steam.setEmitting(std::sin(elapsed * .8f) > -.55f);
   steam2.setEmitting(true);
   sparks.setEmitting(elapsed > 34 && elapsed < 47 &&
@@ -810,17 +742,40 @@ void Showcase::update(float dt) {
     float actualZ=(physical.position-rf::transformVector(rf::compose({},physical.rotation),{0,1.6f,0})).z;
     roverMotion.advanceToZ(actualZ,simulationStep);
   }
+  if(simulationStep>0)serviceLead.advance(simulationStep,{3.9f,4.4f,10.6f},{.6f*std::sin(elapsed*.9f),-9.80665f,.18f*std::cos(elapsed)},3,&physics,{},.025f);
   updateCave(simulationStep);
   (void)physics.contacts();
 }
-g::Camera Showcase::camera() const {return cameraAt(elapsed);}
+g::Camera Showcase::camera() const {return viewAt(elapsed);}
 void Showcase::drawRover(float t) {
-  const Mat4 &root = roverMotion.body();
+  RoverMotion displayed=roverMotion;
+  if(presentationStep>0)displayed.advanceToZ(roverMotion.body().m[14]+float(roverMotion.speed())*presentationStep,presentationStep);
+  const auto &motion=displayed;
+  const Mat4 &root = motion.body();
   rover.draw(graphics, root, 2000000);
   for (size_t i = 0; i < 6; ++i) {
-    Mat4 transform = roverMotion.wheelMatrix(i);
+    Mat4 transform = motion.wheelMatrix(i);
     wheel.draw(graphics, transform, 3000000 + i * 100);
     rim.draw(graphics, transform, 4000000 + i * 100);
+  }
+  auto shock=materials.at("dark"),rod=materials.at("steel");shock.surfaceWorld=rod.surfaceWorld=false;
+  auto link=[&](V3 a,V3 b,float radius,const g::Material&mat,uint64_t id,g::MeshId shape){
+    V3 d=b-a;float length=rf::length(d);if(length<1e-5f)return;d=d/length;
+    Quat q{d.z,0,-d.x,1+d.y};float norm=std::sqrt(q.x*q.x+q.y*q.y+q.z*q.z+q.w*q.w);
+    if(norm<1e-5f)q={1,0,0,0};else q={q.x/norm,q.y/norm,q.z/norm,q.w/norm};
+    g::Draw draw;draw.mesh=shape;draw.material=mat;draw.objectId=id;
+    draw.modelMatrix=rf::compose((a+b)*.5f,q,shape==suspensionCoil?V3{1,length,1}:V3{radius*2,length,radius*2});
+    graphics.submit(draw);
+  };
+  for(size_t i=0;i<6;i++){
+    float side=i<3?-1.f:1.f,z=(int(i%3)-1)*1.65f;
+    auto hub=motion.center(i),lower=hub+V3{-side*.18f,.12f,0};
+    auto upper=rf::transformPoint(root,{side*1.08f,1.5f,z});
+    auto arm=rf::transformPoint(root,{side*1.02f,.95f,z-.22f});
+    link(arm,hub,.055f,rod,7100000+i*10,cylinder);
+    link(upper,rf::mix(upper,lower,.65f),.09f,shock,7100001+i*10,cylinder);
+    link(rf::mix(upper,lower,.45f),lower,.035f,rod,7100002+i*10,cylinder);
+    link(rf::mix(upper,lower,.12f),rf::mix(upper,lower,.9f),0,rod,7100003+i*10,suspensionCoil);
   }
   for (int i = 0; i < 2; i++) {
     if (i == 0 && t >= 27)
@@ -835,18 +790,19 @@ unsigned Showcase::activeParticles() const {
          sparks.active().size() + sand.active().size() + gravel.active().size()+[&]{unsigned n=0;for(auto&e:caveEffects)n+=e.active().size();return n;}();
 }
 void Showcase::render(const g::Camera &camera, bool hud, bool particles,
-                      double fps, const std::function<void()> &overlay, float deltaSeconds,float aspect) {
+                      double fps, const std::function<void()> &overlay, float deltaSeconds,float aspect,float interpolationSeconds) {
+  presentationStep=std::clamp(interpolationSeconds,0.f,1.f/120);
   // Feed real frame time to temporal focus/exposure adaptation.
   g::Environment env;
   env.deltaSeconds = deltaSeconds;
   env.sunDirection = sceneSun;
   env.imageRotation = skyRotation;
-  env.sunColor = {1, .78f, .51f, 1};
+  env.sunColor = g::lightColorTemperature(5100);
   float interior=insideCave(camera.position)?smooth(89,112,camera.position.z):0;
   env.sunIntensity = 4.2f*(1-interior);
   env.skyColor = {.34f, .46f, .62f, 1};
   env.groundColor = {.23f, .17f, .11f, 1};
-  env.ambientIntensity = rf::mix(1.2f,.32f,interior);
+  env.ambientIntensity = rf::mix(.85f,.18f,interior);
   env.fogDensity = rf::mix(.1f,.12f,interior);
   env.image = interior>.999f?underground:daylight;
   env.deltaSeconds = deltaSeconds;
@@ -857,6 +813,15 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
   env.atmosphere.cloudCoverage = .20f;
   env.atmosphere.cloudDensity = .9f;
   graphics.begin(camera, env);
+  g::ReflectionProbe probe;
+  if(interior>.6f){probe.id=2;probe.position={128,13,146};probe.halfExtent={26,13,37};probe.blendDistance=3;probe.refreshFrames=90;}
+  else{probe.id=1;probe.position={0,3.7f,7};probe.halfExtent={28,16,43};probe.blendDistance=5;probe.refreshFrames=36;}
+  graphics.reflectionProbe(probe);
+  if(particles&&interior>.4f){
+    g::FogVolume fog;fog.position={119,15.5f,123};fog.halfExtent={3,2.8f,3};fog.density=.045f;fog.albedo={.48f,.39f,.25f,1};fog.velocity={.09f,.22f,0};graphics.fogVolume(fog);
+    fog.position={139,18,145};fog.halfExtent={2,3,2};fog.density=.028f;fog.albedo={.65f,.75f,.8f,1};fog.velocity={.05f,.3f,.01f};graphics.fogVolume(fog);
+    fog.position={112,10.1f,165};fog.halfExtent={4,.8f,2};fog.density=.025f;fog.albedo={.5f,.62f,.63f,1};fog.velocity={.08f,.04f,0};graphics.fogVolume(fog);
+  }
   g::Terrain terrain;
   terrain.height = height;
   terrain.material = materials.at("sand");
@@ -865,13 +830,20 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
   // The rock shell is opaque. When its only opening is behind the camera,
   // the outpost and ground outside cannot contribute visible pixels or indoor sun shadows.
   bool sealedView=!authoring && enclosedView(camera,aspect);
-  if(!sealedView)graphics.terrain(terrain);
+  if(!sealedView){graphics.terrain(terrain);
+    g::ProceduralScatter scatter;scatter.id=71;scatter.mesh=scatterPebble;scatter.material=materials.at("rock");scatter.center={0,0,15};scatter.halfExtent={67,0,65};scatter.count=2400;scatter.seed=941;scatter.minScale=.035f;scatter.maxScale=.22f;scatter.height=height;
+    scatter.exclusions={rf::AABB{{-15,-50,-2},{15,50,23}},rf::AABB{{-3.4f,-50,-41},{1.4f,50,5}}};graphics.scatter(scatter);
+    scatter.id=72;scatter.mesh=scatterGrass;scatter.count=2600;scatter.seed=7288;scatter.minScale=.3f;scatter.maxScale=.8f;scatter.heightOffset=0;scatter.material={};scatter.material.roughness=.85f;scatter.material.sheen=.3f;scatter.material.doubleSided=true;scatter.material.windStrength=.08f;scatter.material.temporalReactive=true;graphics.scatter(scatter);
+  }
   if(!sealedView){
   for (auto &draw : scenery)
     graphics.submit(draw);
   for (auto &instance : staticModels)
     instance.model->draw(graphics, instance.root, instance.id + 100000000);
   drawRover(elapsed);
+  graphics.updateMesh(serviceLeadMesh,g::makeTube(serviceLead.points(),.025f,6));
+  auto leadMaterial=materials.at("rubber");leadMaterial.sheen=.2f;leadMaterial.temporalReactive=true;
+  graphics.submit({serviceLeadMesh,{},leadMaterial,7900001,{}});
   float lift = smooth(26, 30, elapsed), travel = smooth(30, 35, elapsed);
   V3 hook{rf::mix(-1.f, 4.8f, travel),
           rf::mix(3.0f, 5.7f, lift) - 2.7f * smooth(35, 36, elapsed),
@@ -892,7 +864,7 @@ void Showcase::render(const g::Camera &camera, bool hud, bool particles,
     cargo.draw(graphics, rf::compose(p.position, p.rotation),
                6300000 + body.value * 100);
   }
-  float turn = elapsed * .12f;
+  float turn = (elapsed+presentationStep) * .12f;
   radar.draw(graphics, matrix({11.05f, 13.7f, 18}, {1, 1, 1}, turn, .65f),
              6400000);
   V3 dronePosition =

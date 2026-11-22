@@ -5,6 +5,8 @@
 #include <jsd/engine.hpp>
 #include <map>
 #include "rover_motion.hpp"
+#include <jsd/strands.hpp>
+#include <jsd/camera_collision.hpp>
 #include <jsd/project_capture.hpp>
 namespace sundog {
 using namespace jsd;
@@ -25,10 +27,16 @@ class Showcase {
   jsd::project::ProjectCapture *authoring=nullptr;float skyGain=1;std::map<uint64_t,BodySettings> colliderRecords;
   std::vector<jsd::project::Id> emitterNodes;jsd::project::Id cameraNode=0;
   std::vector<g::MeshId> ownedMeshes;
+  std::map<unsigned,std::vector<g::Vertex>> cameraMeshes;
+  CameraCollision cameraObstacles;
+  std::vector<V3> cameraRoute;
+  Body cameraProbe{};
+  void buildCameraRoute();
+  float presentationStep=0;
   std::vector<g::TextureId> ownedTextures;
   std::map<std::string, g::Material> materials;
   std::vector<g::Draw> scenery;
-  g::MeshId bevel, cube, cylinder, sphere, torus;
+  g::MeshId bevel, cube, cylinder, sphere, torus, suspensionCoil, scatterPebble, scatterGrass;
   std::array<g::MeshId, 8> rocks;
   Model rover, wheel, rim, cargo, drone, craneHead, radar;
   std::array<Model, 2> scanBoulder, scanRock, scanCliff;
@@ -48,6 +56,7 @@ class Showcase {
   g::TextureId title, mission, credits;
   PhysicsWorld physics;
   RoverMotion roverMotion;
+  StrandChain serviceLead;g::MeshId serviceLeadMesh;
   std::vector<Body> crates;
   Body roverBody{}, liftedCargo{};
   bool cargoReleased = false, roverBlocked = false;
@@ -83,8 +92,10 @@ public:
   void update(float seconds);
   void reset();
   void render(const g::Camera &, bool hud = true, bool particles = true,
-              double fps = -1, const std::function<void()> &overlay = {}, float deltaSeconds = 1.f / 60, float aspect = 16.f/9);
+              double fps = -1, const std::function<void()> &overlay = {}, float deltaSeconds = 1.f / 60, float aspect = 16.f/9, float interpolationSeconds = 0);
   g::Camera camera() const;
+  g::Camera viewAt(float seconds) const;
+  V3 moveCamera(V3 from,V3 desired);
   float time() const { return elapsed; }
   unsigned activeParticles() const;
   static float height(float x, float z);

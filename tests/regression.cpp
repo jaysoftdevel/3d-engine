@@ -1,4 +1,7 @@
 #include "cinematic_tests.hpp"
+#include "lighting_tests.hpp"
+#include "camera_collision_tests.hpp"
+#include "procedural_surface_tests.hpp"
 #include "light_bounds_tests.hpp"
 #include "minimal_tests.hpp"
 #include "runtime_tests.hpp"
@@ -22,6 +25,8 @@ int main(int argc, char **argv) {
             checks++;
             std::cout << "PASS " << name << '\n';
         };
+        cameraCollisionTests(test);lightingUnitTests(test);
+        strandTests(test);
         opticsTests(test);
         lightBoundsTests(test);
         auto round=makeCylinder(40);bool radial=true,capsHard=true;
@@ -57,7 +62,7 @@ int main(int argc, char **argv) {
         auto path = std::filesystem::temp_directory_path() /
                     ("frontier-settings-" + std::to_string(jsdTestProcessId()) + ".ini");
         std::string error;
-        s = GraphicsSettings::ultra();
+        s = GraphicsSettings::ultra();s.minExposureEV=-2;s.maxExposureEV=3;s.localExposure=.3f;
         test(saveSettings(path, s, error), "settings save");
         auto restored = GraphicsSettings::legacy();
         test(loadSettings(path, restored, error) && restored == s, "all graphics settings roundtrip");
@@ -88,6 +93,8 @@ int main(int argc, char **argv) {
         if (argc > 1 && std::string(argv[1]) == "--graphics") {
             Platform platform(true, 640, 360);
             Renderer renderer(platform, GraphicsSettings::legacy());
+            lightingGraphicsTests(renderer,test);
+            proceduralSurfaceTests(renderer,test);
             std::vector<unsigned char> pixels(2048 * 1024 * 4, 180);
             auto texture = renderer.createTexture(2048, 1024, pixels);
             s = renderer.settings().requested;

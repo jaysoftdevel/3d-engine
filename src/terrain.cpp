@@ -174,7 +174,7 @@ void Renderer::Impl::drawTerrain(bool shadow, bool depthOnly) {
             continue;
         batch[0].model=model(t);batch[0].previous=batch[0].model;
         if (terrainHardware) {
-            sampler(p, "heightMap", tile.heightMap, 5);
+            sampler(p, "heightMap", tile.heightMap, 16);
             gl.Uniform2f(uniform(p, "tileOrigin"), t.position.x, t.position.z);
             gl.Uniform2f(uniform(p, "cameraXZ"), camera.position.x, camera.position.z);
             scalar(p, "tessLevel",

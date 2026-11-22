@@ -109,12 +109,13 @@ std::vector<Vertex> makeDetailedRock(unsigned seed, unsigned divisions) {
                n = normalized(cross((position(x + .001f, y) - position(x - .001f, y)) * 500.f,
                                     (position(x, y + .001f) - position(x, y - .001f)) * 500.f));
             float shade = .85f + .15f * noise(p * 16, seed);
+            p={std::round(p.x*1000000)/1000000,std::round(p.y*1000000)/1000000,std::round(p.z*1000000)/1000000};
             return Vertex{p, n, {shade, shade, shade, 1}, x + .5f, y + .5f};
         };
         for (unsigned y = 0; y < divisions; y++)
             for (unsigned x = 0; x < divisions; x++) {
-                float u = float(x) / divisions - .5f, v = float(y) / divisions - .5f, h = 1.f / divisions;
-                auto a = vertex(u, v), b = vertex(u + h, v), c = vertex(u + h, v + h), d = vertex(u, v + h);
+                float u = float(x) / divisions - .5f, v = float(y) / divisions - .5f, u1=float(x+1)/divisions-.5f,v1=float(y+1)/divisions-.5f;
+                auto a = vertex(u, v), b = vertex(u1, v), c = vertex(u1, v1), d = vertex(u, v1);
                 emit(out, a, b, c);
                 emit(out, a, c, d);
             }

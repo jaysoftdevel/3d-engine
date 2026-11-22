@@ -1,6 +1,7 @@
 #include "../third_party/smaa/Textures/SearchTex.h"
 #include "internal.hpp"
 #include "shaders.hpp"
+#include "reflection_shader.hpp"
 #include "smaa_area.hpp"
 #include "smaa_shader.hpp"
 #include <bit>
@@ -83,7 +84,7 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s) : context(std::move(c)) {
     }
     aoProgram = program(shader::fullscreen, shader::aoFragment);
     aoBlurProgram = program(shader::fullscreen, shader::aoBlur);
-    lightingProgram = program(shader::fullscreen, shader::lightingFragment);
+    lightingProgram = program(shader::fullscreen, shader::hybridLightingFragment);
     dofProgram = program(shader::fullscreen, shader::dofFragment);
     tonemapProgram = program(shader::fullscreen, shader::tonemapFragment);
     copyProgram = program(shader::fullscreen, shader::copyFragment);
@@ -100,11 +101,13 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s) : context(std::move(c)) {
                            reinterpret_cast<void *>(offsetof(UiVertex, c)));
     initializeSmaa();
     initializeAdvanced();
+    initializeLighting();
     initializeCinematic();
 }
 Renderer::Impl::~Impl() {
     gl.DeleteProgram(minimalProgram);
     releaseCinematic();
+    releaseLighting();
     releaseAdvanced();
     releaseTargets();
     for (auto &[k, t] : tiles) {
@@ -262,6 +265,7 @@ GpuMesh Renderer::Impl::upload(std::span<const Vertex> v) {
     return m;
 }
 void Renderer::Impl::destroy(GpuMesh &m) {
+    for(auto &lod:m.lods)destroy(lod);
     if (m.ibo)
         gl.DeleteBuffers(1, &m.ibo);
     if (m.vbo)
@@ -357,10 +361,10 @@ SettingsReport Renderer::setSettings(GraphicsSettings s) {
             (old.depthOfField == Quality::Off) != (next.effective.depthOfField == Quality::Off) ||
             (old.volumetricFog == Quality::Off) != (next.effective.volumetricFog == Quality::Off) ||
             (old.motionBlur == Quality::Off) != (next.effective.motionBlur == Quality::Off) ||
-            old.bloom != next.effective.bloom;
+            old.bloom != next.effective.bloom || old.stochasticLighting!=next.effective.stochasticLighting;
         if (old.autoFocus != next.effective.autoFocus || old.depthOfField != next.effective.depthOfField)
             impl->focusValid = false;
-        impl->historyValid = false;
+        impl->historyValid = false;impl->directHistoryValid=false;
         if (old.textureQuality != next.effective.textureQuality ||
             old.anisotropy != next.effective.anisotropy)
             for (auto &[id, t] : impl->textures) {
@@ -466,6 +470,7 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
         i.environment.sunIntensity = *environment.sunIlluminanceLux;
     }
     i.commands.clear();
+    i.requestedProbe.reset();i.activeProbe=nullptr;i.fogVolumes.clear();i.contactDepthValid=false;i.scatterCommands.clear();
     i.lights.clear();
     i.physicalLighting = environment.sunIlluminanceLux.has_value() || (camera.optics && camera.optics->physicalExposure);
     i.particleCommands.clear();
@@ -510,6 +515,12 @@ void Renderer::submit(const Draw &draw) {
                     draw.material.occlusionStrength})
         if (!std::isfinite(f))
             throw std::invalid_argument("Nonfinite draw state");
+    for(float f:{draw.material.wetness,draw.material.dust,draw.material.sheen})
+        if(!std::isfinite(f)||f<0||f>1)throw std::invalid_argument("Invalid material layer weight");
+    if(!std::isfinite(draw.material.anisotropy)||std::abs(draw.material.anisotropy)>.95f)
+        throw std::invalid_argument("Invalid material anisotropy");
+    if (int(draw.material.surface)<0||int(draw.material.surface)>13||draw.material.surfaceSeed>2147483647u)
+        throw std::invalid_argument("Invalid procedural surface");
     if (draw.material.occlusionStrength < 0 || draw.material.occlusionStrength > 1 ||
         draw.material.textureScale <= 0 || draw.material.macroVariation < 0 ||
         draw.material.macroVariation > 1 || draw.material.clearcoat < 0 || draw.material.clearcoat > 1 ||
@@ -634,6 +645,11 @@ void Renderer::captureBuffers(const std::filesystem::path &directory) {
                 f.write(reinterpret_cast<char *>(bytes.data() + (size_t(y) * i.width + x) * 4), 3);
     }
     std::ofstream(directory/"pipeline.txt") << (i.compactScene?"lightweight forward; deferred normal/material/motion dumps are neutral placeholders\n":"full material pipeline\n");
+    if(i.exposure[i.exposureIndex].fbo){
+        std::array<float,4> exposure{};i.gl.BindFramebuffer(0x8CA8,i.exposure[i.exposureIndex].fbo);i.gl.ReadBuffer(vl::GL_COLOR_ATTACHMENT0);
+        i.gl.ReadPixels(0,0,1,1,vl::GL_RGBA,vl::GL_FLOAT,exposure.data());
+        std::ofstream(directory/"lighting-state.txt")<<"meteredExposure="<<exposure[0]<<"\ncompensationEV="<<i.settings().exposureCompensation<<"\nlocalExposure="<<i.settings().localExposure<<"\nshadowedSpots="<<i.stats.localShadowMaps<<"\nshadowUpdates="<<i.stats.localShadowUpdates<<'\n';
+    }
     if (i.focusValid && i.focus[i.focusIndex].fbo) {
         std::array<float, 4> distance{};
         i.gl.BindFramebuffer(0x8CA8, i.focus[i.focusIndex].fbo);

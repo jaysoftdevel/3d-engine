@@ -10,7 +10,7 @@ enum class ToneMapper { ACES, Reinhard, Neutral };
 enum class Quality { Off, Low, Medium, High, Ultra };
 // Existing serialized values remain unchanged; Lowest is appended.
 enum class TextureQuality { Low, Medium, High, Ultra, Lowest };
-enum class GlobalIllumination { Off, AmbientProbe, ScreenSpace };
+enum class GlobalIllumination { Off, AmbientProbe, ScreenSpace, Hybrid, ProbeLite };
 enum class TessellationBackend { Automatic, Mesh, Hardware };
 enum class GraphicsPreset { Minimal, Low, Medium, High, Max };
 
@@ -40,8 +40,13 @@ struct GraphicsSettings {
     float contrast = 1, saturation = 1, temperature = 0, vignette = 0;
     Quality motionBlur = Quality::Off, volumetricFog = Quality::Off;
     float motionBlurStrength = .5f, fogDensity = .015f, fogHeightFalloff = .12f;
+    bool stochasticLighting = false;
+    int directLightSamples = 8;
     bool autoFocus = true;
     float focusAdaptation = 6;
+    float minExposureEV = -4, maxExposureEV = 4;
+    // Strength of edge-aware exposure compensation; zero leaves local contrast untouched.
+    float localExposure = 0;
     bool operator==(const GraphicsSettings &) const = default;
     static GraphicsSettings legacy();
     static GraphicsSettings low();

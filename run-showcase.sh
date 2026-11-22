@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
-for showcase_arg in "$@"; do if [[ "$showcase_arg" == --project || "$showcase_arg" == *.jsdproject ]]; then exec ./run-project.sh "$@"; fi; done
-./build.sh "${JSD_BUILD_TYPE:-Release}" -DJSD_BUILD_SHOWCASE=ON
+for showcase_arg in "$@"; do if [[ "$showcase_arg" == --project || "$showcase_arg" == *.jsdproject ]]; then exec bash ./run-project.sh "$@"; fi; done
+bash ./build.sh "${JSD_BUILD_TYPE:-Release}" -DJSD_BUILD_SHOWCASE=ON
 if [[ "${JSD_GPU:-auto}" == discrete ]]; then
     export DRI_PRIME="${DRI_PRIME:-1}"
     if [[ -r /proc/driver/nvidia/version ]]; then

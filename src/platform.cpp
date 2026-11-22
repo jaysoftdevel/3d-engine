@@ -32,7 +32,7 @@ template <class F> F symbol(void *lib, const char *name) {
 std::filesystem::path executableDirectory() {
     char *base = SDL_GetBasePath();
     if (!base) throw std::runtime_error(std::string("Cannot locate executable: ") + SDL_GetError());
-    std::filesystem::path result(base);
+    std::filesystem::path result=std::filesystem::u8path(base);
     SDL_free(base);
     return result;
 }
@@ -50,7 +50,7 @@ Platform::Platform(bool headless, int w, int h) : offscreen(headless), width(w),
         SDL_GL_SetAttribute(17, 3);
         SDL_GL_SetAttribute(18, 3);
         SDL_GL_SetAttribute(21, 1);
-        window = SDL_CreateWindow("JSD Game Engine 0.5.6", vl::sdl::centered, vl::sdl::centered, w, h,
+        window = SDL_CreateWindow("JSD Game Engine 0.5.12", vl::sdl::centered, vl::sdl::centered, w, h,
                                   vl::sdl::openGL | vl::sdl::highDPI |
                                   (headless ? vl::sdl::hidden : vl::sdl::resizable));
         if (!window) {

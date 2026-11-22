@@ -1,4 +1,6 @@
 #include "../src/showcase.hpp"
+#include <frontier/detail/mesh_topology.hpp>
+#include "../src/graphics_presets.hpp"
 #include <iostream>
 namespace sundog {
 struct ShowcasePhysicsProbe {
@@ -10,6 +12,8 @@ struct ShowcasePhysicsProbe {
         check(scene.roverBlocked&&scene.roverMotion.body().m[14]<-12.59f,"showcase rover stops at an actual scene blocker");
         auto angle=scene.roverMotion.wheel(0).angle();for(int i=0;i<120;i++)scene.update(1.f/120);
         check(std::abs(angle-scene.roverMotion.wheel(0).angle())<1e-6,"blocked rover wheels do not spin");
+        auto blockedCamera=scene.moveCamera({-1,3,-12},{-1,3,-8});
+        check(blockedCamera.z<-10.39f,"free camera sweeps against live gameplay blockers without tunnelling");
         scene.physics.remove(blocker);float before=scene.roverMotion.body().m[14];scene.update(1.f/120);
         check(scene.roverMotion.body().m[14]>before&&scene.roverMotion.body().m[14]-before<.021,"cleared route resumes without a catch-up teleport");
         scene.reset();for(int i=0;i<3000;i++)scene.update(1.f/120);
@@ -27,9 +31,22 @@ struct ShowcasePhysicsProbe {
         check(released&&body==scene.liftedCargo,"release keeps the same solver body handle");
         check(maxReleaseJump<.01,"cargo release preserves position continuously");
         auto resting=scene.physics.state(body);std::cout<<"CARGO_REST "<<resting.position.x<<' '<<resting.position.y<<' '<<resting.position.z<<'\n';
-        check(resting.position.x>4.6f&&resting.position.z>4&&resting.position.y>.53f&&resting.position.y<.8f,"cargo falls and rests on visible compound slab");
+        check(resting.position.x>4.6f&&resting.position.z>4&&std::abs(resting.position.y-(.32f+scene.cargo.halfExtent.y))<.025f,"cargo falls and rests on visible compound slab");
         check(rf::length(resting.velocity)<.1,"released cargo settles under damping and friction");
         scene.reset();check(scene.crates.empty()&&scene.liftedCargo.value==~0u,"mission reset removes released bodies");
+        bool sharp=true;for(int q=0;q<5;q++){auto settings=sundog::graphicsPreset(gfx::GraphicsPreset(q));sharp&=settings.depthOfField==gfx::Quality::Off&&settings.motionBlur==gfx::Quality::Off&&settings.renderScale==1&&settings.maximumBlur<=2.5f;}check(sharp,"all showcase presets default to native-resolution presentation without lens or motion blur");
+        bool closedMountains=true;for(size_t i=0;i<6;i++)closedMountains&=rf::gfx::detail::closedSurface(scene.cameraMeshes.at(scene.scenery[i].mesh.value));
+        check(closedMountains,"all mountain masses include closed sides, roofs and buried bases");
+        bool sweptClear=true;float largestCorrection=0;auto last=scene.viewAt(0);
+        for(int i=1;i<int(Showcase::Duration*120);i++){
+            float t=i/120.f;auto view=scene.viewAt(t);auto hit=scene.cameraObstacles.cast(last.position,view.position-last.position,.292f);
+            if(hit){if(sweptClear)std::cout<<"CAMERA_COLLISION "<<t<<'\n';sweptClear=false;}
+            largestCorrection=std::max(largestCorrection,rf::distance(view.position,Showcase::cameraAt(t).position));last=view;
+        }
+        std::cout<<"CAMERA_CORRECTION "<<largestCorrection<<'\n';
+        check(sweptClear,"complete playback camera path clears actual scene triangles with a finite near-plane margin");
+        check(largestCorrection<5,"collision-aware playback follows the authored route without sticking behind scenery");
+        check(rf::distance(scene.viewAt(Showcase::Duration-.001f).position,scene.viewAt(.001f).position)<.02f,"collision-aware camera path also rejoins its opening without a cut");
         auto prior=Showcase::cameraAt(0);float maxStep=0,maxTurn=0;bool tunnelClear=true,solidClear=true;
         for(int i=1;i<=int(Showcase::Duration*120);i++){
             float time=i/120.f;auto camera=Showcase::cameraAt(time);maxStep=std::max(maxStep,rf::distance(prior.position,camera.position));maxTurn=std::max(maxTurn,rf::length(prior.direction-camera.direction));
@@ -55,9 +72,19 @@ struct ShowcasePhysicsProbe {
         bool terrainSame=true;for(int z=-40;z<200;z+=7)for(int x=-100;x<200;x+=11)
             terrainSame&=std::abs(exported.height(float(x),float(z))-Showcase::height(float(x),float(z)))<1e-6f;
         check(terrainSame,"exported terrain and showcase use the same graded geology");
-        int stairTreads=0,motors=0,stringers=0;bool closedDuct=false,feed=false;float priorY=0;
+        int stairTreads=0,motors=0,stringers=0;bool closedDuct=false,feed=false,rearFits=false,portalFaces=false;float priorY=0;
         for(const auto &draw:scene.caveScenery){
             const auto& name=scene.caveNames.at(draw.objectId);
+            if(name=="Portal bedrock / continuous opening"){
+                portalFaces=true;auto&v=scene.cameraMeshes.at(draw.mesh.value);
+                for(size_t i=0;i<v.size();i+=3)portalFaces&=v[i].n.z<0&&rf::cross(v[i+1].p-v[i].p,v[i+2].p-v[i].p).z<0;
+            }
+            if(name=="Deep gallery end wall"){
+                rearFits=true;for(auto &v:scene.cameraMeshes.at(draw.mesh.value)){
+                    float x=(v.p.x-128)/26.25f,y=(v.p.y-8)/23.25f;
+                    rearFits&=x*x+y*y<1.001f&&v.p.y>=7.999f;
+                }
+            }
             if(name=="Gallery stair tread"){
                 float y=draw.modelMatrix->m[13];
                 if(stairTreads)check(y-priorY>.17f&&y-priorY<.19f,"stair risers remain walkable");
@@ -71,6 +98,8 @@ struct ShowcasePhysicsProbe {
         }
         check(stairTreads==42&&stringers==2&&motors==3&&closedDuct&&feed,
               "stairs have stringers, tank drives are enclosed, conveyor and extraction connect");
+        check(rearFits,"rear gallery closure fits the curved excavation without exterior slab corners");
+        check(portalFaces,"entrance bedrock normals and triangle winding face outward toward daylight");
         check(std::abs(Showcase::height(128,87)-7.95f)<.02f,"service approach meets the portal floor without a floating slab");
         check(!Showcase::enclosedView(Showcase::cameraAt(68)),"exterior terrain remains visible on the approach");
         check(!Showcase::enclosedView(Showcase::cameraAt(92),4),"wide aspect ratios retain a portal at the edge of view");

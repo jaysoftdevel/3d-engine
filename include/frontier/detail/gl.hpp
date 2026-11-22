@@ -20,6 +20,8 @@ constexpr GLenum GL_COLOR_BUFFER_BIT = 0x4000, GL_TRIANGLES = 4, GL_FLOAT = 0x14
                  GL_ONE = 1, GL_SRC_ALPHA = 0x0302, GL_ONE_MINUS_SRC_ALPHA = 0x0303, GL_VERSION = 0x1F02,
                  GL_RENDERER = 0x1F01, GL_NO_ERROR = 0, GL_SCISSOR_TEST = 0x0C11;
 #define VL_GL_FUNCTIONS(X)                                                                                           \
+    X(void, DisableVertexAttribArray, (GLuint))                                                                     \
+    X(void, RenderbufferStorage, (GLenum, GLenum, GLsizei, GLsizei))                                                \
     X(void, Viewport, (GLint, GLint, GLsizei, GLsizei))                                                              \
     X(void, Scissor, (GLint, GLint, GLsizei, GLsizei))                                                               \
     X(void, ClearColor, (float, float, float, float))                                                                \

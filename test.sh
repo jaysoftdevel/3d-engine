@@ -9,7 +9,7 @@ case "${1:-}" in
     *) printf 'Usage: ./test.sh [--with-showcase]\n' >&2; exit 2 ;;
 esac
 if [[ $# -gt 0 ]]; then printf 'Unexpected test arguments.\n' >&2; exit 2; fi
-./build.sh "${JSD_BUILD_TYPE:-Release}" -DJSD_BUILD_TESTS=ON -DJSD_BUILD_EXAMPLES=ON -DJSD_BUILD_SHOWCASE="$with_showcase"
+bash ./build.sh "${JSD_BUILD_TYPE:-Release}" -DJSD_BUILD_TESTS=ON -DJSD_BUILD_EXAMPLES=ON -DJSD_BUILD_SHOWCASE="$with_showcase"
 jsd_sdk="${JSD_INSTALL_PREFIX:-$PWD}"
 "$jsd_sdk/bin/jsd-physics-tests"
 "$jsd_sdk/bin/jsd-engine-tests" --graphics
