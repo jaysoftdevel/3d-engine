@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
       else if (a == "--write-settings")
         writeConfig = value(i);
       else if (a == "--help") {
-        std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.5.12 "
+        std::cout << "SUNDOG / Recovery at Kestrel Relay — native JSD 0.5.14 "
                      "showcase\n160-second "
                      "autonomous recovery mission; loops automatically.\nSPACE "
                      "pause; TAB explore "

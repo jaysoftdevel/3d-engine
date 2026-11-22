@@ -1,13 +1,21 @@
-# JSD Game Engine 0.5.12 — standalone source project
+# JSD Game Engine 0.5.14 — standalone source project
 
 An independent native C++20 Linux engine. The archive contains one top-level directory: `jsd-game-engine`. The optional autoplay showcase is included under `examples/showcase`, as a target of the engine build. All primary source, public headers, dependencies, build scripts, engine tools, documentation and tests live here in `jsd-game-engine`. The showcase is disabled by default (`JSD_BUILD_SHOWCASE=OFF`). The engine builds, tests and runs its graphics lab independently. The graphics/runtime APIs and 0.4.1 performance improvements remain available.
 
 **No compiled executables, libraries, object files, Gradle wrapper JARs or build caches are distributed.** All engine, SDL2 and Jolt code is built locally; cgltf/stb/SMAA source is compiled as part of the engine. Images, meshes and audio are runtime input data.
 
+Version 0.5.14 adds thread-safe live audio voice updates with smoothed channel
+gains, retaining clip position while the camera moves or sound presence changes.
+See [Live audio](docs/LIVE-AUDIO-0.5.14.md).
+
 Version 0.5.12 fixes Windows consumer definitions, executable paths and file-clock
 cache portability. It retains the aperiodic materials from 0.5.11.
 See [Windows changes](docs/WINDOWS-0.5.12.md).
 See [SURFACES-0.5.11.md](docs/SURFACES-0.5.11.md) for API details.
+
+Version 0.5.13 adds an optional directional sky sphere with filtered, stable
+stars, atmospheric visibility and camera/FOV/aspect reprojection.
+See [Sky sphere](docs/SKY-SPHERE-0.5.13.md).
 
 ## Editable engine projects
 

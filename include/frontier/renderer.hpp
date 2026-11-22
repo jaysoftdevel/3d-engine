@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.12";
+inline constexpr const char *Version = "0.5.14";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -77,6 +77,14 @@ struct Atmosphere {
     float cloudBase = 95, cloudThickness = 90;
     V3 wind{3, 0, 1};
 };
+// Infinite, world-oriented sky sphere. Directional sampling avoids camera
+// translation/parallax and automatically respects aspect ratio and vertical FOV.
+struct Starfield {
+    bool enabled=false;
+    float intensity=1.0f;
+    unsigned seed=73021;
+    Mat4 orientation=Mat4::identity();
+};
 struct Environment {
     V3 sunDirection{-.45f, .8f, .3f};
     Color sunColor{1, .91f, .79f, 1};
@@ -89,6 +97,7 @@ struct Environment {
     float shadowDistance = 0;
     float imageRotation = 0;
     std::optional<float> sunIlluminanceLux;
+    Starfield stars;
 };
 // Scene-rasterized radiance, box projected inside a bounded region.
 struct ReflectionProbe {

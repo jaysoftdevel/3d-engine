@@ -717,6 +717,12 @@ void Renderer::Impl::pipeline() {
     matrix(skyProgram, "invView", inverse(view));
     matrix(skyProgram, "previousVP", previousVP);
     scalar(skyProgram, "farDistance", settings().viewDistance);
+    matrix(skyProgram,"starOrientation",environment.stars.orientation);
+    const float daylight=std::clamp((normalized(environment.sunDirection).y+.10f)/.22f,0.f,1.f);
+    const float visibility=environment.atmosphere.enabled?1.f-daylight*daylight*(3.f-2.f*daylight):1.f;
+    scalar(skyProgram,"starIntensity",environment.stars.enabled?std::clamp(environment.stars.intensity,0.f,20.f)*visibility:0.f);
+    integer(skyProgram,"starSeed",int(environment.stars.seed&0x7fffffffu));
+    integer(skyProgram,"airlessSky",environment.stars.enabled&&!environment.atmosphere.enabled);
     vector(skyProgram, "skyColor", {environment.skyColor.r, environment.skyColor.g, environment.skyColor.b});
     auto sky = environments.find(environment.image.value);
     integer(skyProgram, "enabled", sky != environments.end());

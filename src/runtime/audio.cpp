@@ -60,6 +60,16 @@ Sound AudioMixer::play(std::shared_ptr<const AudioClip> clip, V3 p, float gain, 
     voices.push_back({id, std::move(clip), 0, p, gain, loop, spatial});
     return id;
 }
+bool AudioMixer::update(Sound s, V3 p, float gain, bool spatial) {
+    if (!std::isfinite(gain) || !std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z))
+        throw std::invalid_argument("invalid voice update");
+    std::lock_guard lock(mutex);
+    for (auto &v : voices) if (v.sound.id == s.id) {
+        v.position = p; v.gain = std::max(0.f, gain); v.spatial = spatial;
+        return true;
+    }
+    return false;
+}
 void AudioMixer::stop(Sound s) {
     std::lock_guard lock(mutex);
     std::erase_if(voices, [&](auto &v) { return v.sound.id == s.id; });
@@ -81,7 +91,11 @@ void AudioMixer::mix(std::span<float> out, unsigned rate) {
               attenuation = v.spatial ? 1 / (1 + .04f * dist * dist) : 1;
         float left = std::sqrt((1 - pan) * .5f) * v.gain * attenuation,
               r = std::sqrt((1 + pan) * .5f) * v.gain * attenuation;
+        if (!v.initialized) { v.left = left; v.right = r; v.initialized = true; }
+        const float smooth = 1.f - std::exp(-1.f / (rate * .025f));
         for (size_t frame = 0; frame < out.size() / 2; frame++) {
+            v.left += (left - v.left) * smooth;
+            v.right += (r - v.right) * smooth;
             if (v.cursor >= frames) {
                 if (v.loop)
                     v.cursor = std::fmod(v.cursor, double(frames));
@@ -95,8 +109,8 @@ void AudioMixer::mix(std::span<float> out, unsigned rate) {
                   rightSample = v.clip->channels == 2
                                     ? rf::mix(v.clip->samples[a * 2 + 1], v.clip->samples[b * 2 + 1], t)
                                     : l;
-            out[frame * 2] += l * left;
-            out[frame * 2 + 1] += rightSample * r;
+            out[frame * 2] += l * v.left;
+            out[frame * 2 + 1] += rightSample * v.right;
             v.cursor += double(v.clip->sampleRate) / rate;
         }
     }

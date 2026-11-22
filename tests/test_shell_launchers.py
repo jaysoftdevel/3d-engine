@@ -84,7 +84,7 @@ class ShellLaunchers(unittest.TestCase):
         base = Path(self.temp.name) / 'base'
         target = Path(self.temp.name) / 'target'
         fixture(base, 'jsd.engine', '0.5.8')
-        fixture(target, 'jsd.engine', '0.5.12')
+        fixture(target, 'jsd.engine', '0.5.14')
         # Both files deliberately lack +x; the packager must still encode 0755.
         (base / 'build.sh').chmod(0o644)
         (target / 'build.sh').chmod(0o644)

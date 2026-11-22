@@ -37,7 +37,7 @@ class WindowsBuild(unittest.TestCase):
 
     def test_check_writes_nothing_and_build_failure_never_installs(self):
         with tempfile.TemporaryDirectory(prefix='engine with spaces ') as temp:
-            root=Path(temp);meta={'project_id':'jsd.engine','version':'0.5.12'}
+            root=Path(temp);meta={'project_id':'jsd.engine','version':'0.5.14'}
             cmake=root/'cmake.exe'
             common=[patch.object(driver,'SOURCE_ROOT',root),
                     patch.object(driver,'source',return_value=meta),

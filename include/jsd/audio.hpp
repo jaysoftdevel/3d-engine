@@ -18,6 +18,8 @@ class AudioMixer {
         V3 position;
         float gain = 1;
         bool loop = false, spatial = true;
+        float left = 0, right = 0;
+        bool initialized = false;
     };
     std::mutex mutex;
     std::vector<Voice> voices;
@@ -27,6 +29,8 @@ class AudioMixer {
   public:
     Sound play(std::shared_ptr<const AudioClip>, V3 position = {}, float gain = 1, bool loop = false,
                bool spatial = true);
+    // Update a live voice without restarting its clip. Returns false after stop/end.
+    bool update(Sound, V3 position, float gain, bool spatial = true);
     void stop(Sound);
     void setListener(V3, V3 right = {1, 0, 0});
     void mix(std::span<float> stereo, unsigned rate = 48000);

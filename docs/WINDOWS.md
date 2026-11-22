@@ -1,4 +1,4 @@
-# Windows engine/showcase — 0.5.12
+# Windows engine/showcase — 0.5.14
 
 Use the **batch scripts from Command Prompt**. PowerShell is not required. Python 3.10+ and a Visual Studio C++ toolchain remain required; bundled SDL2 and Jolt compile from source.
 
