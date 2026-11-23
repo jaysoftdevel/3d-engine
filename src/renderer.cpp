@@ -23,14 +23,15 @@ Context fromPlatform(Platform &p) {
             p.offscreen, {}};
 }
 } // namespace
-Renderer::Renderer(Platform &p, GraphicsSettings s) : Renderer(fromPlatform(p), s) {}
-Renderer::Renderer(Context c, GraphicsSettings s) : impl(std::make_unique<Impl>(std::move(c), s)) {
+Renderer::Renderer(Platform &p, GraphicsSettings s, RendererStartup startup) : Renderer(fromPlatform(p), s, std::move(startup)) {}
+Renderer::Renderer(Context c, GraphicsSettings s, RendererStartup startup) : impl(std::make_unique<Impl>(std::move(c), s, std::move(startup))) {
     impl->primitives[0] = createMesh(makeBox());
     impl->primitives[1] = createMesh(makeRock());
     impl->primitives[2] = createMesh(makeCylinder());
+    impl->programCache->complete();
 }
 Renderer::~Renderer() = default;
-Renderer::Impl::Impl(Context c, GraphicsSettings s) : context(std::move(c)) {
+Renderer::Impl::Impl(Context c, GraphicsSettings s, RendererStartup startup) : context(std::move(c)) {
     if (!context.resolve || !context.dimensions)
         throw std::invalid_argument("Context requires resolver and dimensions callbacks");
     gl.load(context.resolve);
@@ -58,6 +59,7 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s) : context(std::move(c)) {
     caps.hardwareTessellation = (caps.major >= 4) && gl.PatchParameteri;
     if (caps.hardwareTessellation)
         gl.GetIntegerv(0x8E7E, &caps.maxTessellationLevel);
+    programCache=std::make_unique<detail::ProgramCache>(gl,std::move(startup));
     report = resolveSettings(s, caps);
     gl.GenBuffers(1, &instanceBuffer);
     // Hardware-compared bilinear taps at texel corners sum four exact nearest comparisons per fetch for PCF.
@@ -99,12 +101,14 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s) : context(std::move(c)) {
     gl.EnableVertexAttribArray(1);
     gl.VertexAttribPointer(1, 4, GL_FLOAT, 0, sizeof(UiVertex),
                            reinterpret_cast<void *>(offsetof(UiVertex, c)));
+    initializeLines();
     initializeSmaa();
     initializeAdvanced();
     initializeLighting();
     initializeCinematic();
 }
 Renderer::Impl::~Impl() {
+    releaseLines();
     gl.DeleteProgram(minimalProgram);
     releaseCinematic();
     releaseLighting();
@@ -137,8 +141,14 @@ Renderer::Impl::~Impl() {
 }
 unsigned Renderer::Impl::program(const std::string &vs, const std::string &fs, const char *tcs,
                                  const char *tes) {
+    const auto program=programCache->get(vs,fs,tcs,tes,[&]{return linkProgram(vs,fs,tcs,tes);});
+    uniforms.erase(program);return program;
+}
+const ShaderCacheStatistics& Renderer::shaderCacheStatistics() const {return impl->programCache->statistics();}
+unsigned Renderer::Impl::linkProgram(const std::string& vs,const std::string& fs,const char* tcs,const char* tes){
     std::vector<unsigned> shaders;
     unsigned p = gl.CreateProgram();
+    if(programCache->retrievable())gl.ProgramParameteri(p,0x8257,1);
     try {
         auto attach = [&](unsigned type, const std::string &source) {
             unsigned s = gl.CreateShader(type);
@@ -470,6 +480,7 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
         i.environment.sunIntensity = *environment.sunIlluminanceLux;
     }
     i.commands.clear();
+    i.lineCommands.clear();
     i.requestedProbe.reset();i.activeProbe=nullptr;i.fogVolumes.clear();i.contactDepthValid=false;i.scatterCommands.clear();
     i.lights.clear();
     i.physicalLighting = environment.sunIlluminanceLux.has_value() || (camera.optics && camera.optics->physicalExposure);

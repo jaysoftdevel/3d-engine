@@ -15,6 +15,11 @@ void GL::load(const std::function<void *(const char *)> &resolve) {
     VL_GL_FUNCTIONS(RF_LOAD)
     JSD_GL_FUNCTIONS(RF_LOAD)
 #undef RF_LOAD
+    BlendFuncSeparate = reinterpret_cast<decltype(BlendFuncSeparate)>(resolve("glBlendFuncSeparate"));
+    if(!BlendFuncSeparate)throw std::runtime_error("Missing OpenGL function: glBlendFuncSeparate");
+    ProgramParameteri = reinterpret_cast<decltype(ProgramParameteri)>(resolve("glProgramParameteri"));
+    GetProgramBinary = reinterpret_cast<decltype(GetProgramBinary)>(resolve("glGetProgramBinary"));
+    ProgramBinary = reinterpret_cast<decltype(ProgramBinary)>(resolve("glProgramBinary"));
     PatchParameteri = reinterpret_cast<decltype(PatchParameteri)>(resolve("glPatchParameteri"));
 }
 } // namespace vl
@@ -36,7 +41,7 @@ std::filesystem::path executableDirectory() {
     SDL_free(base);
     return result;
 }
-Platform::Platform(bool headless, int w, int h) : offscreen(headless), width(w), height(h) {
+Platform::Platform(bool headless, int w, int h, bool fullscreen, const std::string& title) : offscreen(headless), width(w), height(h) {
     if (!headless
 #ifdef _WIN32
         || headless
@@ -50,9 +55,9 @@ Platform::Platform(bool headless, int w, int h) : offscreen(headless), width(w),
         SDL_GL_SetAttribute(17, 3);
         SDL_GL_SetAttribute(18, 3);
         SDL_GL_SetAttribute(21, 1);
-        window = SDL_CreateWindow("JSD Game Engine 0.5.14", vl::sdl::centered, vl::sdl::centered, w, h,
+        window = SDL_CreateWindow(title.c_str(), vl::sdl::centered, vl::sdl::centered, w, h,
                                   vl::sdl::openGL | vl::sdl::highDPI |
-                                  (headless ? vl::sdl::hidden : vl::sdl::resizable));
+                                  (headless ? vl::sdl::hidden : fullscreen ? vl::sdl::fullscreen : vl::sdl::resizable));
         if (!window) {
             SDL_Quit();
             throw std::runtime_error(SDL_GetError());

@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.14";
+inline constexpr const char *Version = "0.5.16";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -57,6 +57,8 @@ struct Material {
     // Use metre-scaled mesh UVs for detail on world-batched or animated objects.
     bool surfaceUV = false;
 };
+// Screen-width, depth-tested engineering guides, composited after temporal AA.
+struct LineSegment { V3 a{},b{}; Color color{}; float width=1; };
 struct Draw {
     MeshId mesh;
     Transform transform;
@@ -144,6 +146,21 @@ struct Terrain {
     unsigned revision = 0;
     std::function<Color(float, float)> color;
 };
+struct ShaderBuildProgress {
+    std::string phase;
+    unsigned completed{},cached{},compiled{};
+    bool caching{};
+};
+struct RendererStartup {
+    bool cacheShaders=true;
+    std::filesystem::path cacheDirectory;
+    std::function<void(const ShaderBuildProgress&)> progress;
+};
+struct ShaderCacheStatistics {
+    bool supported{},enabled{};
+    unsigned loaded{},compiled{},stored{},rejected{};
+    double loadMilliseconds{},compileMilliseconds{};
+};
 struct Context {
     std::function<void *(const char *)> resolve;
     std::function<std::pair<int, int>()> dimensions;
@@ -170,6 +187,8 @@ struct ParticleSprite {
     ParticleStyle style = ParticleStyle::Dust;
 };
 struct Statistics {
+    unsigned lineSegments=0,linePreparationWorkers=1;
+    std::size_t lineUploadBytes=0;
     unsigned drawCalls = 0, triangles = 0, visibleTerrainTiles = 0, residentTerrainTiles = 0;
     unsigned pendingTerrainJobs = 0, terrainWorkers = 0, postPasses = 0, textureBytes = 0;
     unsigned shadowResolution = 0, msaaSamples = 1, terrainSubdivisions = 1;
@@ -202,12 +221,13 @@ class Renderer {
     std::unique_ptr<Impl> impl;
 
   public:
-    explicit Renderer(Platform &, GraphicsSettings settings = {});
-    explicit Renderer(Context, GraphicsSettings settings = {});
+    explicit Renderer(Platform &, GraphicsSettings settings = {}, RendererStartup startup = {});
+    explicit Renderer(Context, GraphicsSettings settings = {}, RendererStartup startup = {});
     ~Renderer();
     Renderer(const Renderer &) = delete;
     Renderer &operator=(const Renderer &) = delete;
     const Capabilities &capabilities() const;
+    const ShaderCacheStatistics& shaderCacheStatistics() const;
     const SettingsReport &settings() const;
     SettingsReport setSettings(GraphicsSettings);
     const Statistics &statistics() const;
@@ -236,6 +256,7 @@ class Renderer {
     bool reloadMaterialShaders(const std::string &vertex, const std::string &fragment, std::string &error);
     void begin(const Camera &, const Environment &environment = {});
     void submit(const Draw &);
+    void lines(std::span<const LineSegment> segments,const Mat4& transform=Mat4::identity());
     void primitive(Primitive, const Transform &, const Material &material = {});
     void terrain(const Terrain &);
     void render();

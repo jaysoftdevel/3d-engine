@@ -170,9 +170,13 @@ X(void,SamplerParameterfv,(GLuint,GLenum,const float*))
 
 struct GL {
 #define VL_DECLARE(result, name, args) result(*name) args = nullptr;
+    void (*BlendFuncSeparate)(GLenum,GLenum,GLenum,GLenum)=nullptr;
     VL_GL_FUNCTIONS(VL_DECLARE)
     JSD_GL_FUNCTIONS(VL_DECLARE)
 #undef VL_DECLARE
+    void (*ProgramParameteri)(GLuint, GLenum, GLint) = nullptr;
+    void (*GetProgramBinary)(GLuint, GLsizei, GLsizei*, GLenum*, void*) = nullptr;
+    void (*ProgramBinary)(GLuint, GLenum, const void*, GLsizei) = nullptr;
     void (*PatchParameteri)(GLenum, GLint) = nullptr;
     void load(const std::function<void *(const char *)> &resolve);
 };

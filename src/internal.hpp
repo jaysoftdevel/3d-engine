@@ -2,6 +2,7 @@
 #include "frontier/jobs.hpp"
 #include "frontier/renderer.hpp"
 #include "gl.hpp"
+#include "shader_cache.hpp"
 #include <future>
 #include <map>
 #include <optional>
@@ -192,11 +193,16 @@ struct Renderer::Impl {
     std::map<TileKey, Tile> tiles;
     std::map<TileKey, PendingTile> pending;
     std::string messages;
-    explicit Impl(Context, GraphicsSettings);
+    std::unique_ptr<detail::ProgramCache> programCache;
+    explicit Impl(Context, GraphicsSettings, RendererStartup);
     ~Impl();
     const GraphicsSettings &settings() const { return report.effective; }
     bool minimalFrame()const{const auto&s=settings();return !customMaterialShader&&s.textureQuality==TextureQuality::Lowest&&s.antiAliasing==AntiAliasing::Off&&s.shadows==Quality::Off&&s.ambientOcclusion==Quality::Off&&s.depthOfField==Quality::Off&&s.globalIllumination==GlobalIllumination::Off&&s.reflections==Quality::Off&&s.edgeFusion==Quality::Off&&s.terrainTessellation==Quality::Off&&s.bloom==Quality::Off&&!s.autoExposure&&s.localExposure==0&&s.motionBlur==Quality::Off&&s.volumetricFog==Quality::Off;}
     unsigned surfaceProgram()const{return compactScene?minimalProgram:sceneProgram;}
+    unsigned lineProgram{},lineVao{},lineVbo{};
+    std::vector<LineSegment> lineCommands,uploadedLines;
+    void initializeLines();void releaseLines();void drawLines();
+    unsigned linkProgram(const std::string &vs,const std::string &fs,const char *tcs,const char *tes);
     unsigned program(const std::string &vs, const std::string &fs, const char *tcs = nullptr,
                      const char *tes = nullptr);
     unsigned texture(int w, int h, unsigned internal, unsigned format, unsigned type,

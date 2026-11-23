@@ -17,7 +17,7 @@ class Platform {
     SDL_Window *window = nullptr;
     bool offscreen = false;
     int width = 1280, height = 720;
-    Platform(bool headless = false, int w = 1280, int h = 720);
+    Platform(bool headless = false, int w = 1280, int h = 720, bool fullscreen = false, const std::string& title = "JSD Game Engine");
     ~Platform();
     Platform(const Platform &) = delete;
     Platform &operator=(const Platform &) = delete;

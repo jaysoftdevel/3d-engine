@@ -909,6 +909,7 @@ void Renderer::Impl::pipeline() {
     gl.Uniform2f(uniform(tonemapProgram, "pixel"), 1.f / width, 1.f / height);
     fullscreen(tonemapProgram, display.fbo);
     antialias(display.texture);
+    drawLines();
     gl.BindSampler(13, 0);
     gl.BindFramebuffer(GL_FRAMEBUFFER, outputFramebuffer());
     gl.Viewport(0, 0, outputWidth, outputHeight);
