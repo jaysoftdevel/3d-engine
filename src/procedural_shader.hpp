@@ -28,16 +28,35 @@ float panelMask(vec2 point,vec2 size){
  float panelTone=.91+.15*cellValue(ivec3(cell,31));
  return panelTone*(1.-seam*.40)-bolt*.22;
 }
-float consoleSignal(){
- vec2 p=surfacePoint().xy;float aa=max(.002,max(fwidth(p.x),fwidth(p.y)));
- float row=floor(p.y*34.);float channel=cellValue(ivec3(int(row),17,29));
- float lengthBar=.12+.75*channel+.07*sin(windTime*(.22+channel*.45)+channel*23.);
- vec2 uv=fract(p*vec2(1.25,34.));
- float bar=(1.-smoothstep(lengthBar-aa,lengthBar+aa,uv.x))*smoothstep(.15,.20+aa*34.,uv.y)*(1.-smoothstep(.70,.78+aa*34.,uv.y));
- float pulse=.88+.12*sin(windTime*1.6+channel*6.);
- return clamp(.06+bar*pulse,0.,1.);
+// Display content is authored as readable glyphs by the application. A display
+// substrate is stable glass; it must never invent random telemetry bars.
+float surfaceAlpha(float opacity){
+ if(surfaceKind!=15)return opacity;
+ float irradiance=clamp(sunIntensity/2.4,0.,1.)*abs(dot(normalize(N),normalize(sun)));
+ return clamp(opacity*(.86+.62*irradiance),.16,.48);
 }
-vec3 surfaceEmission(){return surfaceKind==13?vec3(consoleSignal()):vec3(1);}
+vec3 surfaceEmission(){return surfaceKind==13?vec3(.08):vec3(1);}
+float pressurePlating(vec2 p,inout vec3 base,inout float rough,inout float metal,bool door){
+ vec2 size=door?vec2(.52,1.05):vec2(1.65,1.12);
+ // Regular engineered joints, with unique finish per plate rather than warped tiles.
+ vec2 cell=floor(p/size),local=mod(p,size),edge=min(local,size-local);
+ float d=min(edge.x,edge.y),aa=max(.0007,max(fwidth(p.x),fwidth(p.y)));
+ float joint=1.-smoothstep(.003,.007+aa,d);
+ float lip=smoothstep(.008,.015+aa,d)*(1.-smoothstep(.019,.026+aa,d));
+ float fastener=0.;
+ for(int y=0;y<2;++y)for(int x=0;x<2;++x){
+  vec2 c=vec2(x==0?.052:size.x-.052,y==0?.052:size.y-.052);
+  float r=length(local-c);fastener=max(fastener,1.-smoothstep(.007,.012+aa,r));
+ }
+ float plate=.96+.065*cellValue(ivec3(cell,77));
+ float wear=field(vec3(p.x*.7,p.y*41.,11.)).x;
+ float brushed=smoothstep(.70,.92,wear)*.025*(1.-smoothstep(.08,.4,aa*41.));
+ base=mix(base,vec3(.09,.115,.13),joint*.85);
+ base=mix(base,vec3(.32,.36,.39),lip*.22+fastener*.55);
+ rough=mix(clamp(rough+.045*(plate-1.)+brushed,.38,.72),.30,lip*.35+fastener);
+ metal=mix(.12,.78,clamp(lip*.65+fastener,0.,1.));
+ return plate*(1.-brushed);
+}
 void proceduralSurface(inout vec3 base,inout vec3 n,inout float r,inout float metal){
 vec3 q=surfacePoint();float footprint=max(length(dFdx(q)),length(dFdy(q)));
 vec4 broad=field(q*.42),grain=field(q*7.1+vec3(19.2,43.7,8.4));
@@ -60,7 +79,9 @@ if(surfaceKind>=7){
  if(surfaceKind==7){
   variation=.70+.48*organic.x+.16*(grain.x-.5);r=.92+.07*grain.x;metal=0.;bump=.09;
   base*=mix(vec3(.92,.95,1.02),vec3(1.08,1.02,.91),organic.x);
- }else if(surfaceKind==8 || surfaceKind==9 || surfaceKind==10){
+ }else if(surfaceKind==8 || surfaceKind==14){
+  variation=pressurePlating(q.xy,base,r,metal,surfaceKind==14);bump=.004;
+ }else if(surfaceKind==9 || surfaceKind==10){
   vec2 size=surfaceKind==10?vec2(.43,.31):surfaceKind==9?vec2(.72,1.05):vec2(1.14,.81);
   variation*=panelMask(q.xy,size);
   float scratch=field(vec3(q.x*.9,q.y*57.,q.z+8.)).x;
@@ -78,8 +99,26 @@ if(surfaceKind>=7){
  }else if(surfaceKind==12){
   float weaveFoot=footprint*190.;vec2 weave=sin(q.xy*1194.);
   variation*=1.+weave.x*weave.y*.10*(1.-smoothstep(.25,.95,weaveFoot));r=.91;metal=0.;bump=.035;
+ }else if(surfaceKind==16){
+  vec2 size=vec2(.172,.135),local=mod(q.xy,size),cell=floor(q.xy/size);
+  float aa=max(.0005,max(fwidth(q.x),fwidth(q.y)));
+  float edge=min(min(local.x,size.x-local.x),min(local.y,size.y-local.y));
+  float gap=1.-smoothstep(.001,.003+aa,edge);
+  float bus=min(abs(local.x-size.x*.33),abs(local.x-size.x*.67));
+  float conductor=(1.-smoothstep(.0005,.0010+aa,bus))*.50;
+  base=mix(base,vec3(.38,.43,.48),gap*.7+conductor*.35);
+  variation=.94+.05*cellValue(ivec3(cell,97));r=.24;metal=.42;bump=.001;
+ }else if(surfaceKind==15){
+  // Neutral-density solar film, a blue UV-cut coating and fine ceramic frit.
+  // Screen derivatives fade the frit before it can shimmer in the distance.
+  vec2 dotCell=fract(q.xy*42.)-.5;
+  float aa=max(fwidth(q.x),fwidth(q.y))*42.;
+  float frit=(1.-smoothstep(.09,.15+aa,length(dotCell)))*(1.-smoothstep(.18,.65,aa));
+  float sunFacing=abs(dot(n,normalize(sun)));
+  base=mix(base,vec3(.31,.39,.34),.14*sunFacing);
+  base=mix(base,vec3(.45,.50,.51),frit*.24);variation=1.;r=.13+.23*frit;metal=.025;bump=0.;
  }else if(surfaceKind==13){
-  float signal=consoleSignal();base=mix(vec3(.008,.025,.032),base,signal*.65);variation=1.;r=.24;metal=.15;bump=.001;
+  base=vec3(.008,.014,.019);variation=1.;r=.32;metal=.08;bump=0.;
  }
 }
 base*=variation;

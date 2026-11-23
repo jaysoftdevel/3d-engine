@@ -530,7 +530,7 @@ void Renderer::submit(const Draw &draw) {
         if(!std::isfinite(f)||f<0||f>1)throw std::invalid_argument("Invalid material layer weight");
     if(!std::isfinite(draw.material.anisotropy)||std::abs(draw.material.anisotropy)>.95f)
         throw std::invalid_argument("Invalid material anisotropy");
-    if (int(draw.material.surface)<0||int(draw.material.surface)>13||draw.material.surfaceSeed>2147483647u)
+    if (int(draw.material.surface)<0||int(draw.material.surface)>int(SurfaceKind::PhotovoltaicCells)||draw.material.surfaceSeed>2147483647u)
         throw std::invalid_argument("Invalid procedural surface");
     if (draw.material.occlusionStrength < 0 || draw.material.occlusionStrength > 1 ||
         draw.material.textureScale <= 0 || draw.material.macroVariation < 0 ||
