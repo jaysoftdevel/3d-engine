@@ -99,6 +99,23 @@ if(surfaceKind>=7){
  }else if(surfaceKind==12){
   float weaveFoot=footprint*190.;vec2 weave=sin(q.xy*1194.);
   variation*=1.+weave.x*weave.y*.10*(1.-smoothstep(.25,.95,weaveFoot));r=.91;metal=0.;bump=.035;
+ }else if(surfaceKind==17){
+  vec2 size=vec2(.60,.90),cell=floor(q.xy/size),local=mod(q.xy,size);
+  float aa=max(.0006,max(fwidth(q.x),fwidth(q.y))),edge=min(min(local.x,size.x-local.x),min(local.y,size.y-local.y));
+  float seam=1.-smoothstep(.003,.009+aa,edge);
+  float bevel=smoothstep(.010,.017+aa,edge)*(1.-smoothstep(.024,.032+aa,edge));
+  float screws=0.;for(int j=0;j<2;++j)for(int i=0;i<2;++i){
+   vec2 c=vec2(i==0?.045:size.x-.045,j==0?.045:size.y-.045);float d=length(local-c);
+   float ring=1.-smoothstep(.010,.015+aa,d);float slot=1.-smoothstep(.001,.003+aa,abs(local.x-c.x));
+   screws=max(screws,ring*(.45+.55*slot));
+  }
+  vec2 tread=vec2(q.x+q.y,q.x-q.y)*24.;float treadWeight=1.-smoothstep(.20,.75,max(fwidth(tread.x),fwidth(tread.y)));
+  float rib=(1.-smoothstep(.08,.18,abs(fract(tread.x)-.5)))*(1.-smoothstep(.18,.33,abs(fract(tread.y)-.5)))*treadWeight;
+  float inset=smoothstep(.040,.055+aa,edge),wear=smoothstep(.67,.91,grain.x)*.065;
+  base=mix(base,vec3(.055,.070,.080),seam*.90+screws*.52);
+  base=mix(base,vec3(.50,.57,.59),bevel*.45+rib*inset*.16);
+  variation=.94+.075*cellValue(ivec3(cell,201))-wear;r=.74-.30*bevel+.12*seam-.12*rib*inset;
+  metal=.38+.40*bevel;bump=.014;
  }else if(surfaceKind==16){
   vec2 size=vec2(.172,.135),local=mod(q.xy,size),cell=floor(q.xy/size);
   float aa=max(.0005,max(fwidth(q.x),fwidth(q.y)));

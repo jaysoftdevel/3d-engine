@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.18";
+inline constexpr const char *Version = "0.5.21";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -35,7 +35,7 @@ struct Transform {
 };
 enum class TextureProjection { UV, Triplanar };
 enum class AlphaMode { Opaque, Mask, Blend, Additive };
-enum class SurfaceKind { Textured, Rock, Soil, Concrete, PaintedMetal, BareMetal, Rubber, Regolith, HullPanels, InteriorPanels, RobotArmor, DeckPlating, FabricWeave, Console, PressureDoor, SolarShield, PhotovoltaicCells };
+enum class SurfaceKind { Textured, Rock, Soil, Concrete, PaintedMetal, BareMetal, Rubber, Regolith, HullPanels, InteriorPanels, RobotArmor, DeckPlating, FabricWeave, Console, PressureDoor, SolarShield, PhotovoltaicCells, CorridorDeck };
 struct Material {
     Color albedo{};
     TextureId albedoTexture{};

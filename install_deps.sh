@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 jsd_deps_root=$(cd -- "$(dirname -- "$0")" && pwd -P)
-python3 -B "$jsd_deps_root/tools/project_guard.py" source --root "$jsd_deps_root" --project jsd.engine --expected 0.5.14
+python3 -B "$jsd_deps_root/tools/project_guard.py" source --root "$jsd_deps_root" --project jsd.engine --expected 0.5.21
 jsd_admin=()
 if (( EUID != 0 )); then
     if ! command -v sudo >/dev/null; then

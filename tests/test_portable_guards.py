@@ -11,7 +11,7 @@ import project_guard as guard
 
 class PortableGuards(unittest.TestCase):
     def test_source_identity(self):
-        self.assertEqual(guard.source(ROOT, 'jsd.engine', '0.5.14')['api_version'], 1)
+        self.assertEqual(guard.source(ROOT, 'jsd.engine', '0.5.21')['api_version'], 1)
         with self.assertRaises(guard.GuardError):
             guard.source(ROOT, 'jsd.engine', '0.5.6')
         with self.assertRaises(guard.GuardError):
