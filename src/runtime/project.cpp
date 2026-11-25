@@ -10,7 +10,7 @@ Json v(V3 p){return {p.x,p.y,p.z};}Json c(Color p){return {p.r,p.g,p.b,p.a};}
 V3 rv(const Json &j){if(!j.is_array()||j.size()!=3)throw std::runtime_error("Expected three SI coordinates");return {j[0],j[1],j[2]};}
 Color rc(const Json &j){if(!j.is_array()||j.size()!=4)throw std::runtime_error("Expected RGBA color");return {j[0],j[1],j[2],j[3]};}
 Json t(const Transform &p){Json j={v(p.position),v(p.rotationDegrees),v(p.scale)};if(p.quaternion)j.push_back({p.quaternion->x,p.quaternion->y,p.quaternion->z,p.quaternion->w});return j;}
-Transform rt(const Json &j){Transform t{rv(j.at(0)),rv(j.at(1)),rv(j.at(2))};if(j.size()>3)t.quaternion=Quat{j[3][0],j[3][1],j[3][2],j[3][3]};return t;}
+Transform rt(const Json &j){Transform t{rv(j.at(0)),rv(j.at(1)),rv(j.at(2)),std::nullopt};if(j.size()>3)t.quaternion=Quat{j[3][0],j[3][1],j[3][2],j[3][3]};return t;}
 }
 Quat rotation(V3 p){
  p=p*(rad*.5f);Quat a{std::sin(p.x),0,0,std::cos(p.x)},b{0,std::sin(p.y),0,std::cos(p.y)},c{0,0,std::sin(p.z),std::cos(p.z)};

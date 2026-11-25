@@ -1,3 +1,4 @@
+#include "jsd/filesystem.hpp"
 #include "jsd/assets.hpp"
 #define CGLTF_IMPLEMENTATION
 #include "../../third_party/cgltf/cgltf.h"
@@ -110,7 +111,7 @@ SceneAsset loadGltf(const std::filesystem::path &path, const std::filesystem::pa
     options.file.read = [](const cgltf_memory_options *, const cgltf_file_options *file, const char *name,
                            cgltf_size *size, void **data) -> cgltf_result {
         try {
-            auto bytes = read(safePath(std::filesystem::u8path(name), *static_cast<std::filesystem::path *>(file->user_data)));
+            auto bytes = read(safePath(jsd::utf8_path(name), *static_cast<std::filesystem::path *>(file->user_data)));
             size_t n = *size ? *size : bytes.size();
             if (n > bytes.size())
                 return cgltf_result_data_too_short;
@@ -150,7 +151,7 @@ SceneAsset loadGltf(const std::filesystem::path &path, const std::filesystem::pa
                     throw std::runtime_error("embedded images must use base64");
                 data = base64(uri.substr(comma + 1));
             } else
-                data = read(safePath(full.parent_path() / std::filesystem::u8path(uri), root));
+                data = read(safePath(full.parent_path() / jsd::utf8_path(uri), root));
         } else if (image.buffer_view) {
             auto *p = cgltf_buffer_view_data(image.buffer_view);
             if (!p)

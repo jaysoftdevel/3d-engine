@@ -58,7 +58,7 @@ ImportResult importModel(Document &document,const std::filesystem::path &input,c
   }
   auto bind=sampleAnimation(asset,-1,0,false);std::vector<Id>nodes;for(size_t i=0;i<asset.nodes.size();i++){std::string name=source.contains("nodes")&&i<source["nodes"].size()?source["nodes"][i].value("name","Node "+std::to_string(i)):"Node "+std::to_string(i);Id id=d.add(asset.nodes[i].meshes.empty()?Kind::Empty:Kind::Mesh,name);nodes.push_back(id);result.ids.push_back(id);}
   bool rigged=false;
-  for(size_t i=0;i<asset.nodes.size();i++){auto &n=asset.nodes[i];auto *o=d.find(nodes[i]);o->parent=n.parent>=0?nodes.at(n.parent):0;o->transform=decompose(n.local);if(!n.matrixTransform){o->transform={n.translation,euler(n.rotation),n.scale};}o->mesh.smooth=true;
+  for(size_t i=0;i<asset.nodes.size();i++){auto &n=asset.nodes[i];auto *o=d.find(nodes[i]);o->parent=n.parent>=0?nodes.at(n.parent):0;o->transform=decompose(n.local);if(!n.matrixTransform){o->transform={n.translation,euler(n.rotation),n.scale,std::nullopt};}o->mesh.smooth=true;
    for(int mesh:n.meshes){const auto &m=asset.meshes.at(mesh);std::vector<gfx::Vertex>vertices=m.vertices;if(n.skin>=0&&!m.weights.empty()){rigged=true;const auto &skin=asset.skins.at(n.skin);std::vector<Mat4>palette;for(size_t k=0;k<skin.joints.size();k++)palette.push_back(rf::inverse(bind[i])*bind.at(skin.joints[k])*skin.inverseBind[k]);vertices=skinMesh(m,palette);}
     unsigned offset=o->mesh.vertices.size();for(auto &v:vertices)o->mesh.vertices.push_back({v.p,{v.u,v.v},v.c,v.n});for(unsigned k=0;k+2<vertices.size();k+=3)o->mesh.faces.push_back({{offset+k,offset+k+1,offset+k+2},m.material>=0?materialBase+m.material:0});
    }

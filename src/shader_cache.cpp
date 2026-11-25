@@ -1,3 +1,4 @@
+#include "jsd/filesystem.hpp"
 #include "shader_cache.hpp"
 #include <algorithm>
 #include <array>
@@ -33,7 +34,7 @@ std::filesystem::path cacheRoot(){
     if(const auto* value=_wgetenv(L"JSD_SHADER_CACHE_DIR");value&&*value)return value;
     if(const auto* value=_wgetenv(L"LOCALAPPDATA");value&&*value)return std::filesystem::path(value)/L"JSD"/L"shader-cache";
 #else
-    if(const auto* value=std::getenv("JSD_SHADER_CACHE_DIR");value&&*value)return std::filesystem::u8path(value);
+    if(const auto* value=std::getenv("JSD_SHADER_CACHE_DIR");value&&*value)return jsd::utf8_path(value);
     if(const auto* value=std::getenv("XDG_CACHE_HOME");value&&*value&&std::filesystem::path(value).is_absolute())return std::filesystem::path(value)/"jsd"/"shader-cache";
     if(const auto* value=std::getenv("HOME");value&&*value)return std::filesystem::path(value)/".cache"/"jsd"/"shader-cache";
 #endif

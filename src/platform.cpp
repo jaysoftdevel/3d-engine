@@ -1,3 +1,4 @@
+#include "jsd/filesystem.hpp"
 #include "frontier/platform.hpp"
 #include "gl.hpp"
 #ifndef _WIN32
@@ -37,7 +38,7 @@ template <class F> F symbol(void *lib, const char *name) {
 std::filesystem::path executableDirectory() {
     char *base = SDL_GetBasePath();
     if (!base) throw std::runtime_error(std::string("Cannot locate executable: ") + SDL_GetError());
-    std::filesystem::path result=std::filesystem::u8path(base);
+    std::filesystem::path result=jsd::utf8_path(base);
     SDL_free(base);
     return result;
 }

@@ -1,10 +1,10 @@
-# JSD Game Engine 0.5.21 — standalone source project
+# JSD Game Engine 0.5.22 — standalone source project
 
 An independent native C++20 Linux engine. The archive contains one top-level directory: `jsd-game-engine`. The optional autoplay showcase is included under `examples/showcase`, as a target of the engine build. All primary source, public headers, dependencies, build scripts, engine tools, documentation and tests live here in `jsd-game-engine`. The showcase is disabled by default (`JSD_BUILD_SHOWCASE=OFF`). The engine builds, tests and runs its graphics lab independently. The graphics/runtime APIs and 0.4.1 performance improvements remain available.
 
 **No compiled executables, libraries, object files, Gradle wrapper JARs or build caches are distributed.** All engine, SDL2 and Jolt code is built locally; cgltf/stb/SMAA source is compiled as part of the engine. Images, meshes and audio are runtime input data.
 
-Version 0.5.21 aligns Linux build/dependency launchers and the Windows build driver
+Version 0.5.22 aligns Linux build/dependency launchers and the Windows build driver
 with the current engine version. All project, cache and SDK checks remain active.
 
 Version 0.5.20 adds a detailed, filtered corridor deck recipe (17) with plated

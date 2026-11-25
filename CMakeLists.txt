@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 include(cmake/ProjectGuards.cmake)
-jsd_guard_project(jsd.engine 0.5.21)
-project(JSDGameEngine VERSION 0.5.21 LANGUAGES C CXX)
+jsd_guard_project(jsd.engine 0.5.22)
+project(JSDGameEngine VERSION 0.5.22 LANGUAGES C CXX)
 set(JSD_ENGINE_STANDALONE OFF)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
  set(JSD_ENGINE_STANDALONE ON)
@@ -161,6 +161,6 @@ install(FILES third_party/smaa/LICENSE.txt DESTINATION ${CMAKE_INSTALL_DATADIR}/
 install(FILES third_party/cgltf/cgltf.h third_party/stb/stb_image.h DESTINATION ${CMAKE_INSTALL_DATADIR}/jsd-game-engine/licenses)
 
 install(FILES third_party/SDL2/LICENSE.txt DESTINATION ${CMAKE_INSTALL_DATADIR}/jsd-game-engine/licenses RENAME SDL2-LICENSE.txt)
-jsd_install_receipt(jsd.engine 0.5.21)
+jsd_install_receipt(jsd.engine 0.5.22)
 endif()
 include(cmake/WindowsRuntime.cmake)

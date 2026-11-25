@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.21";
+inline constexpr const char *Version = "0.5.22";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
