@@ -60,7 +60,8 @@ void Renderer::Impl::drawShadows(){
  float far=environment.shadowDistance>0?std::clamp(environment.shadowDistance,16.f,250.f):std::min(settings().viewDistance*.7f,180.f);
  const float fractions[]={.1f,.25f,.5f,1};float begin=camera.nearPlane;
  V3 f=normalized(camera.direction),sun=normalized(environment.sunDirection);if(length(sun)<.1f)sun={.3f,.8f,.2f};
- gl.BindFramebuffer(GL_FRAMEBUFFER,shadowFbo);gl.Enable(0x0C11);gl.Scissor(0,0,shadowSize,shadowSize);gl.Clear(0x100);gl.Disable(0x0C11);gl.Enable(0x8037);gl.PolygonOffset(1.15f,1.6f);
+ const auto previousMatrices = shadowMatrices;
+ const bool sunLit = environment.sunIntensity > 0;
  for(int c=0;c<4;c++){
   float end=far*fractions[c];shadowSplits[c]=end;
   V3 center=camera.position+f*((begin+end)*.5f);
@@ -69,12 +70,59 @@ void Renderer::Impl::drawShadows(){
   auto lv=lookAt(center+sun*(extent+far),center);auto origin=transformPoint(lv,{});
   float texel=2*extent/std::max(1,shadowSize/2);
   lv.m[12]+=std::round(origin.x/texel)*texel-origin.x;lv.m[13]+=std::round(origin.y/texel)*texel-origin.y;
-  lightVP=shadowMatrices[c]=orthographic(-extent,extent,-extent,extent,.1f,2*(extent+far))*lv;
-  gl.Viewport((c%2)*shadowSize/2,(c/2)*shadowSize/2,shadowSize/2,shadowSize/2);
-  if(environment.sunIntensity>0){drawCommands(shadowProgram,lightVP,true);if(terrainRequested)drawTerrain(true);drawScatter(true);}
+  shadowMatrices[c]=orthographic(-extent,extent,-extent,extent,.1f,2*(extent+far))*lv;
   begin=end*.88f;
  }
- lightVP=shadowMatrices[3];gl.Disable(0x8037);
+ lightVP=shadowMatrices.back();
+
+ // The upper atlas belongs to the sun. Reuse it only when the exact projection
+ // and every input to the mesh depth pass match. Streaming terrain and GPU
+ // scatter have independent mesh lifetimes, so they always render here.
+ const bool cacheable = !sunLit || (!terrainRequested && scatterCommands.empty());
+ bool animated = false;
+ sunShadowCasters.clear();
+ if(cacheable && sunLit){
+     for(size_t index:opaqueOrder){
+         const auto &draw = prepared[index];
+         const auto &material = draw.source->material;
+         if(!material.castShadow)continue;
+         const bool masked = material.alphaMode == AlphaMode::Mask;
+         const unsigned maskTexture = masked && material.surface == SurfaceKind::Textured
+             ? material.albedoTexture.value : 0u;
+         animated |= material.windStrength != 0;
+         sunShadowCasters.push_back({draw.source->mesh.value, draw.mesh->revision, maskTexture,
+             material.alphaMode, masked ? material.alphaCutoff : 0.f,
+             masked ? material.albedo.a : 0.f, material.windStrength, draw.instance.model.m});
+     }
+ }
+ const std::array shadowView{camera.position.x, camera.position.y, camera.position.z,
+     camera.fovDegrees, camera.nearPlane, settings().viewDistance,
+     animated ? environment.atmosphere.time : 0.f};
+ const bool sameMatrices = std::equal(shadowMatrices.begin(), shadowMatrices.end(),
+     previousMatrices.begin(), [](const Mat4 &a, const Mat4 &b){return a.m == b.m;});
+ if(cacheable && sunShadowsValid && sameMatrices && shadowView == previousSunShadowView &&
+    sunShadowCasters == previousSunShadowCasters)return;
+
+ sunShadowsValid = false;
+ gl.BindFramebuffer(GL_FRAMEBUFFER,shadowFbo);
+ gl.Enable(0x0C11);gl.Scissor(0,0,shadowSize,shadowSize);gl.Clear(0x100);gl.Disable(0x0C11);
+ if(sunLit){
+     gl.Enable(0x8037);gl.PolygonOffset(1.15f,1.6f);
+     for(int c=0;c<4;c++){
+         lightVP=shadowMatrices[c];
+         gl.Viewport((c%2)*shadowSize/2,(c/2)*shadowSize/2,shadowSize/2,shadowSize/2);
+         drawCommands(shadowProgram,lightVP,true);
+         if(terrainRequested)drawTerrain(true);
+         drawScatter(true);
+     }
+     gl.Disable(0x8037);
+ }
+ lightVP=shadowMatrices.back();
+ if(cacheable){
+     previousSunShadowView = shadowView;
+     previousSunShadowCasters.swap(sunShadowCasters);
+     sunShadowsValid = true;
+ }
 }
 void Renderer::Impl::updateProbe(){
  activeProbe=nullptr;if(!requestedProbe||compactScene||

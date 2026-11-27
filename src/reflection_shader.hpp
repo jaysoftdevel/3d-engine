@@ -58,8 +58,12 @@ void main(){
   result+=bounce/max(total,1.)*albedo.rgb*(1.-metal)*.32;
  }
  if(reflectionSteps>0){
+  float nv=clamp(dot(n,v),.001,1.);
+  float specAO=clamp(pow(nv+ao,exp2(-16.*rough-1.))-1.+ao,0.,1.);
+  // Both screen-space and probe contributions are multiplied by specAO.
+  if(specAO==0.){outputColor=vec4(clamp(result,vec3(0),vec3(60000)),1);return;}
   vec3 reflected=normalize(reflect(-v,n)),worldRay=normalize(mat3(invView)*reflected);
-  float pw=probeWeight(world),nv=clamp(dot(n,v),.001,1.);
+  float pw=probeWeight(world);
   vec3 radiance=iblEnabled!=0?textureLod(environmentMap,environmentDirection(worldRay),rough*7.).rgb*ambientIntensity:skyColor*.15;
   if(pw>0.)radiance=mix(radiance,textureLod(localProbe,boxDirection(world,worldRay),rough*probeMaxLod).rgb,pw);
   vec3 sum=vec3(0);int rays=rough>.6?1:reflectionSteps>=64?3:1;
@@ -71,7 +75,6 @@ void main(){
   }
   radiance=sum/float(rays);
   vec3 f0=mix(vec3(.04),albedo.rgb,metal);vec2 lut=iblEnabled!=0?texture(brdfMap,vec2(nv,rough)).rg:vec2(1,0);
-  float specAO=clamp(pow(nv+ao,exp2(-16.*rough-1.))-1.+ao,0.,1.);
   float coat=albedo.a,coatF=.04+.96*pow(1.-nv,5.);
   result+=radiance*(f0*lut.x+lut.y)*specAO*(1.-coat*coatF);
   if(coat>0.){

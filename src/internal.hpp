@@ -102,6 +102,17 @@ struct Renderer::Impl {
     std::array<Mat4,4> shadowMatrices{};
     std::array<float,4> shadowSplits{};
     int cascadeCount = 0;
+    struct SunShadowCaster {
+        unsigned mesh, revision, maskTexture;
+        AlphaMode alphaMode;
+        float alphaCutoff, alpha, windStrength;
+        std::array<float,16> model;
+        bool operator==(const SunShadowCaster &) const = default;
+    };
+    std::vector<SunShadowCaster> sunShadowCasters, previousSunShadowCasters;
+    // View-distance culling and mesh LODs also depend on these inputs.
+    std::array<float,7> previousSunShadowView{};
+    bool sunShadowsValid = false;
     Mat4 previousVP = Mat4::identity(), previousView = Mat4::identity();
     std::unordered_map<uint64_t, Mat4> previousModels;
     struct StringHash {
@@ -201,6 +212,11 @@ struct Renderer::Impl {
     unsigned surfaceProgram()const{return compactScene?minimalProgram:sceneProgram;}
     unsigned lineProgram{},lineVao{},lineVbo{};
     std::vector<LineSegment> lineCommands,uploadedLines;
+    struct GuideBounds { V3 low,high; };
+    std::vector<GuideBounds> lineBounds;
+    float widestGuide{};
+    std::size_t lineAttributeStart{};
+    void bindLineAttributes(std::size_t first);
     void initializeLines();void releaseLines();void drawLines();
     unsigned linkProgram(const std::string &vs,const std::string &fs,const char *tcs,const char *tes);
     unsigned program(const std::string &vs, const std::string &fs, const char *tcs = nullptr,

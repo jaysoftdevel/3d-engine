@@ -41,8 +41,8 @@ inline const char* shadows=R"SHADOW(
 uniform mat4 shadowMatrices[4];uniform vec4 shadowSplits;
 uniform int cascadeCount;uniform sampler2D shadowMap;
 vec3 cascadeUV(vec3 p,int c){vec4 q=shadowMatrices[c]*vec4(p,1);return q.xyz/q.w*.5+.5;}
-float cascadeShadow(vec3 n,int c){
- vec3 uv=cascadeUV(P,c);if(any(lessThan(uv,vec3(.001)))||any(greaterThan(uv,vec3(.999))))return 1.;
+float cascadeShadow(vec3 n,int c,vec3 uv){
+ if(any(lessThan(uv,vec3(.001)))||any(greaterThan(uv,vec3(.999))))return 1.;
  vec2 tile=vec2(float(c%2)*.5,float(c/2)*.25),extent=vec2(.5,.25),size=vec2(textureSize(shadowPcf,0));
  float bias=max(.00006,.00035*(1.-max(dot(n,sun),0.))),reference=uv.z-bias;
  vec2 center=tile+uv.xy*extent;float radius=shadowQuality<=1?.6:1.25;
@@ -65,9 +65,9 @@ float shadow(vec3 n){
  if(z>shadowSplits.x)c=1;if(z>shadowSplits.y)c=2;if(z>shadowSplits.z)c=3;
  c=min(c,cascadeCount-1);vec3 uv=cascadeUV(P,c);
  while(c<cascadeCount-1&&(any(lessThan(uv,vec3(.002)))||any(greaterThan(uv,vec3(.998))))){c++;uv=cascadeUV(P,c);}
- float value=cascadeShadow(n,c);
+ float value=cascadeShadow(n,c,uv);
  if(c<cascadeCount-1){float start=c==0?0.:shadowSplits[c-1],end=shadowSplits[c];
-  float blend=smoothstep(mix(start,end,.85),end,z);if(blend>0.)value=mix(value,cascadeShadow(n,c+1),blend);}
+  float blend=smoothstep(mix(start,end,.85),end,z);if(blend>0.)value=mix(value,cascadeShadow(n,c+1,cascadeUV(P,c+1)),blend);}
  return value;
 }
 )SHADOW";
@@ -109,12 +109,14 @@ float localVisibility(vec3 n,vec3 toLight){
  }return visibility;
 }
 vec3 evaluateLocal(int index,vec3 base,vec3 n,vec3 v,float r,float metal){
- vec4 a=texelFetch(lightData,index*4),b=texelFetch(lightData,index*4+1),c=texelFetch(lightData,index*4+2),d=texelFetch(lightData,index*4+3);
- vec3 delta=a.xyz-P;float dd=dot(delta,delta);if(dd>=a.w*a.w||dd<.000001)return vec3(0);
+ vec4 a=texelFetch(lightData,index*4);
+ vec3 delta=a.xyz-P;float dd=dot(delta,delta);
+ if(dd>=a.w*a.w||dd<.000001||dot(n,delta)<=0.)return vec3(0);
+ vec4 b=texelFetch(lightData,index*4+1),c=texelFetch(lightData,index*4+2),d=texelFetch(lightData,index*4+3);
  float dist=sqrt(dd),range=max(1.-pow(dist/a.w,4.),0.);
  float attenuation=d.z>.5?range*range/max(dd,d.w*d.w):range*range/(dd+1.);
  if(d.y>.5)attenuation*=smoothstep(c.w,d.x,dot(-delta/dist,normalize(c.xyz)));
- if(attenuation<.000001||dot(n,delta)<=0.)return vec3(0);
+ if(attenuation<.000001)return vec3(0);
  emitterRadius=d.w;emitterDistance=dist;
  vec3 reflected=reflect(-v,n),towardRay=reflected*max(dot(delta,reflected),0.)-delta;
  emitterSpecular=safeNormal(delta+towardRay*min(1.,d.w/max(length(towardRay),.0001)),delta/dist);
@@ -169,8 +171,10 @@ vec3 layeredBrdf(vec3 base,vec3 n,vec3 v,vec3 l,float r,float metal){
  vec3 f0=mix(vec3(.04),base,metal),F=f0+(1.-f0)*pow(1.-vh,5.);
  float coat=clamp(clearcoat+wetness,0.,1.),coatR=mix(clearcoatRoughness,.09,wetness),coatF=.04+.96*pow(1.-vh,5.);
  vec3 value=((1.-F)*(1.-metal)*base/3.14159265*nl+D*G*F/max(4.*nv,.001))*(1.-coat*coatF);
+ if(coat>0.){
  float coatAlpha=pow(clamp(coatR,.06,1.),2.),coatScale=pow(coatAlpha/min(1.,coatAlpha+emitterRadius/max(2.*emitterDistance,.001)),2.);
  value+=brdf(vec3(.04),n,v,specularL,clamp(coatR,.06,1.),1.)*coat*coatScale;
+ }
  value+=sheen*base*pow(1.-vh,5.)*nl*(1.-metal)*.5;
  return value;
 }

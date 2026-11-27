@@ -11,6 +11,6 @@
 namespace jsd {
 using rf::Jobs;
 using rf::Platform;
-inline constexpr const char *Version = "0.5.22";
+inline constexpr const char *Version = "0.5.24";
 } // namespace jsd
 extern "C" const char *jsd_game_engine_version();

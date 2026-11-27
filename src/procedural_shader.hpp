@@ -59,26 +59,34 @@ float pressurePlating(vec2 p,inout vec3 base,inout float rough,inout float metal
 }
 void proceduralSurface(inout vec3 base,inout vec3 n,inout float r,inout float metal){
 vec3 q=surfacePoint();float footprint=max(length(dFdx(q)),length(dFdy(q)));
-vec4 broad=field(q*.42),grain=field(q*7.1+vec3(19.2,43.7,8.4));
-float grainWeight=1.-smoothstep(.35,.95,footprint*7.1);grain=vec4(mix(.5,grain.x,grainWeight),grain.yzw*grainWeight);
+float grainWeight=1.-smoothstep(.35,.95,footprint*7.1);
+vec4 grain=vec4(.5,0,0,0);
+if(grainWeight>0.){
+ grain=field(q*7.1+vec3(19.2,43.7,8.4));
+ grain=vec4(mix(.5,grain.x,grainWeight),grain.yzw*grainWeight);
+}
+float broad=surfaceKind<7?field(q*.42).x:0.;
 float detailWeight=1.-smoothstep(.25,.9,footprint*65.);vec4 micro=vec4(.5,0,0,0);
 if(detailWeight>.001&&normalScale>.001)micro=field(q*65.+vec3(71.1,6.3,39.4));
-float variation=.72+.42*broad.x+.16*grain.x,bump=.018;
+float variation=.72+.42*broad+.16*grain.x,bump=.018;
 vec3 gradient=grain.yzw*7.1*.08+micro.yzw*65.*detailWeight*.003;
-if(surfaceKind==1){variation=.58+.6*broad.x+.16*grain.x;bump=.06;r=clamp(r*(.88+.2*grain.x),.6,1.);metal=0.;}
-else if(surfaceKind==2){variation=.78+.26*broad.x+.12*grain.x;bump=.035;r=clamp(.87+.12*grain.x,.8,1.);metal=0.;}
-else if(surfaceKind==3){variation=.88+.15*broad.x-.12*smoothstep(.8,.98,grain.x);bump=.009;r=clamp(.72+.23*grain.x,.6,1.);metal=0.;}
-else if(surfaceKind==4){variation=.95+.07*broad.x;bump=.002;r=clamp(r+.08*(grain.x-.5),.12,.9);}
-else if(surfaceKind==5){variation=.9+.16*broad.x;bump=.0015;r=clamp(r+.12*(grain.x-.5),.16,.9);metal=max(metal,.72);}
+if(surfaceKind==1){variation=.58+.6*broad+.16*grain.x;bump=.06;r=clamp(r*(.88+.2*grain.x),.6,1.);metal=0.;}
+else if(surfaceKind==2){variation=.78+.26*broad+.12*grain.x;bump=.035;r=clamp(.87+.12*grain.x,.8,1.);metal=0.;}
+else if(surfaceKind==3){variation=.88+.15*broad-.12*smoothstep(.8,.98,grain.x);bump=.009;r=clamp(.72+.23*grain.x,.6,1.);metal=0.;}
+else if(surfaceKind==4){variation=.95+.07*broad;bump=.002;r=clamp(r+.08*(grain.x-.5),.12,.9);}
+else if(surfaceKind==5){variation=.9+.16*broad;bump=.0015;r=clamp(r+.12*(grain.x-.5),.16,.9);metal=max(metal,.72);}
 else if(surfaceKind==6){variation=.88+.15*grain.x;bump=.003;r=clamp(.82+.15*grain.x,.8,1.);metal=0.;}
 if(surfaceKind>=7){
  // Aperiodic domain warping produces unique mineral/dye fields without UV tiles.
- vec3 warp=vec3(field(q*.17+vec3(7,19,31)).x,field(q*.13+vec3(43,5,17)).x,field(q*.19+vec3(11,41,3)).x)-.5;
- vec4 organic=field(q*.38+warp*1.7);
- variation=.82+.24*organic.x+.07*(grain.x-.5);
+ float organic=0.;
+ if(surfaceKind==7||(surfaceKind>=9&&surfaceKind<=12)||surfaceKind>17){
+  vec3 warp=vec3(field(q*.17+vec3(7,19,31)).x,field(q*.13+vec3(43,5,17)).x,field(q*.19+vec3(11,41,3)).x)-.5;
+  organic=field(q*.38+warp*1.7).x;
+ }
+ variation=.82+.24*organic+.07*(grain.x-.5);
  if(surfaceKind==7){
-  variation=.70+.48*organic.x+.16*(grain.x-.5);r=.92+.07*grain.x;metal=0.;bump=.09;
-  base*=mix(vec3(.92,.95,1.02),vec3(1.08,1.02,.91),organic.x);
+  variation=.70+.48*organic+.16*(grain.x-.5);r=.92+.07*grain.x;metal=0.;bump=.09;
+  base*=mix(vec3(.92,.95,1.02),vec3(1.08,1.02,.91),organic);
  }else if(surfaceKind==8 || surfaceKind==14){
   variation=pressurePlating(q.xy,base,r,metal,surfaceKind==14);bump=.004;
  }else if(surfaceKind==9 || surfaceKind==10){
@@ -87,7 +95,7 @@ if(surfaceKind>=7){
   float scratch=field(vec3(q.x*.9,q.y*57.,q.z+8.)).x;
   float scuff=smoothstep(.84,.96,grain.x)*grainWeight;
   variation*=1.-scuff*(surfaceKind==10?.34:.11);
-  r=clamp(r+.11*(organic.x-.5)+.12*scuff,.17,.91);
+  r=clamp(r+.11*(organic-.5)+.12*scuff,.17,.91);
   if(surfaceKind==10){float chip=smoothstep(.91,.99,scratch)*grainWeight;base=mix(base,vec3(.25,.28,.30),chip*.65);metal=mix(metal,.85,chip);}
   bump=surfaceKind==9?.007:.012;
  }else if(surfaceKind==11){

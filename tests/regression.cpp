@@ -164,6 +164,32 @@ int main(int argc, char **argv) {
             }
             s = GraphicsSettings::legacy();
             s.viewDistance = 64;
+            s.shadows = Quality::High;
+            renderer.setSettings(s);
+            auto shadowFrame = [&](const Camera &eye, float x, float time, bool wind) {
+                Environment env;
+                env.atmosphere.time = time;
+                renderer.begin(eye, env);
+                Material caster;
+                caster.windStrength = wind ? .08f : 0.f;
+                renderer.primitive(Primitive::Box, {{x, 1, 2}, {3, 2, 3}, 0}, caster);
+                renderer.end();
+                renderer.check();
+                return renderer.statistics().drawCalls;
+            };
+            const auto renderedShadow = shadowFrame(camera, 0, 0, false);
+            const auto reusedShadow = shadowFrame(camera, 0, 1, false);
+            test(reusedShadow < renderedShadow, "static casters reuse the shadow atlas");
+            test(shadowFrame(camera, 1, 1, false) > reusedShadow, "moving a caster redraws shadow cascades");
+            auto shiftedCamera = camera;
+            shiftedCamera.position.x += .2f;
+            test(shadowFrame(shiftedCamera, 1, 1, false) > reusedShadow,
+                 "moving the camera redraws shadow cascades");
+            const auto windyShadow = shadowFrame(camera, 0, 1, true);
+            test(shadowFrame(camera, 0, 2, true) == windyShadow && windyShadow > reusedShadow,
+                 "wind animation redraws shadow cascades");
+            s = GraphicsSettings::legacy();
+            s.viewDistance = 64;
             renderer.setSettings(s);
             auto distanceScene = [&] {
                 renderer.begin({{0, 2, -5}, {0, 0, 1}, 70, .08f});

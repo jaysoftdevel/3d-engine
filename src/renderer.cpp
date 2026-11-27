@@ -376,11 +376,13 @@ SettingsReport Renderer::setSettings(GraphicsSettings s) {
             impl->focusValid = false;
         impl->historyValid = false;impl->directHistoryValid=false;
         if (old.textureQuality != next.effective.textureQuality ||
-            old.anisotropy != next.effective.anisotropy)
+            old.anisotropy != next.effective.anisotropy) {
+            impl->sunShadowsValid = false;
             for (auto &[id, t] : impl->textures) {
                 (void)id;
                 impl->upload(t);
             }
+        }
     }
     return next;
 }
@@ -428,6 +430,7 @@ TextureId Renderer::createTexture(int w, int h, std::span<const unsigned char> b
 void Renderer::destroyTexture(TextureId id) {
     auto it = impl->textures.find(id.value);
     if (it != impl->textures.end()) {
+        impl->sunShadowsValid = false;
         impl->gl.DeleteTextures(1, &it->second.object);
         impl->textures.erase(it);
     }

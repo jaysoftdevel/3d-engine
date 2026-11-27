@@ -60,6 +60,7 @@ void Renderer::Impl::releaseTargets() {
     gl.DeleteRenderbuffers(7, msaaBuffers.data());
     msaaBuffers.fill(0);
     shadowSize = 0;
+    sunShadowsValid = false;
     localShadows={};
 }
 void Renderer::Impl::allocate() {
@@ -796,7 +797,9 @@ void Renderer::Impl::pipeline() {
     }
     if (settings().reflections != Quality::Off) {
         gl.ActiveTexture(GL_TEXTURE0);
-        for(unsigned tex:{sceneColor,sceneDirect,directHistory[directIndex].texture})if(tex){
+        const bool denoiseDirect = settings().stochasticLighting && directHistoryValid && !customMaterialShader;
+        for(unsigned tex:{sceneColor,denoiseDirect?sceneDirect:0u,
+                          denoiseDirect?directHistory[directIndex].texture:0u})if(tex){
             gl.BindTexture(GL_TEXTURE_2D,tex);gl.GenerateMipmap(GL_TEXTURE_2D);gl.TexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2703);
         }
     }
@@ -828,23 +831,25 @@ void Renderer::Impl::pipeline() {
            {environment.skyColor.r, environment.skyColor.g, environment.skyColor.b});
     fullscreen(lightingProgram, lit.fbo);
     }
-    gl.BindFramebuffer(GL_FRAMEBUFFER, transparentFbo);
-    gl.DrawBuffer(GL_COLOR_ATTACHMENT0);
-    gl.Enable(0x0B71);
-    gl.DepthMask(0);
-    gl.Enable(GL_BLEND);
-    drawCommands(surfaceProgram(), vp, false, true);
-    gl.Disable(GL_BLEND);
-    if (settings().antiAliasing == AntiAliasing::TAA) {
-        gl.BindFramebuffer(GL_FRAMEBUFFER, sceneFbo);
-        unsigned reactiveOutputs[] = {0, 0, GL_COLOR_ATTACHMENT0 + 2, 0,0,0};
-        gl.DrawBuffers(6, reactiveOutputs);
-        gl.ColorMask(0, 0, 0, 1);
-        drawCommands(reactiveProgram, vp, false, true);
-        gl.ColorMask(1, 1, 1, 1);
+    if (!transparentOrder.empty()) {
+        gl.BindFramebuffer(GL_FRAMEBUFFER, transparentFbo);
+        gl.DrawBuffer(GL_COLOR_ATTACHMENT0);
+        gl.Enable(0x0B71);
+        gl.DepthMask(0);
+        gl.Enable(GL_BLEND);
+        drawCommands(surfaceProgram(), vp, false, true);
+        gl.Disable(GL_BLEND);
+        if (settings().antiAliasing == AntiAliasing::TAA) {
+            gl.BindFramebuffer(GL_FRAMEBUFFER, sceneFbo);
+            unsigned reactiveOutputs[] = {0, 0, GL_COLOR_ATTACHMENT0 + 2, 0,0,0};
+            gl.DrawBuffers(6, reactiveOutputs);
+            gl.ColorMask(0, 0, 0, 1);
+            drawCommands(reactiveProgram, vp, false, true);
+            gl.ColorMask(1, 1, 1, 1);
+        }
+        gl.DepthMask(1);
+        gl.Disable(0x0B71);
     }
-    gl.DepthMask(1);
-    gl.Disable(0x0B71);
     drawParticles();
     unsigned current = postAdvanced(lit.texture);
     if (dof.fbo) {

@@ -49,8 +49,16 @@ vec4 mapped(sampler2D map){if(textureProjection==0)return texture(map,texcoord*t
 void main(){vec4 baseColor=tint;if(textured!=0)baseColor*=mapped(albedoMap);if(alphaMode==1&&baseColor.a<alphaCutoff)discard;vec3 base=baseColor.rgb,n=safeNormal(N,vec3(0,1,0)),v=safeNormal(eye-P,n);if(doubleSided!=0&&!gl_FrontFacing)n=-n;
 if(surfaceKind==0&&macroVariation>0.){float detail=texture(materialNoise,P*.045).r*.65+texture(materialNoise,P*.14).g*.35;base*=mix(1.,.55+detail*.65,macroVariation);}
 if(hasNormal!=0){if(textureProjection!=0){vec3 w=weights(n),nx=texture(normalMap,P.zy*textureScale).xyz*2.-1.,ny=texture(normalMap,P.xz*textureScale).xyz*2.-1.,nz=texture(normalMap,P.xy*textureScale).xyz*2.-1.;nx.xy*=normalScale;ny.xy*=normalScale;nz.xy*=normalScale;n=safeNormal(vec3(nx.z*sign(n.x),nx.y,nx.x)*w.x+vec3(ny.x,ny.z*sign(n.y),ny.y)*w.y+vec3(nz.x,nz.y,nz.z*sign(n.z))*w.z,n);}else{vec3 dp1=dFdx(P),dp2=dFdy(P);vec2 duv1=dFdx(texcoord),duv2=dFdy(texcoord);float determinant=duv1.x*duv2.y-duv1.y*duv2.x;if(abs(determinant)>.0000001){vec3 fallbackT=safeNormal(cross(abs(n.y)<.9?vec3(0,1,0):vec3(1,0,0),n),vec3(1,0,0));vec3 rawT=(dp1*duv2.y-dp2*duv1.y)/determinant;vec3 T=safeNormal(rawT-n*dot(n,rawT),fallbackT);vec3 rawB=(-dp1*duv2.x+dp2*duv1.x)/determinant;vec3 B=safeNormal(cross(n,T),cross(n,fallbackT))*(dot(cross(n,T),rawB)<0.?-1.:1.);vec3 mappedNormal=texture(normalMap,texcoord*textureScale).xyz*2.-1.;mappedNormal.xy*=normalScale;n=safeNormal(mat3(T,B,n)*mappedNormal,n);}}}
-vec3 orm=hasOrm!=0?mapped(ormMap).rgb:lowestTextures!=0?constantOrm:vec3(1);orm.r=mix(1.,orm.r,occlusionStrength);float r=clamp(roughness*orm.g,.06,1.),metal=clamp(metallic*orm.b,0.,1.);if(surfaceKind!=0)proceduralSurface(base,n,r,metal);materialLayers(base,r,metal,n);layerFrame(n);vec3 lit=indirectLighting(base,n,v,r,metal,P,orm.r);
-float visibility=dot(n,sun)>0.?shadow(n):1.;lit+=layeredBrdf(base,n,v,normalize(sun),r,metal)*sunColor*sunIntensity*visibility;
+vec3 orm=hasOrm!=0?mapped(ormMap).rgb:lowestTextures!=0?constantOrm:vec3(1);orm.r=mix(1.,orm.r,occlusionStrength);float r=clamp(roughness*orm.g,.06,1.),metal=clamp(metallic*orm.b,0.,1.);if(surfaceKind!=0)proceduralSurface(base,n,r,metal);materialLayers(base,r,metal,n);
+if(abs(anisotropy)>.001)layerFrame(n);
+vec3 lit=indirectLighting(base,n,v,r,metal,P,orm.r);
+if(sunIntensity!=0.){
+ vec3 l=normalize(sun);
+ if(dot(n,l)>0.){
+  float visibility=dot(n,sun)>0.?shadow(n):1.;
+  lit+=layeredBrdf(base,n,v,l,r,metal)*sunColor*sunIntensity*visibility;
+ }
+}
 vec3 local=localLighting(base,n,v,r,metal);direct=vec4(clamp(local,vec3(0),vec3(60000)),1);lit+=local;
 vec3 e=emissive*surfaceEmission();if(hasEmissive!=0)e*=mapped(emissiveMap).rgb;lit+=e;float fog=smoothstep(viewDistance*.35,viewDistance*(1.-.55*storm),length(P-eye))*fogDensity;lit=mix(lit,mix(groundColor,skyColor,.65),clamp(fog,0.,1.));color=vec4(clamp(lit,vec3(0),vec3(60000)),alphaMode>=2?surfaceAlpha(baseColor.a):1.);normal=vec4(n*.5+.5,1);albedo=vec4(base,clamp(clearcoat+wetness,0.,1.));surface=vec4(r,metal,orm.r,reactive!=0||alphaMode>=2?1.:0.);motion=vec4(currentClip.xy/currentClip.w*.5-previousClip.xy/previousClip.w*.5,linearDepths);}
 )GLSL";

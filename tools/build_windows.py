@@ -81,7 +81,7 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
     require(jobs > 0, 'Jobs must be positive')
     root = no_symlinks(root).resolve()
     require(root == SOURCE_ROOT, 'Build driver belongs to another source tree')
-    meta = source(root,'jsd.engine','0.5.22')
+    meta = source(root,'jsd.engine','0.5.24')
     cmake, generator, instance = select_toolchain(cmake,generator)
     folder = 'windows-vs2026' if generator == GENERATORS[18] else 'windows-vs2022'
     build = root/'build'/folder
@@ -95,11 +95,11 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
     if instance and cache.get('CMAKE_GENERATOR_INSTANCE'):
         require(Path(cache['CMAKE_GENERATOR_INSTANCE'].split(',')[0]).resolve() == Path(instance).resolve(),
                 f'Build cache belongs to a different Visual Studio installation: {build}')
-    print(f'Engine 0.5.22 / {generator} / x64 / {configuration}\nCMake: {cmake}\nBuild: {build}',flush=True)
+    print(f'Engine 0.5.24 / {generator} / x64 / {configuration}\nCMake: {cmake}\nBuild: {build}',flush=True)
     if check:
         print('Preflight passed; no files changed.'); return
     with operation_lock(root):
-        meta = source(root,'jsd.engine','0.5.22')
+        meta = source(root,'jsd.engine','0.5.24')
         build_path(root,build,meta); install_prefix(root,root,meta)
         build.mkdir(parents=True,exist_ok=True)
         # Claim ownership before logs appear in a fresh guarded build directory.
