@@ -221,5 +221,5 @@ bool FileWatcher::changed(const std::filesystem::path &p) {
 }
 } // namespace jsd
 extern "C" const char *jsd_game_engine_version() {
-    return "0.5.24";
+    return "0.5.25";
 }

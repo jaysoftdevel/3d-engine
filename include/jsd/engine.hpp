@@ -2,6 +2,7 @@
 #include "assets.hpp"
 #include "audio.hpp"
 #include "cinematic.hpp"
+#include "game_shell.hpp"
 #include "particles.hpp"
 #include "physics.hpp"
 #include "vehicle.hpp"
@@ -11,6 +12,6 @@
 namespace jsd {
 using rf::Jobs;
 using rf::Platform;
-inline constexpr const char *Version = "0.5.24";
+inline constexpr const char *Version = "0.5.25";
 } // namespace jsd
 extern "C" const char *jsd_game_engine_version();
