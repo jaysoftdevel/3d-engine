@@ -29,20 +29,11 @@ Per-pass cost before/after (ms, 1080p, scene time 40 s): shadow map 4.1 -> 4.3, 
 
 ## GPU selection and measurement
 
-The launcher respects the host's normal OpenGL driver and existing environment settings. `JSD_GPU=discrete ./run-showcase.sh` requests Mesa's first non-default GPU (`DRI_PRIME=1`) and, when an NVIDIA driver is installed, NVIDIA PRIME offload. GPU selection and support depend on the machine. Primary references: [Mesa DRI_PRIME](https://docs.mesa3d.org/envvars.html#dri-prime) and [NVIDIA PRIME](https://download.nvidia.com/XFree86/Linux-x86_64/550.135/README/primerenderoffload.html).
+The launcher respects the host's normal OpenGL driver and existing environment settings. `JSD_GPU=discrete ./run.sh` requests Mesa's first non-default GPU (`DRI_PRIME=1`) and, when an NVIDIA driver is installed, NVIDIA PRIME offload. GPU selection and support depend on the machine. Primary references: [Mesa DRI_PRIME](https://docs.mesa3d.org/envvars.html#dri-prime) and [NVIDIA PRIME](https://download.nvidia.com/XFree86/Linux-x86_64/550.135/README/primerenderoffload.html).
 
 Startup prints the renderer name. A `llvmpipe` result means software rendering; it is not a hardware GPU benchmark. Uncapping presentation and lowering CPU overhead allow more throughput, but utilization depends on the scene, processor, driver, compositor and GPU. This package cannot promise 100% GPU usage or change driver power policy.
 
-For profiling on your GPU:
-
-```bash
-cd jsd-game-engine
-./run-showcase.sh --profile frame-times.csv
-# Optional synchronized/windowed modes:
-./run-showcase.sh --windowed --vsync
-```
-
-The CSV contains frame time, CPU submission time, asynchronous GPU time, draws and triangles. CPU submission includes any driver stalls and is not pure application CPU cost. GPU timer zero means not yet available or disabled. Use a repeated representative run after asset/shader/terrain warmup; exclude first-use frames. Captures, --validate and software rendering distort throughput measurements.
+The following historical measurements used the removed scene-specific profiling launcher. For current diagnostics use your own application, or the independent graphics lab (`./run.sh --preset high`). Warm up assets, shaders and terrain before measuring; capture, validation and software rendering distort throughput.
 
 ## Comparison on the checked host
 
@@ -56,7 +47,7 @@ The bundled report compares 0.4.0 and 0.4.1 on Mesa25 llvmpipe, fixed 960x540 ou
 
 Combined throughput increased 8.7% in this run. Small differences can vary between runs; these are measurements on the checked software driver, not a promise for other machines.
 
-## Presets, autofocus and processing update
+## Presets, autofocus and processing update (historical measurements)
 
 This update changes scheduling, resource reuse and driver submission. It does not lower the selected resolution, geometry, texture tier, shadow filtering or effect sample counts. The existing showcase High preset retains its prior appearance. Minimal through Max are explicit quality choices; autofocus changes depth of field only when that effect is enabled.
 

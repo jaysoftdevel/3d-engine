@@ -75,7 +75,7 @@ Kinematic actors obey their accepted targets and have infinite effective mass. T
 
 `rayCast`, `occluded` and `sweep` return real collider hits, fractions and surface normals. Queries exclude sensors by default; `QueryFilter` can include them or ignore a body. Controlled sweeps always ignore their own body and can ignore one extra body (e.g. a cargo carrier). Contact start events include position, normal (A toward B) and sensor status; end events identify the pair, with no current manifold. Drain `contacts()` regularly. Shapes do not come from render meshes automatically.
 
-## Showcase integration
+## Historical showcase integration
 
 The rover has a kinematic collision proxy. It follows its existing route when clear, stops at colliders and resumes at bounded speed. Wheel rotation and dust use accepted travel distance. Structural boxes/cylinders share the visible compound transforms, including the landing slab. Fine cables, foliage and scanned background formations remain visual detail. Terrain contact for the rover's wheels still uses the sampled terrain fit; this is not a suspension/drivetrain solver.
 
@@ -87,4 +87,4 @@ Jolt handles broad/narrow phase collision, contact constraints, restitution, fri
 
 This layer currently provides uniform gravity and primitive rigid bodies. It does not implement deformable bodies, fluids, arbitrary mesh/heightfield colliders, joints, gyroscopic spacecraft modelling, relativistic effects or coupled spectral light transport. Solver values are single precision; keep playable coordinates near the origin and use sensible metre-scale geometry. Physics and graphics are separate systems connected by poses and visibility queries.
 
-Run `./test.sh --with-showcase` for analytic physics, graphics, rover and actual showcase integration checks. Direct CMake builds expose the corresponding CTest cases. See [physics validation](PHYSICS_VALIDATION.json) and [physical optics](OPTICS.md).
+Run `./test.sh` for analytic physics and graphics checks. The historical showcase and its scene-specific tests are no longer bundled. Direct CMake builds expose the corresponding CTest cases. See [physics validation](PHYSICS_VALIDATION.json) and [physical optics](OPTICS.md).

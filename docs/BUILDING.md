@@ -1,47 +1,28 @@
 # Automatic source build
 
-The release contains source and runtime data. Engine/showcase executables, shared/static libraries, object files, compiled Java helpers and CMake caches are excluded. SDL2 2.32.4 and Jolt5.7.0 source are bundled; no binary SDL lookup, FetchContent download or precompiled SDK fallback is used by the default build. Non-Linux SDL renderer folders with embedded compiled shader blobs and both Gradle wrapper JARs are omitted.
+The release contains source and runtime data. Engine executables, shared/static libraries, object files, compiled Java helpers and CMake caches are excluded. SDL2 2.32.4 and Jolt5.7.0 source are bundled; no binary SDL lookup, FetchContent download or precompiled SDK fallback is used by the default build. Non-Linux SDL renderer folders with embedded compiled shader blobs and both Gradle wrapper JARs are omitted.
 
 ## Engine workflow
 
-The archive has exactly one top-level directory: `jsd-game-engine`. Its optional showcase lives in `examples/showcase`. No parent-level build files or scripts are needed. Start in the engine directory:
+The archive has exactly one top-level directory: `jsd-game-engine`. No parent-level build files or scripts are needed. The distribution contains no bundled sample project. Start in the engine directory:
 
 ```bash
 cd jsd-game-engine
-./run.sh                    # build engine/dependencies and launch engine graphics lab
 ./build.sh                  # build only
 ./build.sh debug            # debug source build
 ./build.sh clean            # remove all build modes, prebuilds and installed SDK outputs
 ./test.sh                   # complete engine-only regression/render checks
 ```
 
-The engine compiles SDL, Jolt, one PIC engine object set, shared/static engine libraries, its graphics lab and regression executable. Tests use fixtures in `tests/fixtures`, also installed into `share/jsd-game-engine/test-fixtures`. With `JSD_BUILD_SHOWCASE=OFF` (the default for a new build), the showcase target is not configured, built or installed. Engine tests use independent fixtures. Later launches configure/check the build graph and rebuild changed source incrementally. A failed configure/compile/install prevents launch; scripts do not silently fall back to an old executable.
-
-## Optional showcase target
-
-From the engine directory:
-
-```bash
-./build.sh release -DJSD_BUILD_SHOWCASE=ON  # engine + jsd-showcase + asset install
-./run-showcase.sh                          # enables/builds it, then launches
-./run.sh --showcase                        # equivalent launch shortcut
-./test.sh --with-showcase                  # regression suite + showcase smoke check
-```
-
-The CMake target is `jsd-showcase`. It links the existing engine target within the same build graph; no second engine build or SDK lookup is needed. `JSD_BUILD_SHOWCASE` is independent of `JSD_BUILD_EXAMPLES` (the graphics lab). CMake options persist in a build directory; pass `-DJSD_BUILD_SHOWCASE=OFF` to disable it again. Disabling excludes the target and future installation; it does not delete previously installed files. `test.sh` explicitly disables the showcase unless requested; its older `--with-sample` switch is retained as an alias.
-
-Enabled installs place the executable in `bin/jsd-showcase` and assets/notices in `share/jsd-game-engine/showcase`. The executable locates installed assets relative to its prefix, falling back to the source assets for build-tree runs; `--assets PATH` overrides this. Launching from another working directory and relocating a complete installed prefix both work.
+The engine compiles SDL, Jolt, one PIC engine object set, shared/static engine libraries, and optionally regression executables. Tests use source fixtures in `tests/fixtures` and are not installed.
 
 Generated output locations:
 
 | Path | Content generated locally |
 | --- | --- |
 | jsd-game-engine/build/release or debug | CMake cache, dependency builds, engine objects/targets |
-| jsd-game-engine/lib and bin | Installed local SDK libraries, SDL runtime, lab/tests |
+| jsd-game-engine/lib and bin | Installed local SDK libraries, SDL runtime |
 | jsd-game-engine/include/SDL2 and include/Jolt | Installed third-party public headers |
-| jsd-game-engine/share/jsd-game-engine/test-fixtures | Installed engine test input data |
-| jsd-game-engine/bin/jsd-showcase | Optional showcase executable |
-| jsd-game-engine/share/jsd-game-engine/showcase | Optional showcase assets and notices |
 
 These products are not in the release archive. Run `./build.sh clean` (also accepted as `--clean`) for a fully clean rebuild. It removes the complete `build` tree, local `prebuild`, `prebuilds`, `prebuilt` and `prebuilts` directories, generated `bin`, `lib`, `lib64` and `share` outputs, and installed SDL/Jolt headers. Engine source headers, bundled dependency source and source assets are preserved. The next normal build compiles the engine and dependencies again.
 
@@ -67,7 +48,7 @@ Do not set that override on a machine missing desktop headers unless supplying t
 | --- | --- |
 | CMAKE | CMake executable, 3.21+ |
 | CC / CXX | C/C++ compiler selection |
-| JSD_BUILD_TYPE | Release or Debug (run.sh uses this mode) |
+| JSD_BUILD_TYPE | Release or Debug |
 | JSD_BUILD_JOBS | Parallel compile jobs; default 4 |
 | JSD_BUILD_DIR | Engine build directory override |
 | JSD_INSTALL_PREFIX | Generated engine SDK destination; default engine directory |
@@ -84,15 +65,7 @@ cmake --build engine-build --parallel 4
 cmake --install engine-build --prefix "$PWD/jsd-game-engine"
 ```
 
-To opt into the showcase in that build:
-
-```bash
-cmake -S jsd-game-engine -B engine-build -DJSD_BUILD_SHOWCASE=ON
-cmake --build engine-build --target jsd-showcase --parallel 4
-ctest --test-dir engine-build -R showcase-smoke --output-on-failure
-```
-
-The smoke test is registered only when both `JSD_BUILD_SHOWCASE` and `JSD_BUILD_TESTS` are enabled. Building all default targets before installing generates the engine's shared and static SDK outputs as well. A minimal SDK-only source build can set `JSD_BUILD_TESTS=OFF`, `JSD_BUILD_EXAMPLES=OFF` and `JSD_BUILD_SHOWCASE=OFF`.
+Normal builds produce the full engine SDK only. `-DJSD_BUILD_TESTS=ON` enables optional regression tests in the build tree.
 
 Building the engine once and installing it elsewhere creates a reusable dependency for multiple games. Its CMake exports resolve the adjacent, source-built SDL package automatically. Shared library RPATHs and pkg-config prefixes are relative so the generated SDK can be relocated with its consumers.
 
@@ -107,4 +80,4 @@ The audit detects native executable/object/archive signatures, compiled-library 
 
 ## Runtime quality presets
 
-Both examples provide Minimal, Low, Medium, High and Max graphics presets. The showcase exposes them through `C` and `--quality`; the graphics lab uses `--preset`. See [presets and autofocus](GRAPHICS_PRESETS.md). Rebuild after applying this update so engine headers, libraries and executables agree.
+The project player exposes presets through `C` and `--quality`; the graphics lab uses `--preset`. See [presets and autofocus](GRAPHICS_PRESETS.md). Rebuild after applying this update so engine headers, libraries and executables agree.

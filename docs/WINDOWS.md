@@ -1,4 +1,4 @@
-# Windows engine/showcase — 0.5.14
+# Windows engine — 0.5.22
 
 Use the **batch scripts from Command Prompt**. PowerShell is not required. Python 3.10+ and a Visual Studio C++ toolchain remain required; bundled SDL2 and Jolt compile from source.
 
@@ -6,10 +6,9 @@ Use the **batch scripts from Command Prompt**. PowerShell is not required. Pytho
 cd /d D:\jsd_win\3d-project\3d-engine
 install.bat --check
 install.bat
-run-showcase.bat
 ```
 
-`install.bat` configures, builds and installs the engine, bundled runtime DLLs and showcase into the engine directory. It accepts:
+`install.bat` configures, builds and installs the engine, bundled runtime DLLs into the engine directory. It accepts:
 
 ```bat
 install.bat Debug --test --jobs 8
@@ -17,7 +16,7 @@ install.bat --configuration Release --test
 build.bat --configuration Release
 ```
 
-`build.bat` configures/builds without installation unless `--install` is supplied. `--test` runs CTest before installation; a failed configure/build/test immediately stops later stages. `--check` performs preflight only, without creating build directories or logs. Installed executables are under `bin`; `run-showcase.bat` starts the installed showcase, or a Release build if not installed. It forwards showcase options, for example `run-showcase.bat --windowed --quality high`.
+`build.bat` configures/builds without installation unless `--install` is supplied. `--test` runs CTest before installation; a failed configure/build/test immediately stops later stages. `--check` performs preflight only, without creating build directories or logs. The SDK contains libraries and headers; launch the game from its own workspace. Tests run from the build directory and are not installed.
 
 ## Tool detection
 

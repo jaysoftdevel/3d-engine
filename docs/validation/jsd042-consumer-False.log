@@ -1,6 +1,0 @@
--- Configuring done (0.0s)
--- Generating done (0.0s)
--- Build files have been written to: /workspace/scratch/f8542ff39916/.jsd042-consumer-False
-[ 50%] Linking CXX executable external-consumer
-[100%] Built target external-consumer
-External consumer linked Frontier 0.4.2

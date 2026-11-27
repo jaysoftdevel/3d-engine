@@ -2,7 +2,7 @@
 
 ## Sibling SDK dependency
 
-Keep the engine and each game as siblings. The archive contains only `jsd-game-engine`; all source/build/dependency/test/tooling files are inside it. `examples/showcase` is an optional internal example, disabled by default with `JSD_BUILD_SHOWCASE=OFF`. It links the public engine target; it is not part of the engine library or exported SDK dependencies. Engine tests use independent fixtures. The game owns its assets, gameplay, saves and main loop. The engine owns reusable runtime and graphics code.
+Keep the engine and each game as siblings. The archive contains only `jsd-game-engine`; all source/build/dependency/test/tooling files are inside it. Engine tests use independent fixtures. The game owns its assets, gameplay, saves and main loop. The engine owns reusable runtime and graphics code.
 
 ```cmake
 cmake_minimum_required(VERSION 3.20)
@@ -16,9 +16,9 @@ set_target_properties(my-game PROPERTIES
 install(TARGETS my-game RUNTIME DESTINATION bin)
 ```
 
-The source release contains no installed libraries or executables. From inside `jsd-game-engine`, `./build.sh` compiles bundled SDL/Jolt and the engine, then installs a local SDK into its own `include`, `lib` and `bin` directories. `./run.sh` opens the engine lab and `./test.sh` runs engine-only tests. The optional `./run-showcase.sh` enables its internal example target in the same source build. `JSD::GameEngineStatic` includes the required Jolt archive transitively. Use a separate CMake build directory when switching a consumer between source and SDK dependency modes.
+The source release contains no installed libraries or executables. From inside `jsd-game-engine`, `./build.sh` compiles bundled SDL/Jolt and the engine, then installs a local SDK into its own `include`, `lib` and `bin` directories. `./run.sh` opens the engine lab and `./test.sh` runs engine-only tests. `JSD::GameEngineStatic` includes the required Jolt archive transitively. Use a separate CMake build directory when switching a consumer between source and SDK dependency modes.
 
-For a source dependency, set `JSD_BUILD_TESTS`, `JSD_BUILD_EXAMPLES` and `JSD_BUILD_SHOWCASE` OFF before `add_subdirectory("${JSD_GAME_ENGINE_DIR}" engine-build)` and link the same target. Link `JSD::GameEngine` or `JSD::GameEngineStatic` in either mode. No engine files need to be copied into your game.
+For a source dependency, set `JSD_BUILD_TESTS` OFF before `add_subdirectory("${JSD_GAME_ENGINE_DIR}" engine-build)` and link the same target. Link `JSD::GameEngine` or `JSD::GameEngineStatic` in either mode. No engine files need to be copied into your game.
 
 A system SDK install also works:
 
@@ -45,7 +45,7 @@ graphics.end();
 platform.present();
 ```
 
-The internal showcase supplies the complete continuous loop, input, interpolation, asset upload, audio and physics. The engine API retains `rf` as well as the `jsd::gfx` alias to avoid breaking source consumers. Creating a `GpuScene` uploads its resources; destroy it before its `Renderer`. Destroy the renderer before its current GL context/platform. Destroy `AudioDevice` before `AudioMixer`. Submit lights after `begin()` every frame. Persistent GPU handles are retired with the corresponding `destroy*` call. Renderer/GPU calls must occur on the context thread.
+The engine API retains `rf` as well as the `jsd::gfx` alias to avoid breaking source consumers. Creating a `GpuScene` uploads its resources; destroy it before its `Renderer`. Destroy the renderer before its current GL context/platform. Destroy `AudioDevice` before `AudioMixer`. Submit lights after `begin()` every frame. Persistent GPU handles are retired with the corresponding `destroy*` call. Renderer/GPU calls must occur on the context thread.
 
 `Draw.modelMatrix` overrides the legacy `Transform` when present. Use a stable unique nonzero `objectId` to track motion for each rigid object, including across frames with no movement. `GpuScene::draw` requires a disjoint `idBase` per instance. For an existing app/window, construct `Renderer(Context)` with function resolution and drawable-size callbacks; the context must be current, and the application handles event polling/presentation.
 
@@ -57,7 +57,7 @@ Graphics settings may be changed before/between frames; inspect the returned req
 
 ## Deploy and relocate
 
-The optional installed showcase resolves `../lib` from the engine's `bin` directory and reads assets from `share/jsd-game-engine/showcase/assets` relative to that prefix. Your own game may use the sibling SDK layout shown above. For another deployment layout, install the engine library next to your executable or in its own `lib` folder and set an appropriate `$ORIGIN`-relative RPATH. Rebuild the game to apply an installed RPATH; build-tree CMake may add absolute paths for development.
+Your game may use the sibling SDK layout shown above. For another deployment layout, install the engine library next to your executable or in its own `lib` folder and set an appropriate `$ORIGIN`-relative RPATH. Rebuild the game to apply an installed RPATH; build-tree CMake may add absolute paths for development.
 
 `lib/libjsd-game-engine.so.0.4.4` plus `.so.0` and `.so` symlinks are required for shared linking. SDL2 is built from bundled source and installed into the generated engine/lib, then loaded from there; it still needs system window/audio dependencies and a working GL driver. Static engine linking does not make SDL or the driver static. Jolt is already linked into the shared engine; static consumers link `libJolt.a` too through CMake. `lib/pkgconfig/jsd-game-engine.pc` and `frontier-engine.pc` provide relocatable compiler/link flags.
 
@@ -80,7 +80,7 @@ The adapter references the consuming game's own `game/game.hpp`; the engine libr
 
 ## Display mode and frame timing
 
-`Platform::setFullscreen(bool)` requests borderless desktop fullscreen, `isFullscreen()` reads its SDL flag, and `setVSync(bool)` requests swap interval 0 or 1. They return false on unsupported/offscreen operations. The original constructor remains windowed with VSync for existing consumers; the showcase explicitly requests fullscreen and disables VSync. Poll drawable dimensions on resize as usual; Renderer(Context) does this through its callback each frame.
+`Platform::setFullscreen(bool)` requests borderless desktop fullscreen, `isFullscreen()` reads its SDL flag, and `setVSync(bool)` requests swap interval 0 or 1. They return false on unsupported/offscreen operations. The original constructor remains windowed with VSync for existing consumers. Poll drawable dimensions on resize as usual; Renderer(Context) does this through its callback each frame.
 
 `jsd::FrameRateCounter::sample(seconds)` accepts completed wall-clock frame periods. `fps()` updates over half-second windows, `milliseconds()` gives the corresponding average period, and `reset()` clears the reading. It does not measure GPU utilization. Avoid feeding fixed simulation/capture deltas into this counter.
 

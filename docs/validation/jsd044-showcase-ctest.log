@@ -1,8 +1,0 @@
-Internal ctest changing into directory: /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/build/release
-Test project /workspace/scratch/f8542ff39916/jsd-source-workspace/jsd-game-engine/build/release
-    Start 3: showcase-smoke
-1/1 Test #3: showcase-smoke ...................   Passed    3.91 sec
-
-100% tests passed, 0 tests failed out of 1
-
-Total Test time (real) =   3.91 sec

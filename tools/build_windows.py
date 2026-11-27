@@ -106,7 +106,7 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
         from project_guard import record_build
         record_build(root,build,meta)
         configure = [cmake,'-S',str(root),'-B',str(build),'-G',generator,'-A','x64',
-                     '-DJSD_BUILD_SHOWCASE=ON','-DJSD_BUILD_TESTS=ON',
+                     '-DJSD_BUILD_TESTS=' + ('ON' if test else 'OFF'),
                      '-DCMAKE_INSTALL_PREFIX='+str(root),
                      '-DJSD_GUARD_PYTHON:FILEPATH='+sys.executable]
         if instance: configure.append('-DCMAKE_GENERATOR_INSTANCE='+instance)
@@ -118,7 +118,7 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
             run_stage([str(ctest),'--test-dir',str(build),'-C',configuration,'--output-on-failure'],build/f'test-{configuration.lower()}.log')
         if install:
             run_stage([cmake,'--install',str(build),'--config',configuration],build/f'install-{configuration.lower()}.log')
-            print(f'Installed engine and showcase into {root}\nRun run-showcase.bat',flush=True)
+            print(f'Installed engine into {root}',flush=True)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

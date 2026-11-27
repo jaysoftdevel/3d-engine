@@ -129,6 +129,8 @@ def run(root, project_id, expected, args):
             subprocess.run(['bash', '-c', 'source "$1/cmake/build-common.sh"; jsd_engine_root="$1"; jsd_require_tools', 'jsd-build', str(root)], check=True, env=env)
         selected_mode = args[0] if args and args[0].lower() in ('debug', 'release') else env.get('JSD_BUILD_TYPE', 'Release')
         build_type = 'Debug' if selected_mode.lower() == 'debug' else 'Release'
+        if project_id == 'jsd.engine':
+            opts.setdefault('JSD_BUILD_TESTS', 'OFF')
         opts.setdefault('JSD_HEADLESS_ONLY', env.get('JSD_HEADLESS_ONLY', 'OFF'))
         command = [cmake, '-S', str(root), '-B', str(build), '-DCMAKE_BUILD_TYPE=' + build_type, '-DCMAKE_INSTALL_PREFIX=' + str(prefix), '-DCMAKE_INSTALL_LIBDIR=lib']
         command += ['-D' + key + '=' + value for key, value in opts.items()]

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sourced by the engine build and optional showcase launch scripts.
+# Sourced by the engine build scripts.
 jsd_require_tools() {
     local jsd_missing=0 jsd_desktop_missing=0
     for jsd_tool in "${CMAKE:-cmake}" "${CC:-cc}" "${CXX:-c++}" pkg-config; do
