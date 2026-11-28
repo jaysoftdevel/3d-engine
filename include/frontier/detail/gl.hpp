@@ -162,6 +162,8 @@ X(void,BeginQuery,(GLenum,GLuint)) \
 X(void,EndQuery,(GLenum)) \
 X(void,GetQueryObjectiv,(GLuint,GLenum,GLint*)) \
 X(void,GetQueryObjectui64v,(GLuint,GLenum,unsigned long long*)) \
+X(void,QueryCounter,(GLuint,GLenum)) \
+X(void,CompressedTexImage2D,(GLenum,GLint,GLenum,GLsizei,GLsizei,GLint,GLsizei,const void*)) \
 X(void,GenSamplers,(GLsizei,GLuint*)) \
 X(void,DeleteSamplers,(GLsizei,const GLuint*)) \
 X(void,BindSampler,(GLuint,GLuint)) \

@@ -4,6 +4,7 @@
 #include "gl.hpp"
 #include "shader_cache.hpp"
 #include <future>
+#include <limits>
 #include <map>
 #include <optional>
 #include <tuple>
@@ -21,11 +22,19 @@ struct GpuMesh {
     float lodError = 0, lodPixelError = 1.5f;
 };
 struct GpuTexture {
+    struct Mip {
+        int width, height;
+        std::vector<unsigned char> bytes;
+    };
     unsigned object = 0;
     int width = 0, height = 0, uploadedWidth = 0, uploadedHeight = 0;
     bool srgb = true, screenImage = false, averageReady = false;
     std::array<float,4> average{1,1,1,1};
     std::vector<unsigned char> pixels;
+    std::vector<Mip> mips;
+    unsigned compression=0, lastRequested=0;
+    int residentMip=-1, requestedMip=-1;
+    std::size_t residentBytes=0;
 };
 struct GpuInstance {
     Mat4 model = Mat4::identity(), previous = Mat4::identity();
@@ -168,6 +177,21 @@ struct Renderer::Impl {
     std::array<bool, 3> queryActive{};
     unsigned queryIndex = 0;
     double lastGpuMilliseconds = 0;
+    enum class ProfilePass { Reflection, Indirect, Probe };
+    struct PassTiming { std::array<unsigned,2> query{}; bool pending=false; };
+    std::array<std::array<PassTiming,3>,3> passTimings;
+    bool beginProfile(ProfilePass);
+    void finishProfile(ProfilePass,bool started);
+    void collectProfiles();
+    struct LightingHistory { TargetBuffer raw; std::array<TargetBuffer,2> filtered; };
+    LightingHistory reflectionHistory, indirectHistory;
+    std::array<TargetBuffer,2> lightingGeometry;
+    unsigned lightingHistoryIndex=0, lightingGeometryProgram=0, lightingResolveProgram=0, lightingAddProgram=0;
+    void initializeStableLighting();
+    void releaseStableLighting();
+    void allocateLightingHistory();
+    void releaseLightingHistory();
+    void resolveLighting();
     unsigned particleProgram = 0, particleVao = 0, particleVbo = 0, noiseVolume = 0;
     unsigned particleDepth = 0, particleDepthFbo = 0, imageProgram = 0;
     std::vector<ParticleSprite> particleCommands;
@@ -230,6 +254,20 @@ struct Renderer::Impl {
     void destroy(Tile &);
     GpuMesh upload(std::span<const Vertex>);
     void upload(GpuTexture &);
+    struct StreamMesh {
+        std::vector<Vertex> vertices;
+        unsigned requestedFrame=0;
+        float distance=0;
+        bool requested=false;
+    };
+    std::unordered_map<unsigned,StreamMesh> stagedMeshes;
+    std::vector<unsigned> meshRequests, textureRequests;
+    std::size_t streamedMeshBytes=0;
+    bool bc1=false, bc1Srgb=false;
+    void streamResources();
+    void refreshStreamTexture(GpuTexture&);
+    void uploadMip(GpuTexture&,int level);
+    int textureMip(const GpuTexture&,int edge) const;
     void allocate();
     void releaseTargets();
     void sampler(unsigned program, const char *name, unsigned tex, int unit);
@@ -240,7 +278,7 @@ struct Renderer::Impl {
     void common(unsigned program, const Mat4 &matrix);
     void material(unsigned program, const Material &);
     void mesh(const GpuMesh &, std::span<const GpuInstance>, bool patches = false);
-    void fullscreen(unsigned program, unsigned fbo);
+    void fullscreen(unsigned program, unsigned fbo,int targetWidth=0,int targetHeight=0);
     void drawCommands(unsigned program, const Mat4 &matrix, bool shadow, bool transparent = false,
                       bool depthOnly = false);
     void prepareCommands();
@@ -255,12 +293,13 @@ struct Renderer::Impl {
     struct ProbeCache {
         ReflectionProbe spec;
         unsigned raw=0, specular=0, irradiance=0, pendingSpecular=0,pendingIrradiance=0,fbo=0, depth=0;
-        unsigned environment=0, lastFrame=0, nextFace=0, filterTask=0;
+        unsigned environment=0, lastFrame=0, lastRequested=0, firstPublish=0, nextFace=0, filterTask=0;
+        float sun=0, storm=0;
         bool ready=false, refreshing=false;
     };
     std::map<uint64_t,ProbeCache> probeCache;
-    std::optional<ReflectionProbe> requestedProbe;
-    ProbeCache* activeProbe=nullptr;
+    std::array<std::optional<ReflectionProbe>,2> requestedProbes;
+    std::array<ProbeCache*,2> activeProbes{};
     bool probeCapture=false, contactDepthValid=false;
     unsigned probeSkyProgram=0, probeFilterProgram=0, fogCompositeProgram=0;
     std::vector<FogVolume> fogVolumes;

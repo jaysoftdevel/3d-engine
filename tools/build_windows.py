@@ -81,12 +81,11 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
     require(jobs > 0, 'Jobs must be positive')
     root = no_symlinks(root).resolve()
     require(root == SOURCE_ROOT, 'Build driver belongs to another source tree')
-    meta = source(root,'jsd.engine','0.5.25')
+    meta = source(root,'jsd.engine','0.5.26')
     cmake, generator, instance = select_toolchain(cmake,generator)
     folder = 'windows-vs2026' if generator == GENERATORS[18] else 'windows-vs2022'
-    build = root/'build'/folder
-    build_path(root,build,meta)
-    install_prefix(root,root,meta)
+    build = build_path(root,Path(os.environ.get('JSD_BUILD_DIR') or root/'build'/folder),meta)
+    prefix = install_prefix(root,Path(os.environ.get('JSD_INSTALL_PREFIX') or root),meta)
     cache = cache_values(build)
     require(not cache.get('CMAKE_GENERATOR') or cache['CMAKE_GENERATOR'] == generator,
             f'Build cache uses another generator: {build}')
@@ -95,19 +94,19 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
     if instance and cache.get('CMAKE_GENERATOR_INSTANCE'):
         require(Path(cache['CMAKE_GENERATOR_INSTANCE'].split(',')[0]).resolve() == Path(instance).resolve(),
                 f'Build cache belongs to a different Visual Studio installation: {build}')
-    print(f'Engine 0.5.25 / {generator} / x64 / {configuration}\nCMake: {cmake}\nBuild: {build}',flush=True)
+    print(f'Engine 0.5.26 / {generator} / x64 / {configuration}\nCMake: {cmake}\nBuild: {build}',flush=True)
     if check:
         print('Preflight passed; no files changed.'); return
     with operation_lock(root):
-        meta = source(root,'jsd.engine','0.5.25')
-        build_path(root,build,meta); install_prefix(root,root,meta)
+        meta = source(root,'jsd.engine','0.5.26')
+        build_path(root,build,meta); install_prefix(root,prefix,meta)
         build.mkdir(parents=True,exist_ok=True)
         # Claim ownership before logs appear in a fresh guarded build directory.
         from project_guard import record_build
         record_build(root,build,meta)
         configure = [cmake,'-S',str(root),'-B',str(build),'-G',generator,'-A','x64',
                      '-DJSD_BUILD_TESTS=' + ('ON' if test else 'OFF'),
-                     '-DCMAKE_INSTALL_PREFIX='+str(root),
+                     '-DCMAKE_INSTALL_PREFIX='+str(prefix),
                      '-DJSD_GUARD_PYTHON:FILEPATH='+sys.executable]
         if instance: configure.append('-DCMAKE_GENERATOR_INSTANCE='+instance)
         run_stage(configure,build/'configure.log')
@@ -118,14 +117,14 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
             run_stage([str(ctest),'--test-dir',str(build),'-C',configuration,'--output-on-failure'],build/f'test-{configuration.lower()}.log')
         if install:
             run_stage([cmake,'--install',str(build),'--config',configuration],build/f'install-{configuration.lower()}.log')
-            print(f'Installed engine into {root}',flush=True)
+            print(f'Installed engine into {prefix}',flush=True)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode',nargs='?',type=str.title,choices=('Release','Debug'))
+    parser.add_argument('mode',nargs='?',type=str.title,choices=('Release','Debug','Clean'))
     parser.add_argument('--root',type=Path,default=SOURCE_ROOT)
     parser.add_argument('--configuration',choices=('Release','Debug'))
-    parser.add_argument('--jobs',type=int,default=os.cpu_count() or 4)
+    parser.add_argument('--jobs',type=int)
     parser.add_argument('--test',action='store_true')
     parser.add_argument('--install',action='store_true')
     parser.add_argument('--check',action='store_true')
@@ -133,8 +132,21 @@ def main():
     parser.add_argument('--generator',choices=tuple(GENERATORS.values()))
     args = parser.parse_args()
     require(IS_WINDOWS,'Use build.sh on Linux; the batch installer requires Windows')
+    if args.mode == 'Clean':
+        require(not any((args.configuration, args.jobs is not None, args.test, args.install, args.check, args.cmake, args.generator)),
+                'clean accepts no additional options')
+        require(args.root.resolve() == SOURCE_ROOT,'Build driver belongs to another source tree')
+        from build_project import run as clean_project
+        clean_project(SOURCE_ROOT,'jsd.engine','0.5.26',['clean'])
+        return
     require(not(args.mode and args.configuration and args.mode!=args.configuration),'Conflicting configurations')
-    run(args.root,args.configuration or args.mode or 'Release',args.jobs,args.test,args.install,args.check,args.cmake,args.generator)
+    requested = args.configuration or args.mode or (os.environ.get('JSD_BUILD_TYPE') or 'Release').title()
+    require(requested in ('Release','Debug'), 'Select Release or Debug')
+    jobs = args.jobs if args.jobs is not None else int(os.environ.get('JSD_BUILD_JOBS') or os.cpu_count() or 4)
+    cmake = args.cmake or os.environ.get('CMAKE')
+    if cmake:
+        cmake = shutil.which(cmake) or cmake
+    run(args.root,requested,jobs,args.test,args.install,args.check,cmake,args.generator)
 
 if __name__ == '__main__':
     try:

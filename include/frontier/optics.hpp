@@ -7,6 +7,7 @@ struct CameraOptics {
     float focalLengthMetres=.05f, sensorHeightMetres=.024f;
     float fNumber=2.8f, shutterSeconds=1.f/120, iso=100;
     bool physicalExposure=false;
+    std::optional<float> focusDistanceMetres;
     void validate() const;
     float verticalFovDegrees() const;
     double ev100() const;

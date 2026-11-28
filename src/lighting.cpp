@@ -20,8 +20,17 @@ void Renderer::reflectionProbe(const ReflectionProbe&p){
  if(!p.id||!finite(p.position)||!finite(p.halfExtent)||p.halfExtent.x<=0||p.halfExtent.y<=0||p.halfExtent.z<=0||
     !std::isfinite(p.blendDistance)||p.blendDistance<0||p.refreshFrames>1000000)throw std::invalid_argument("Invalid reflection probe");
  auto&i=*impl;if(i.rendered)throw std::logic_error("Submit probes before rendering");
- // One bounded probe is active per view; overlapping submissions choose the nearest center.
- if(!i.requestedProbe||distance(p.position,i.camera.position)<distance(i.requestedProbe->position,i.camera.position))i.requestedProbe=p;
+ const auto rank=[&](const ReflectionProbe& probe) {
+     return std::pair{distance(probe.position,i.camera.position),probe.id};
+ };
+ for (auto& slot:i.requestedProbes) {
+     if (slot && slot->id==p.id) { slot=p; return; }
+ }
+ auto candidate=std::optional{p};
+ for (auto& slot:i.requestedProbes) {
+     if (!slot || rank(*candidate)<rank(*slot)) std::swap(candidate,slot);
+     if (!candidate) break;
+ }
 }
 void Renderer::fogVolume(const FogVolume&v){
  if(!finite(v.position)||!finite(v.halfExtent)||!finite(v.velocity)||v.halfExtent.x<=0||v.halfExtent.y<=0||v.halfExtent.z<=0||
@@ -47,12 +56,21 @@ void Renderer::Impl::releaseLighting(){
  probeCache.clear();gl.DeleteProgram(probeSkyProgram);gl.DeleteProgram(probeFilterProgram);
 }
 void Renderer::Impl::bindProbe(unsigned p){
- bool enabled=activeProbe&&activeProbe->ready&&!probeCapture;
- integer(p,"probeEnabled",enabled);scalar(p,"probeMaxLod",7);
- auto spec=enabled?activeProbe->spec:ReflectionProbe{};
- vector(p,"probePosition",spec.position);vector(p,"probeExtent",spec.halfExtent);scalar(p,"probeBlend",spec.blendDistance);
- bind(p,"localProbe",enabled?activeProbe->specular:0,14,0x8513);
- bind(p,"localIrradiance",enabled?activeProbe->irradiance:0,5,0x8513);
+ const auto shade=[&](const ProbeCache* probe,const char* position,const char* extent,const char* blend,
+                      const char* readiness,const char* specular,const char* irradiance,int specUnit,int irrUnit) {
+     const bool ready=probe && probe->ready && !probeCapture;
+     const auto spec=ready?probe->spec:ReflectionProbe{};
+     scalar(p,readiness,ready?std::min(1.f,float(frameIndex-probe->firstPublish+1)/14.f):0.f);
+     vector(p,position,spec.position);
+     vector(p,extent,spec.halfExtent);
+     scalar(p,blend,spec.blendDistance);
+     bind(p,specular,ready?probe->specular:0,specUnit,0x8513);
+     bind(p,irradiance,ready?probe->irradiance:0,irrUnit,0x8513);
+ };
+ shade(activeProbes[0],"probePosition","probeExtent","probeBlend","probeReady","localProbe","localIrradiance",14,5);
+ if (p==lightingProgram)
+     shade(activeProbes[1],"secondPosition","secondExtent","secondBlend","secondReady","secondProbe","secondIrradiance",12,15);
+ scalar(p,"probeMaxLod",7);
 }
 void Renderer::Impl::drawShadows(){
  cascadeCount=0;if(!shadowFbo)return;
@@ -125,16 +143,49 @@ void Renderer::Impl::drawShadows(){
  }
 }
 void Renderer::Impl::updateProbe(){
- activeProbe=nullptr;if(!requestedProbe||compactScene||
+ activeProbes={};if(!requestedProbes[0]||compactScene||
    (settings().globalIllumination!=GlobalIllumination::Hybrid&&settings().globalIllumination!=GlobalIllumination::ProbeLite&&settings().reflections==Quality::Off))return;
- auto spec=*requestedProbe;
- if(!probeCache.contains(spec.id)&&probeCache.size()>=8){
-  auto oldest=std::min_element(probeCache.begin(),probeCache.end(),[](auto&a,auto&b){return a.second.lastFrame<b.second.lastFrame;});
-  auto&p=oldest->second;for(auto t:{p.raw,p.specular,p.irradiance,p.pendingSpecular,p.pendingIrradiance})gl.DeleteTextures(1,&t);gl.DeleteFramebuffers(1,&p.fbo);gl.DeleteRenderbuffers(1,&p.depth);probeCache.erase(oldest);
+ ProbeCache* work=nullptr;
+ for (unsigned i=0;i<requestedProbes.size() && requestedProbes[i];++i) {
+     const auto& spec=*requestedProbes[i];
+     if (!probeCache.contains(spec.id) && probeCache.size()>=8) {
+         auto oldest=probeCache.end();
+         for (auto it=probeCache.begin();it!=probeCache.end();++it) {
+             if (std::any_of(requestedProbes.begin(),requestedProbes.end(),
+                 [&](const auto& request){return request && request->id==it->first;})) continue;
+             if (oldest==probeCache.end() || it->second.lastRequested<oldest->second.lastRequested) oldest=it;
+         }
+         auto& evicted=oldest->second;
+         for(auto t:{evicted.raw,evicted.specular,evicted.irradiance,evicted.pendingSpecular,evicted.pendingIrradiance})
+             if(t)gl.DeleteTextures(1,&t);
+         if(evicted.fbo)gl.DeleteFramebuffers(1,&evicted.fbo);
+         if(evicted.depth)gl.DeleteRenderbuffers(1,&evicted.depth);
+         probeCache.erase(oldest);
+     }
+     auto& cached=probeCache[spec.id];
+     const bool changed=cached.spec.revision!=spec.revision || cached.environment!=environment.image.value ||
+         distance(cached.spec.position,spec.position)>.001f;
+     const bool lightingChanged=std::abs(cached.sun-environment.sunIntensity)>.52f ||
+         std::abs(cached.storm-environment.storm)>.36f;
+     cached.spec=spec;
+     cached.lastRequested=frameIndex;
+     if (changed || lightingChanged) {
+         if (changed) cached.ready=false;
+         cached.nextFace=cached.filterTask=0;
+         cached.refreshing=true;
+         cached.sun=environment.sunIntensity;
+         cached.storm=environment.storm;
+         cached.environment=environment.image.value;
+     }
+     const bool due=spec.refreshFrames && frameIndex-cached.lastFrame>=spec.refreshFrames;
+     if (!cached.ready || due) cached.refreshing=true;
+     if (cached.refreshing && (!work || (!work->nextFace && cached.nextFace))) work=&cached;
+     activeProbes[i]=&cached;
+     stats.activeReflectionProbes+=unsigned(cached.ready);
  }
- auto&p=probeCache[spec.id];activeProbe=&p;
- bool changed=p.spec.revision!=spec.revision||p.environment!=environment.image.value||distance(p.spec.position,spec.position)>.001f;
- p.spec=spec;
+ if (!work) return;
+ auto& p=*work;
+ const auto& spec=p.spec;
  constexpr int size=128;
  if(!p.raw){
   auto cube=[&](int edge,int levels){unsigned t;gl.GenTextures(1,&t);gl.BindTexture(0x8513,t);
@@ -144,10 +195,6 @@ void Renderer::Impl::updateProbe(){
   p.raw=cube(size,8);p.specular=cube(size,8);p.irradiance=cube(16,1);p.pendingSpecular=cube(size,8);p.pendingIrradiance=cube(16,1);
   gl.GenFramebuffers(1,&p.fbo);gl.GenRenderbuffers(1,&p.depth);gl.BindRenderbuffer(0x8D41,p.depth);gl.RenderbufferStorage(0x8D41,0x81A6,size,size);
  }
- if(changed){p.ready=false;p.nextFace=0;p.filterTask=0;p.refreshing=true;p.environment=environment.image.value;}
- bool due=spec.refreshFrames>0&&frameIndex-p.lastFrame>=spec.refreshFrames;
- if(!p.ready||due)p.refreshing=true;
- if(!p.refreshing){stats.activeReflectionProbes=1;return;}
  auto savedCamera=camera;auto savedView=view,savedProjection=projection,savedVP=vp,savedInv=invProjection;
  auto savedPreviousVP=previousVP,savedPreviousView=previousView;int savedWidth=width,savedHeight=height;
  bool savedCount=countDraws;countDraws=false;probeCapture=true;depthPrepassed=false;
@@ -179,11 +226,13 @@ void Renderer::Impl::updateProbe(){
   }
   if(p.filterTask==54){
    std::swap(p.specular,p.pendingSpecular);std::swap(p.irradiance,p.pendingIrradiance);
+   if(!p.ready){p.firstPublish=frameIndex;++stats.activeReflectionProbes;}
    p.ready=true;p.refreshing=false;p.nextFace=0;p.filterTask=0;p.lastFrame=frameIndex;p.environment=environment.image.value;
+   p.sun=environment.sunIntensity;p.storm=environment.storm;
   }
  }
  camera=savedCamera;view=savedView;projection=savedProjection;vp=savedVP;invProjection=savedInv;previousVP=savedPreviousVP;previousView=savedPreviousView;
  width=savedWidth;height=savedHeight;countDraws=savedCount;probeCapture=false;uploadLights();
- stats.activeReflectionProbes=p.ready?1:0;gl.Viewport(0,0,width,height);
+ gl.Viewport(0,0,width,height);
 }
 }

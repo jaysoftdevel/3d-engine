@@ -53,6 +53,10 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s, RendererStartup startup) : c
         std::string e = reinterpret_cast<const char *>(gl.GetStringi(0x1F03, i));
         if (e == "GL_EXT_texture_filter_anisotropic" || e == "GL_ARB_texture_filter_anisotropic")
             caps.anisotropicFiltering = true;
+        if (e=="GL_EXT_texture_compression_s3tc" || e=="GL_EXT_texture_compression_dxt1")
+            bc1=true;
+        if (e=="GL_EXT_texture_sRGB" || e=="GL_EXT_texture_compression_s3tc_srgb")
+            bc1Srgb=true;
     }
     if (caps.anisotropicFiltering)
         gl.GetFloatv(0x84FF, &caps.maxAnisotropy);
@@ -105,6 +109,7 @@ Renderer::Impl::Impl(Context c, GraphicsSettings s, RendererStartup startup) : c
     initializeSmaa();
     initializeAdvanced();
     initializeLighting();
+    initializeStableLighting();
     initializeCinematic();
 }
 Renderer::Impl::~Impl() {
@@ -112,6 +117,7 @@ Renderer::Impl::~Impl() {
     gl.DeleteProgram(minimalProgram);
     releaseCinematic();
     releaseLighting();
+    releaseStableLighting();
     releaseAdvanced();
     releaseTargets();
     for (auto &[k, t] : tiles) {
@@ -303,6 +309,10 @@ unsigned Renderer::Impl::texture(int w, int h, unsigned internal, unsigned forma
     return tex;
 }
 void Renderer::Impl::upload(GpuTexture &t) {
+    if (!t.mips.empty()) {
+        refreshStreamTexture(t);
+        return;
+    }
     int cap =
         std::min(caps.maxTextureSize, t.screenImage?std::max(2048,textureEdgeLimit(settings().textureQuality)):textureEdgeLimit(settings().textureQuality));
     float scale = std::min(1.f, float(cap) / std::max(t.width, t.height));
@@ -371,6 +381,9 @@ SettingsReport Renderer::setSettings(GraphicsSettings s) {
             (old.depthOfField == Quality::Off) != (next.effective.depthOfField == Quality::Off) ||
             (old.volumetricFog == Quality::Off) != (next.effective.volumetricFog == Quality::Off) ||
             (old.motionBlur == Quality::Off) != (next.effective.motionBlur == Quality::Off) ||
+            (old.reflections == Quality::Off) != (next.effective.reflections == Quality::Off) ||
+            old.globalIllumination != next.effective.globalIllumination ||
+            (old.illuminationQuality == Quality::Off) != (next.effective.illuminationQuality == Quality::Off) ||
             old.bloom != next.effective.bloom || old.stochasticLighting!=next.effective.stochasticLighting;
         if (old.autoFocus != next.effective.autoFocus || old.depthOfField != next.effective.depthOfField)
             impl->focusValid = false;
@@ -386,7 +399,7 @@ SettingsReport Renderer::setSettings(GraphicsSettings s) {
     }
     return next;
 }
-MeshId Renderer::createMesh(std::span<const Vertex> v) {
+void validateMesh(std::span<const Vertex> v) {
     if (v.empty() || v.size() % 3 || v.size() > 3000000)
         throw std::invalid_argument("Mesh must contain a bounded triangle list");
     for (auto &p : v)
@@ -396,6 +409,9 @@ MeshId Renderer::createMesh(std::span<const Vertex> v) {
     for (auto &p : v)
         if (dot(p.n, p.n) < 1e-12f)
             throw std::invalid_argument("Mesh contains a zero-length normal");
+}
+MeshId Renderer::createMesh(std::span<const Vertex> v) {
+    validateMesh(v);
     unsigned id = impl->nextMesh++;
     impl->meshes.emplace(id, impl->upload(v));
     if(impl->observer)impl->observer->meshCreated({id},v);
@@ -407,6 +423,11 @@ void Renderer::destroyMesh(MeshId id) {
         if (primitive == id)
             throw std::invalid_argument("Built-in primitive meshes are engine-owned");
     auto it = impl->meshes.find(id.value);
+    if (const auto staged=impl->stagedMeshes.find(id.value); staged!=impl->stagedMeshes.end()) {
+        if (it!=impl->meshes.end())
+            impl->streamedMeshBytes-=staged->second.vertices.size()*sizeof(Vertex);
+        impl->stagedMeshes.erase(staged);
+    }
     if (it != impl->meshes.end()) {
         impl->destroy(it->second);
         impl->meshes.erase(it);
@@ -453,7 +474,7 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
                     environment.skyColor.b,     environment.groundColor.r,
                     environment.groundColor.g,  environment.groundColor.b,
                     environment.sunIntensity,   environment.ambientIntensity,
-                    environment.fogDensity,     environment.storm})
+                    environment.fogDensity,     environment.storm,environment.bloomScale})
         if (!std::isfinite(f))
             throw std::invalid_argument("Nonfinite camera/environment state");
     if (!std::isfinite(camera.fovDegrees) || camera.fovDegrees < 10 || camera.fovDegrees > 150 ||
@@ -467,7 +488,7 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
             throw std::invalid_argument("Nonfinite atmosphere");
     if (int(a.clouds) < 0 || int(a.clouds) > 4 || a.cloudCoverage < 0 || a.cloudCoverage > 1 ||
         a.cloudDensity < 0 || a.cloudDensity > 10 || a.cloudThickness < 1 || a.cloudBase < 1 ||
-        environment.shadowDistance < 0)
+        environment.shadowDistance < 0 || environment.bloomScale<0 || environment.bloomScale>4)
         throw std::invalid_argument("Invalid atmosphere/shadow range");
     if (camera.optics) camera.optics->validate();
     if (environment.sunIlluminanceLux && (!std::isfinite(*environment.sunIlluminanceLux) || *environment.sunIlluminanceLux < 0))
@@ -484,7 +505,13 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
     }
     i.commands.clear();
     i.lineCommands.clear();
-    i.requestedProbe.reset();i.activeProbe=nullptr;i.fogVolumes.clear();i.contactDepthValid=false;i.scatterCommands.clear();
+    i.requestedProbes={};i.activeProbes={};i.fogVolumes.clear();i.contactDepthValid=false;i.scatterCommands.clear();
+    for (const auto id:i.textureRequests)
+        if (auto it=i.textures.find(id);it!=i.textures.end()) it->second.requestedMip=-1;
+    i.textureRequests.clear();
+    for (const auto id:i.meshRequests)
+        if (auto it=i.stagedMeshes.find(id);it!=i.stagedMeshes.end()) it->second.requested=false;
+    i.meshRequests.clear();
     i.lights.clear();
     i.physicalLighting = environment.sunIlluminanceLux.has_value() || (camera.optics && camera.optics->physicalExposure);
     i.particleCommands.clear();
@@ -500,6 +527,8 @@ void Renderer::submit(const Draw &draw) {
     auto &i = *impl;
     if (!i.meshes.contains(draw.mesh.value))
         throw std::invalid_argument("Unknown mesh handle");
+    if (const auto staged=i.stagedMeshes.find(draw.mesh.value);staged!=i.stagedMeshes.end())
+        staged->second.requestedFrame=i.frameIndex;
     if (draw.material.albedoTexture.value && !i.textures.contains(draw.material.albedoTexture.value))
         throw std::invalid_argument("Unknown texture handle");
     auto &t = draw.transform;

@@ -9,6 +9,8 @@ constexpr double pi=std::numbers::pi;
 }
 void CameraOptics::validate()const{
     positive(focalLengthMetres);positive(sensorHeightMetres);positive(fNumber);positive(shutterSeconds);positive(iso);
+    if (focusDistanceMetres && (!std::isfinite(*focusDistanceMetres) || *focusDistanceMetres<=focalLengthMetres))
+        throw std::invalid_argument("Focus must be beyond the focal length");
     double fov=2*std::atan(double(sensorHeightMetres)/(2*focalLengthMetres))*180/pi;
     if(fov<10||fov>150||fNumber<.1||fNumber>128||shutterSeconds>60||iso>1e7)
         throw std::invalid_argument("Lens/exposure outside supported camera range");

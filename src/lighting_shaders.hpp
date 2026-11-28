@@ -3,35 +3,70 @@ namespace rf::gfx::lighting {
 inline const char* probes=R"PROBE(
 uniform samplerCube localProbe,localIrradiance;
 uniform vec3 probePosition,probeExtent;
-uniform float probeBlend,probeMaxLod;
-uniform int probeEnabled,hybridReflection;
-vec3 boxDirection(vec3 p,vec3 r){
- vec3 safeR=mix(vec3(.00001),r,greaterThan(abs(r),vec3(.00001)));
- vec3 a=(probePosition-probeExtent-p)/safeR,b=(probePosition+probeExtent-p)/safeR;
+uniform float probeBlend,probeMaxLod,probeReady;
+uniform int hybridReflection;
+#ifdef BLEND_LOCAL_PROBES
+uniform samplerCube secondProbe,secondIrradiance;
+uniform vec3 secondPosition,secondExtent;
+uniform float secondBlend,secondReady;
+#endif
+vec3 boxDirection(vec3 p,vec3 r,vec3 center,vec3 extent){
+ vec3 safeR=mix(mix(vec3(-.00001),vec3(.00001),greaterThanEqual(r,vec3(0))),r,greaterThan(abs(r),vec3(.00001)));
+ vec3 a=(center-extent-p)/safeR,b=(center+extent-p)/safeR;
  vec3 farPoint=max(a,b);float t=min(farPoint.x,min(farPoint.y,farPoint.z));
- return p+r*max(t,0.)-probePosition;
+ return p+r*max(t,0.)-center;
 }
-float probeWeight(vec3 p){
- if(probeEnabled==0)return 0.;
- vec3 margin=probeExtent-abs(p-probePosition);
- return clamp(min(margin.x,min(margin.y,margin.z))/max(probeBlend,.001),0.,1.);
+float probeCoverage(vec3 p,vec3 center,vec3 extent,float fade,float ready){
+ vec3 margin=extent-abs(p-center);
+ float edge=min(margin.x,min(margin.y,margin.z));
+ return ready*smoothstep(0.,max(fade,.001),edge);
+}
+vec2 probeWeights(vec3 p,bool blend){
+ float a=probeCoverage(p,probePosition,probeExtent,probeBlend,probeReady),b=0.;
+#ifdef BLEND_LOCAL_PROBES
+ if(blend)b=probeCoverage(p,secondPosition,secondExtent,secondBlend,secondReady);
+#endif
+ float coverage=max(a,b);
+ vec2 rank=vec2(a/(1.+dot(p-probePosition,p-probePosition)*.00035),b);
+#ifdef BLEND_LOCAL_PROBES
+ if(b>0.)rank.y/=1.+dot(p-secondPosition,p-secondPosition)*.00035;
+#endif
+ return rank*(coverage/max(rank.x+rank.y,.00001));
+}
+vec3 probeDiffuse(vec3 fallback,vec3 n,vec2 w){
+ vec3 value=fallback*(1.-w.x-w.y);
+ if(w.x>0.)value+=texture(localIrradiance,n).rgb*w.x;
+#ifdef BLEND_LOCAL_PROBES
+ if(w.y>0.)value+=texture(secondIrradiance,n).rgb*w.y;
+#endif
+ return value;
+}
+vec3 probeSpecular(vec3 fallback,vec3 p,vec3 r,float lod,vec2 w){
+ vec3 value=fallback*(1.-w.x-w.y);
+ if(w.x>0.)value+=textureLod(localProbe,boxDirection(p,r,probePosition,probeExtent),lod).rgb*w.x;
+#ifdef BLEND_LOCAL_PROBES
+ if(w.y>0.)value+=textureLod(secondProbe,boxDirection(p,r,secondPosition,secondExtent),lod).rgb*w.y;
+#endif
+ return value;
 }
 )PROBE";
 // Shared by forward shading and the AO composite: occlusion attenuates only
 // indirect illumination, leaving direct lights and emissive surfaces intact.
 inline const char* ambient=R"AMBIENT(
-vec3 indirectLighting(vec3 base,vec3 n,vec3 v,float r,float metal,vec3 p,float orm){
+vec3 indirectLighting(vec3 base,vec3 n,vec3 v,float r,float metal,vec3 p,float orm,bool blend){
  if(giMode==0)return base*(physicalLighting!=0?0.:.055);
- vec3 value=base*mix(groundColor,skyColor,n.y*.5+.5)*ambientIntensity*(1.-metal*.55);
- if(iblEnabled!=0||probeEnabled!=0){
-  float nv=clamp(dot(n,v),.001,1.),pw=probeWeight(p);vec3 f0=mix(vec3(.04),base,metal);
+ vec3 hemisphere=mix(groundColor,skyColor,n.y*.5+.5)*ambientIntensity;
+ vec3 value=base*hemisphere*(1.-metal*.55);
+ vec2 pw=probeWeights(p,blend);
+ if(iblEnabled!=0||pw.x+pw.y>0.){
+  float nv=clamp(dot(n,v),.001,1.);vec3 f0=mix(vec3(.04),base,metal);
   vec3 fresnel=f0+(max(vec3(1.-r),f0)-f0)*pow(1.-nv,5.);
   vec3 diffuse=iblEnabled!=0?texture(irradianceMap,environmentDirection(n)).rgb*ambientIntensity:vec3(0);
-  if(pw>0.)diffuse=mix(diffuse,texture(localIrradiance,n).rgb,pw);
-  value=diffuse*base*(1.-metal)*(1.-fresnel);
+  value=probeDiffuse(diffuse,n,pw)*base*(1.-metal)*(1.-fresnel);
+  if(iblEnabled==0)value+=base*hemisphere*(1.-metal*.55)*(1.-pw.x-pw.y);
   if(hybridReflection==0){vec3 ray=reflect(-v,n);
    vec3 radiance=iblEnabled!=0?textureLod(environmentMap,environmentDirection(ray),r*7.).rgb*ambientIntensity:vec3(0);
-   if(pw>0.)radiance=mix(radiance,textureLod(localProbe,boxDirection(p,ray),r*probeMaxLod).rgb,pw);
+   radiance=probeSpecular(radiance,p,ray,r*probeMaxLod,pw);
    vec2 lut=iblEnabled!=0?texture(brdfMap,vec2(nv,r)).rg:vec2(1,0);value+=radiance*(f0*lut.x+lut.y);
   }
  }return value*orm;

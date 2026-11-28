@@ -76,6 +76,10 @@ def main():
         launcher = args.output / 'apply.sh'
         launcher.write_text('#!/usr/bin/env bash\nset -euo pipefail\npackage_root=$(cd -- "$(dirname -- "$0")" && pwd -P)\nexec python3 -B "$package_root/apply_update.py" --package "$package_root" "$@"\n')
         launcher.chmod(0o755)
+        shutil.copy2(Path(__file__).with_name('launch-python.bat'), args.output/'launch-python.bat')
+        (args.output/'apply.bat').write_bytes(
+            b'@echo off\r\nsetlocal DisableDelayedExpansion\r\n'
+            b'"%~dp0launch-python.bat" "%~dp0apply_update.py" --package "%~dp0." %*\r\n')
         manifest(args.output)
     except BaseException:
         shutil.rmtree(args.output)

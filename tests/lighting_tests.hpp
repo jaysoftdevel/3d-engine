@@ -12,8 +12,11 @@ template<class Check>void lightingGraphicsTests(rf::gfx::Renderer&r,Check check)
  auto settings=GraphicsSettings::legacy();settings.textureQuality=TextureQuality::High;settings.globalIllumination=GlobalIllumination::Hybrid;settings.reflections=Quality::Medium;settings.viewDistance=80;r.setSettings(settings);
  Camera camera{{0,1,-4},{0,0,1},60,.08f};Environment env;env.sunIntensity=0;env.ambientIntensity=0;env.skyColor={0,0,0,1};env.groundColor={0,0,0,1};env.fogDensity=0;
  ReflectionProbe probe;probe.id=340;probe.position={0,1,0};probe.halfExtent={10,7,10};probe.refreshFrames=0;probe.blendDistance=.5f;
- auto reflected=[&](bool capture){
+ auto nearby=probe;
+ nearby.id=341;nearby.position.x=3.f;
+ auto reflected=[&](bool capture,bool overlap=false){
   r.begin(camera,env);if(capture)r.reflectionProbe(probe);
+  if(overlap)r.reflectionProbe(nearby);
   Material mirror;mirror.albedo={.8f,.8f,.8f,1};mirror.metallic=1;mirror.roughness=.12f;
   r.primitive(Primitive::Box,{{0,1,3},{2,2,1},0},mirror);
   Material wall;wall.emissive={3,.01f,.005f,1};r.primitive(Primitive::Box,{{0,1,-6},{16,8,.1f},0},wall);
@@ -22,7 +25,10 @@ template<class Check>void lightingGraphicsTests(rf::gfx::Renderer&r,Check check)
  auto noProbe=reflected(false);auto withProbe=noProbe;unsigned faces=0;bool bounded=true,delayed=false;
  for(int frame=0;frame<15;frame++){withProbe=reflected(true);auto stats=r.statistics();faces+=stats.reflectionProbeFaces;bounded&=stats.reflectionProbeFaces<=1&&stats.reflectionProbeFilters<=6;if(frame==0)delayed=stats.activeReflectionProbes==0;}
  check(faces==6&&bounded&&delayed&&r.statistics().activeReflectionProbes==1,"probe publication waits for a complete capture with bounded per-frame capture/filter work");
+ for(int frame=0;frame<14;frame++)withProbe=reflected(true,true);
  check(center(withProbe,0)>center(noProbe,0)+35&&center(withProbe,0)>center(withProbe,2)+35,"offscreen red scenery appears in a box-projected reflection");
+ reflected(true,true);
+ check(r.statistics().activeReflectionProbes==2,"overlapping probes become resident together within the shared capture budget");
  reflected(true);check(r.statistics().reflectionProbeFaces==0,"static scene probes reuse cached captures");
  probe.revision++;reflected(true);check(r.statistics().reflectionProbeFaces==1&&r.statistics().activeReflectionProbes==0,"probe edits start an incremental refresh without a six-face stall");
  for(int frame=0;frame<15;frame++)reflected(true);
@@ -102,6 +108,23 @@ template<class Check>void lightingGraphicsTests(rf::gfx::Renderer&r,Check check)
   if(excluded)scatter.exclusions[0]={{-10,-10,-10},{10,10,10}};else scatter.exclusions={};r.scatter(scatter);r.end();return image();};
  auto first=scatterFrame(false),again=scatterFrame(false),excluded=scatterFrame(true);
  check(first.rgba==again.rgba&&first.rgba!=excluded.rgba&&r.statistics().proceduralInstances==400,"GPU scatter is deterministic and respects authored exclusion regions");r.destroyMesh(pebble);
+ auto streamed=r.stageMesh(makeBox());
+ const std::vector<unsigned char> texels(128*128*4,255);
+ auto mip=r.stageTexture(128,128,texels);
+ check(r.textureDimensions(mip)==std::pair{32,32},"streamed textures initially allocate a complete coarse mip tail");
+ r.begin(camera,env);
+ check(!r.requestMesh(streamed,4.f),"staged meshes become resident during the upload phase");
+ r.requestTexture(mip,128);
+ r.end();r.check();
+ check(r.textureDimensions(mip)==std::pair{128,128} && r.statistics().mipUploadBytes>0 &&
+       r.statistics().streamedMeshes==1,"mesh and mip requests upload against their frame budgets");
+ r.begin(camera,env);
+ check(r.requestMesh(streamed,4.f),"resident mesh keeps its original handle");
+ Material finish;finish.albedoTexture=mip;
+ r.submit({streamed,{{0,1,2},{2,2,2},0},finish,0,{}});
+ r.end();r.validateFrame();
+ r.destroyMesh(streamed);
+ r.destroyTexture(mip);
  r.setSettings(initial);r.resetHistory();std::filesystem::remove(path);
 }
 

@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.25";
+inline constexpr const char *Version = "0.5.26";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -100,6 +100,7 @@ struct Environment {
     float imageRotation = 0;
     std::optional<float> sunIlluminanceLux;
     Starfield stars;
+    float bloomScale = 1;
 };
 // Scene-rasterized radiance, box projected inside a bounded region.
 struct ReflectionProbe {
@@ -206,6 +207,9 @@ struct Statistics {
     unsigned stochasticLightSamples = 0, fogVolumes = 0, lodInstances = 0, lodTrianglesSaved = 0;
     unsigned proceduralInstances = 0;
     unsigned localShadowMaps = 0, localShadowUpdates = 0;
+    std::size_t streamedMeshBytes = 0, meshUploadBytes = 0, mipUploadBytes = 0, compressedTextureBytes = 0;
+    unsigned streamedMeshes = 0, pendingStreamedMeshes = 0;
+    double reflectionMilliseconds = 0, indirectMilliseconds = 0, probeMilliseconds = 0;
 };
 
 struct SceneObserver {
@@ -232,9 +236,16 @@ class Renderer {
     SettingsReport setSettings(GraphicsSettings);
     const Statistics &statistics() const;
     MeshId createMesh(std::span<const Vertex> vertices);
+    // Staged meshes keep their handles when evicted. Request before submit and
+    // draw a coarse mesh until the requested detail is resident.
+    MeshId stageMesh(std::vector<Vertex> vertices);
+    bool requestMesh(MeshId mesh,float distanceMetres);
     void updateMesh(MeshId, std::span<const Vertex> vertices);
     void destroyMesh(MeshId);
     TextureId createTexture(int width, int height, std::span<const unsigned char> rgba, bool srgb = true);
+    // Opaque RGB maps upload coarse-to-fine, using BC1 where supported.
+    TextureId stageTexture(int width,int height,std::span<const unsigned char> rgba,bool srgb=true);
+    void requestTexture(TextureId texture,int edgePixels);
     void destroyTexture(TextureId);
     std::pair<int, int> textureDimensions(TextureId) const;
     EnvironmentId createEnvironment(int width, int height, std::span<const float> rgb);
@@ -253,6 +264,7 @@ class Renderer {
 
     void observe(SceneObserver *);
     void resetHistory();
+    void resetHistory(bool invalidateProbes);
     bool reloadMaterialShaders(const std::string &vertex, const std::string &fragment, std::string &error);
     void begin(const Camera &, const Environment &environment = {});
     void submit(const Draw &);

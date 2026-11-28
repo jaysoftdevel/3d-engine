@@ -280,9 +280,13 @@ void Renderer::Impl::temporalResolve(unsigned source) {
     temporalIndex = next;
 }
 void Renderer::resetHistory() {
+    resetHistory(true);
+}
+void Renderer::resetHistory(bool invalidateProbes) {
     impl->historyValid = false;
     impl->focusValid = false;impl->directHistoryValid=false;
-    for(auto &[id,p]:impl->probeCache){(void)id;p.ready=false;p.nextFace=0;p.filterTask=0;p.refreshing=true;}
+    if (invalidateProbes)
+        for(auto &[id,p]:impl->probeCache){(void)id;p.ready=false;p.nextFace=0;p.filterTask=0;p.refreshing=true;}
 }
 void Renderer::light(const Light &light) {
     if (impl->lights.size() >= 1024)

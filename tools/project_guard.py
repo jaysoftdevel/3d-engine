@@ -11,6 +11,7 @@ else:
     import fcntl
 from pathlib import Path
 import re
+import stat
 import sys
 
 PROJECTS = {'jsd.engine': 'JSDGameEngine', 'jsd.editor': 'JSDStudio'}
@@ -81,7 +82,13 @@ def cache_values(build):
 def no_symlinks(path):
     path = Path(os.path.abspath(path))
     for part in (path, *path.parents):
-        require(not part.is_symlink() and not (hasattr(part, 'is_junction') and part.is_junction()), f'Symlink output/target is not allowed: {part}')
+        try:
+            info = part.lstat()
+        except FileNotFoundError:
+            continue
+        require(not stat.S_ISLNK(info.st_mode) and
+                getattr(info, 'st_reparse_tag', 0) != getattr(stat, 'IO_REPARSE_TAG_MOUNT_POINT', None),
+                f'Symlink or junction output/target is not allowed: {part}')
     return path
 
 def output_path(root, path):
@@ -171,7 +178,8 @@ def sdk(config_dir):
     windows_sdk = 'bin/jsd-game-engine.dll' in meta['files']
     if windows_sdk:
         essential.discard('lib/libjsd-game-engine.so.' + meta['version'])
-        essential.update({'bin/jsd-game-engine.dll', 'bin/SDL2.dll', 'lib/jsd-game-engine.lib'})
+        essential.update({'bin/jsd-game-engine.dll', 'lib/jsd-game-engine.lib'})
+        require({'bin/SDL2.dll', 'bin/SDL2d.dll'} & set(meta['files']), 'Missing assigned SDL2 runtime DLL')
     require(essential <= set(meta['files']), 'Incomplete SDK receipt: missing required engine files')
     for rel, sha in meta['files'].items():
         path = safe_file(prefix, rel)

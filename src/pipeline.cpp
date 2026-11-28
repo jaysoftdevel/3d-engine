@@ -32,6 +32,7 @@ void Renderer::Impl::releaseTargets() {
     for (auto *t : {&aoRaw, &aoA, &aoB, &lit, &dof, &display, &edges, &weights, &fogTarget, &fogScattering, &motionTarget})
         destroy(*t);
     for (auto &t : directHistory)destroy(t);directHistoryValid=false;
+    releaseLightingHistory();
     for (auto &t : temporal)
         destroy(t);
     for (auto &t : focus)
@@ -164,6 +165,7 @@ void Renderer::Impl::allocate() {
     if (gl.CheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         throw std::runtime_error("particle depth framebuffer incomplete");
     allocateAdvanced();
+    allocateLightingHistory();
     if (settings().antiAliasing == AntiAliasing::SMAA) {
         edges = target(GL_RGBA8);
         weights = target(GL_RGBA8);
@@ -475,6 +477,7 @@ void Renderer::Impl::prepareCommands() {
 void Renderer::Impl::drawCommands(unsigned p, const Mat4 &matrix, bool shadow, bool transparent,
                                   bool depthOnly) {
     common(p, matrix);
+    if (transparent) integer(p,"hybridReflection",0);
     std::array<std::array<float, 4>, 6> planes;
     int count = 0;
     for (int row = 0; row < 3; row++)
@@ -550,9 +553,9 @@ void Renderer::Impl::projectionTerms(unsigned p, bool xy) {
                      projection.m[9]);
     gl.Uniform2f(uniform(p, "depthTerms"), projection.m[10], projection.m[14]);
 }
-void Renderer::Impl::fullscreen(unsigned p, unsigned fbo) {
+void Renderer::Impl::fullscreen(unsigned p, unsigned fbo,int targetWidth,int targetHeight) {
     gl.BindFramebuffer(GL_FRAMEBUFFER, fbo);
-    gl.Viewport(0, 0, width, height);
+    gl.Viewport(0, 0, targetWidth?targetWidth:width, targetHeight?targetHeight:height);
     gl.UseProgram(p);
     gl.BindVertexArray(fullscreenVao);
     gl.DrawArrays(GL_TRIANGLES, 0, 3);
@@ -613,6 +616,7 @@ unsigned Renderer::Impl::antialias(unsigned source) {
 void Renderer::Impl::pipeline() {
     auto cpuStart = std::chrono::steady_clock::now();
     allocate();
+    streamResources();
     stats.renderWidth = width;
     stats.renderHeight = height;
     stats.outputWidth = outputWidth;
@@ -624,6 +628,7 @@ void Renderer::Impl::pipeline() {
     bool query = false;
     unsigned qi = queryIndex % 3;
     if (settings().gpuProfiling) {
+        collectProfiles();
         int ready = 0;
         if (queryActive[qi])
             gl.GetQueryObjectiv(gpuQueries[qi], 0x8867, &ready);
@@ -666,14 +671,19 @@ void Renderer::Impl::pipeline() {
     stats.shadowResolution = shadowSize;
     for (auto &[id, t] : textures) {
         (void)id;
-        stats.textureBytes += t.uploadedWidth * t.uploadedHeight * 4 * 4 / 3;
+        const auto bytes=t.mips.empty()?std::size_t(t.uploadedWidth)*t.uploadedHeight*4*4/3:t.residentBytes;
+        stats.textureBytes+=static_cast<unsigned>(std::min(bytes,
+            std::size_t(std::numeric_limits<unsigned>::max()-stats.textureBytes)));
+        if (t.compression) stats.compressedTextureBytes+=bytes;
     }
     if (terrainRequested)
         streamTerrain();
     gl.Disable(GL_BLEND);gl.Enable(0x0B71);gl.PolygonMode(0x0408,0x1B02);
     drawShadows();
     updateLocalShadows();
+    const bool timeProbes=requestedProbes[0] && beginProfile(ProfilePass::Probe);
     updateProbe();
+    finishProfile(ProfilePass::Probe,timeProbes);
     gl.Disable(GL_BLEND);gl.Enable(0x0B71);gl.DepthFunc(0x0201);gl.DepthMask(1);
     gl.PolygonMode(0x0408,settings().wireframe?0x1B01:0x1B02);
     gl.BindFramebuffer(GL_FRAMEBUFFER, msaaFbo ? msaaFbo : sceneFbo);
@@ -795,7 +805,7 @@ void Renderer::Impl::pipeline() {
         integer(directDenoiseProgram,"valid",historyValid&&directHistoryValid);fullscreen(directDenoiseProgram,directHistory[next].fbo);
         directIndex=next;directHistoryValid=true;
     }
-    if (settings().reflections != Quality::Off) {
+    if (reflectionHistory.raw.fbo || indirectHistory.raw.fbo) {
         gl.ActiveTexture(GL_TEXTURE0);
         const bool denoiseDirect = settings().stochasticLighting && directHistoryValid && !customMaterialShader;
         for(unsigned tex:{sceneColor,denoiseDirect?sceneDirect:0u,
@@ -829,7 +839,9 @@ void Renderer::Impl::pipeline() {
     integer(lightingProgram, "reflectionSteps", std::array{0, 16, 32, 64, 96}[int(settings().reflections)]);
     vector(lightingProgram, "skyColor",
            {environment.skyColor.r, environment.skyColor.g, environment.skyColor.b});
+    integer(lightingProgram,"lightingPass",0);
     fullscreen(lightingProgram, lit.fbo);
+    resolveLighting();
     }
     if (!transparentOrder.empty()) {
         gl.BindFramebuffer(GL_FRAMEBUFFER, transparentFbo);
@@ -853,7 +865,9 @@ void Renderer::Impl::pipeline() {
     drawParticles();
     unsigned current = postAdvanced(lit.texture);
     if (dof.fbo) {
-        if (settings().autoFocus) {
+        const auto subject=camera.optics?camera.optics->focusDistanceMetres:std::nullopt;
+        const bool autofocus=settings().autoFocus && !subject;
+        if (autofocus) {
             unsigned next = 1 - focusIndex;
             gl.UseProgram(focusProgram);
             sampler(focusProgram, "depthMap", sceneDepth, 0);
@@ -878,8 +892,8 @@ void Renderer::Impl::pipeline() {
         sampler(dofProgram, "depthMap", sceneDepth, 1);
         projectionTerms(dofProgram, false);
         sampler(dofProgram, "focusMap", focus[focusIndex].texture, 2);
-        integer(dofProgram, "autoFocus", settings().autoFocus);
-        scalar(dofProgram, "focusDistance", settings().focusDistance);
+        integer(dofProgram, "autoFocus", autofocus);
+        scalar(dofProgram, "focusDistance", subject.value_or(settings().focusDistance));
         integer(dofProgram, "physicalLens", camera.optics.has_value());
         if (camera.optics) {
             scalar(dofProgram, "lensFocalLength", camera.optics->focalLengthMetres);
@@ -901,7 +915,7 @@ void Renderer::Impl::pipeline() {
     sampler(tonemapProgram, "bloomMap", bloomPyramid.empty() ? 0 : bloomPyramid.front().texture, 3);
     sampler(tonemapProgram, "exposureMap", exposure[exposureIndex].texture, 4);
     sampler(tonemapProgram,"luminanceMap",luminance.texture,5);scalar(tonemapProgram,"localExposure",settings().localExposure);
-    scalar(tonemapProgram, "bloomStrength", settings().bloom == Quality::Off ? 0 : settings().bloomStrength);
+    scalar(tonemapProgram, "bloomStrength", settings().bloom == Quality::Off ? 0 : settings().bloomStrength*environment.bloomScale);
     scalar(tonemapProgram, "exposureEV", settings().exposureCompensation +
         (camera.optics && camera.optics->physicalExposure ? float(std::log2(camera.optics->exposureMultiplier())) : 0));
     integer(tonemapProgram, "autoExposure", settings().autoExposure && !(camera.optics && camera.optics->physicalExposure));

@@ -51,7 +51,7 @@ if(surfaceKind==0&&macroVariation>0.){float detail=texture(materialNoise,P*.045)
 if(hasNormal!=0){if(textureProjection!=0){vec3 w=weights(n),nx=texture(normalMap,P.zy*textureScale).xyz*2.-1.,ny=texture(normalMap,P.xz*textureScale).xyz*2.-1.,nz=texture(normalMap,P.xy*textureScale).xyz*2.-1.;nx.xy*=normalScale;ny.xy*=normalScale;nz.xy*=normalScale;n=safeNormal(vec3(nx.z*sign(n.x),nx.y,nx.x)*w.x+vec3(ny.x,ny.z*sign(n.y),ny.y)*w.y+vec3(nz.x,nz.y,nz.z*sign(n.z))*w.z,n);}else{vec3 dp1=dFdx(P),dp2=dFdy(P);vec2 duv1=dFdx(texcoord),duv2=dFdy(texcoord);float determinant=duv1.x*duv2.y-duv1.y*duv2.x;if(abs(determinant)>.0000001){vec3 fallbackT=safeNormal(cross(abs(n.y)<.9?vec3(0,1,0):vec3(1,0,0),n),vec3(1,0,0));vec3 rawT=(dp1*duv2.y-dp2*duv1.y)/determinant;vec3 T=safeNormal(rawT-n*dot(n,rawT),fallbackT);vec3 rawB=(-dp1*duv2.x+dp2*duv1.x)/determinant;vec3 B=safeNormal(cross(n,T),cross(n,fallbackT))*(dot(cross(n,T),rawB)<0.?-1.:1.);vec3 mappedNormal=texture(normalMap,texcoord*textureScale).xyz*2.-1.;mappedNormal.xy*=normalScale;n=safeNormal(mat3(T,B,n)*mappedNormal,n);}}}
 vec3 orm=hasOrm!=0?mapped(ormMap).rgb:lowestTextures!=0?constantOrm:vec3(1);orm.r=mix(1.,orm.r,occlusionStrength);float r=clamp(roughness*orm.g,.06,1.),metal=clamp(metallic*orm.b,0.,1.);if(surfaceKind!=0)proceduralSurface(base,n,r,metal);materialLayers(base,r,metal,n);
 if(abs(anisotropy)>.001)layerFrame(n);
-vec3 lit=indirectLighting(base,n,v,r,metal,P,orm.r);
+vec3 lit=indirectLighting(base,n,v,r,metal,P,orm.r,false);
 if(sunIntensity!=0.){
  vec3 l=normalize(sun);
  if(dot(n,l)>0.){

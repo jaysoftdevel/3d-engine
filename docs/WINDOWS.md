@@ -1,10 +1,12 @@
-# Windows engine — 0.5.22
+# Windows engine build
 
 Use the **batch scripts from Command Prompt**. PowerShell is not required. Python 3.10+ and a Visual Studio C++ toolchain remain required; bundled SDL2 and Jolt compile from source.
 
 ```bat
 cd /d D:\jsd_win\3d-project\3d-engine
-install.bat --check
+install_deps.bat --check
+build.bat
+test.bat
 install.bat
 ```
 
@@ -18,11 +20,15 @@ build.bat --configuration Release
 
 `build.bat` configures/builds without installation unless `--install` is supplied. `--test` runs CTest before installation; a failed configure/build/test immediately stops later stages. `--check` performs preflight only, without creating build directories or logs. The SDK contains libraries and headers; launch the game from its own workspace. Tests run from the build directory and are not installed.
 
+`test.bat Debug` builds and tests the Debug configuration. `clean.bat` performs the same guarded cleanup as `build.bat clean`. The batch launchers also read `JSD_BUILD_TYPE`, `JSD_BUILD_JOBS`, `JSD_BUILD_DIR`, `JSD_INSTALL_PREFIX`, and `CMAKE`.
+
 ## Tool detection
 
 The batch entry points try `py -3`, `python`, then `python3` and verify Python 3.10+ instead of trusting an executable name. The exact running interpreter is passed to CMake's project/version guards. Bytecode generation is disabled.
 
-The driver uses Microsoft's `vswhere` to discover Visual Studio/Build Tools installations with x64 C++ tools. It supports the Visual Studio 2022 and 2026 generators when the selected CMake version advertises them. It searches PATH, the standard CMake installation, and Visual Studio's bundled CMake. Install the Desktop development with C++ workload, Windows SDK, and either standalone CMake or the Visual Studio CMake component. There are no automatic downloads or administrator prompts.
+The driver uses Microsoft's `vswhere` to discover Visual Studio/Build Tools installations with x64 C++ tools. It supports the Visual Studio 2022 and 2026 generators advertised by the selected CMake. It searches PATH, the standard CMake installation, and Visual Studio's bundled CMake. The requirements are Desktop development with C++, a Windows SDK, and CMake 3.21 or newer.
+
+Run `install_deps.bat --install` to install missing Python and Visual Studio 2022 Build Tools with WinGet. Open a new Command Prompt after installation and run `install_deps.bat --check`. To add components to an existing Visual Studio installation, use Visual Studio Installer. [Microsoft Visual Studio installer options](https://learn.microsoft.com/en-us/visualstudio/install/use-command-line-parameters-to-install-visual-studio)
 
 Explicit overrides are available:
 
