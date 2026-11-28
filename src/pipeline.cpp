@@ -29,7 +29,7 @@ void Renderer::Impl::destroy(TargetBuffer &t) {
     t = {};
 }
 void Renderer::Impl::releaseTargets() {
-    for (auto *t : {&aoRaw, &aoA, &aoB, &lit, &dof, &display, &edges, &weights, &fogTarget, &fogScattering, &motionTarget})
+    for (auto *t : {&aoRaw, &aoA, &aoB, &lit, &dof, &display, &edges, &weights, &fogTarget, &fogScattering, &aerialTarget, &motionTarget})
         destroy(*t);
     for (auto &t : directHistory)destroy(t);directHistoryValid=false;
     releaseLightingHistory();
@@ -245,7 +245,7 @@ void Renderer::Impl::common(unsigned p, const Mat4 &m) {
     scalar(p, "ambientIntensity", environment.ambientIntensity);
     scalar(p, "viewDistance", settings().viewDistance);
     scalar(p, "storm", environment.storm);
-    scalar(p, "fogDensity", environment.fogDensity);
+    scalar(p, "fogDensity", environment.aerial.extinctionPerMetre>0?0.f:environment.fogDensity);
     integer(p, "shadowQuality", int(settings().shadows));
     scalar(p, "windTime", environment.atmosphere.time);
     vector(p, "windVector", environment.atmosphere.wind);
@@ -738,23 +738,14 @@ void Renderer::Impl::pipeline() {
     scalar(skyProgram,"starIntensity",environment.stars.enabled?std::clamp(environment.stars.intensity,0.f,20.f)*visibility:0.f);
     integer(skyProgram,"starSeed",int(environment.stars.seed&0x7fffffffu));
     integer(skyProgram,"airlessSky",environment.stars.enabled&&!environment.atmosphere.enabled);
-    vector(skyProgram, "skyColor", {environment.skyColor.r, environment.skyColor.g, environment.skyColor.b});
-    auto sky = environments.find(environment.image.value);
-    integer(skyProgram, "enabled", sky != environments.end());
-    sampler(skyProgram, "skyEquirect", sky == environments.end() ? 0 : sky->second.source, 0);
-    scalar(skyProgram, "environmentRotation", environment.imageRotation);
-    integer(skyProgram, "atmosphereEnabled", environment.atmosphere.enabled&&!compactScene);
+    bindSky(skyProgram);
     integer(skyProgram, "cloudSteps", compactScene?0:std::array{0, 8, 12, 20, 32}[int(environment.atmosphere.clouds)]);
     vector(skyProgram, "eye", camera.position);
-    vector(skyProgram, "sun", normalized(environment.sunDirection));
-    vector(skyProgram, "sunColor", {environment.sunColor.r, environment.sunColor.g, environment.sunColor.b});
     vector(skyProgram, "wind", environment.atmosphere.wind);
     scalar(skyProgram, "skyTime", environment.atmosphere.time);
-    scalar(skyProgram, "coverage", environment.atmosphere.cloudCoverage);
     scalar(skyProgram, "cloudDensity", environment.atmosphere.cloudDensity);
     scalar(skyProgram, "cloudBase", environment.atmosphere.cloudBase);
     scalar(skyProgram, "cloudThickness", environment.atmosphere.cloudThickness);
-    scalar(skyProgram, "turbidity", environment.atmosphere.turbidity);
     bind(skyProgram, "noiseVolume", noiseVolume, 1, 0x806F);
     fullscreen(skyProgram, msaaFbo ? msaaFbo : sceneFbo);
     gl.DepthMask(1);

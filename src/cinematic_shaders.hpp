@@ -1,17 +1,20 @@
 #pragma once
+#include <string>
+#include "sky_shader.hpp"
 namespace rf::gfx::cinematic {
 inline const char *skyVertex = R"GLSL(#version 330 core
 out vec2 texcoord;void main(){texcoord=vec2((gl_VertexID<<1)&2,gl_VertexID&2);gl_Position=vec4(texcoord*2.-1.,1,1);})GLSL";
-inline const char *sky = R"GLSL(#version 330 core
+inline const std::string sky = std::string(R"GLSL(#version 330 core
 in vec2 texcoord;
-uniform sampler2D skyEquirect; uniform sampler3D noiseVolume;uniform float environmentRotation;
+uniform sampler3D noiseVolume;
 uniform mat4 invProjection,invView,previousVP,starOrientation;
 uniform float starIntensity;uniform int starSeed,airlessSky;
-uniform vec3 skyColor,eye,sun,sunColor,wind;
-uniform float farDistance,skyTime,coverage,cloudDensity,cloudBase,cloudThickness,turbidity;
-uniform int enabled,atmosphereEnabled,cloudSteps;
+uniform vec3 eye,wind;
+uniform float farDistance,skyTime,cloudDensity,cloudBase,cloudThickness;
+uniform int cloudSteps;
 layout(location=0)out vec4 color;layout(location=1)out vec4 normal;
 layout(location=2)out vec4 surface;layout(location=3)out vec4 motion;
+)GLSL")+shader::skyDome+R"GLSL(
 float density(vec3 p){float h=(p.y-cloudBase)/cloudThickness;float shape=textureLod(noiseVolume,p*.00048+wind*skyTime*.00022,0.).r;float detail=textureLod(noiseVolume,p*.0017-wind*skyTime*.0001,0.).g;float f=shape*.8+detail*.2;float edge=smoothstep(0.,.18,h)*(1.-smoothstep(.62,1.,h));return max(0.,f-(1.-coverage)) * edge * cloudDensity * .13;}
 uint starHash(uvec3 p){p=p*1664525u+1013904223u;p.x+=p.y*p.z;p.y+=p.z*p.x;p.z+=p.x*p.y;p^=p>>16u;return p.x^p.y^p.z^uint(starSeed);}
 vec3 stars(vec3 direction){
@@ -30,19 +33,7 @@ vec3 stars(vec3 direction){
  }
  return result*starIntensity*smoothstep(-.022,.008,ray.y);
 }
-vec3 atmosphere(vec3 d){
- float altitude=max(d.y,0.),haze=pow(1.-altitude,4.),daylight=smoothstep(-.16,.10,sun.y);
- float overcast=smoothstep(.42,.96,coverage);
- vec3 night=vec3(.0004,.0007,.0018)+skyColor*haze*(.06+.18*overcast);
- vec3 day=mix(vec3(.045,.14,.29),vec3(.58,.58,.49),haze);
- day=mix(day,skyColor*.86,overcast*.61);
- float angle=dot(d,sun),glare=pow(max(angle,0.),12.)*.18*turbidity;
- float sunDisc=smoothstep(cos(.009),cos(.004),angle)*7.;
- vec3 result=mix(night,day,daylight)+sunColor*(glare+sunDisc)*daylight*(1.-overcast*.91);
- return mix(result,vec3(.24,.20,.15)*daylight+night*(1.-daylight),1.-smoothstep(-.12,0.,d.y));
-}
-void main(){vec4 p=invProjection*vec4(texcoord*2.-1.,1,1);vec3 d=normalize(mat3(invView)*(p.xyz/p.w));vec4 old=previousVP*vec4(d,0);vec2 previousUV=abs(old.w)>.0001?old.xy/old.w*.5+.5:texcoord;float C=cos(-environmentRotation),S=sin(-environmentRotation);vec3 rotated=vec3(C*d.x+S*d.z,d.y,-S*d.x+C*d.z);vec2 envUV=vec2(atan(rotated.z,rotated.x)/6.283185+.5,acos(clamp(rotated.y,-1.,1.))/3.14159265);vec3 background=enabled!=0?textureLod(skyEquirect,envUV,0.).rgb:skyColor*.4;
-if(atmosphereEnabled!=0 && enabled==0)background=atmosphere(d);
+void main(){vec4 p=invProjection*vec4(texcoord*2.-1.,1,1);vec3 d=normalize(mat3(invView)*(p.xyz/p.w));vec4 old=previousVP*vec4(d,0);vec2 previousUV=abs(old.w)>.0001?old.xy/old.w*.5+.5:texcoord;vec3 background=skyDomeColor(d,skyColor*.4);
 background+=stars(d);
 if(airlessSky!=0){float disc=smoothstep(cos(.0050),cos(.0043),dot(d,sun));background+=sunColor*disc*12.;}
 if(atmosphereEnabled!=0){if(cloudSteps>0&&d.y>.012){float entry=max(0.,(cloudBase-eye.y)/d.y),exitPoint=(cloudBase+cloudThickness-eye.y)/d.y;float stepSize=min((exitPoint-entry)/float(cloudSteps),120.);float transmittance=1.;vec3 scattered=vec3(0);float forward=.15+1.4*pow(max(dot(d,sun),0.),10.);for(int i=0;i<32;i++){if(i>=cloudSteps||transmittance<.015)break;vec3 point=eye+d*(entry+(float(i)+.5)*stepSize);float amount=density(point);if(amount>.0001){float extinction=exp(-amount*stepSize);float lightDepth=0.;for(int j=1;j<=3;j++)lightDepth+=density(point+sun*float(j)*18.)*18.;vec3 illumination=vec3(.22,.28,.34)+sunColor*exp(-lightDepth*1.6)*(1.05+forward);scattered+=transmittance*(1.-extinction)*illumination;transmittance*=extinction;}}float horizonFade=smoothstep(.012,.08,d.y);background=mix(background,background*transmittance+scattered,horizonFade);}}

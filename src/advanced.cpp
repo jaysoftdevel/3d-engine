@@ -32,6 +32,7 @@ void main(){
     skyProgram = program(shader::fullscreen, advanced::sky);
     fogProgram = program(shader::fullscreen, lighting::volumeFog);
     fogCompositeProgram=program(shader::fullscreen,lighting::fogComposite);
+    aerialProgram=program(shader::fullscreen,lighting::aerialFragment);
     motionProgram = program(shader::fullscreen, advanced::motionBlur);
     taaProgram = program(shader::fullscreen, advanced::taa);
     upscaleProgram = program(shader::fullscreen, advanced::upscale);
@@ -54,7 +55,7 @@ in vec2 texcoord;in vec4 tint;uniform sampler2D albedoMap;uniform int textured;l
 }
 void Renderer::Impl::releaseAdvanced() {
     for (unsigned p :
-         {fogCompositeProgram,focusProgram, skyProgram, fogProgram, motionProgram, reactiveProgram, taaProgram, upscaleProgram, bloomProgram,
+         {fogCompositeProgram,aerialProgram,focusProgram, skyProgram, fogProgram, motionProgram, reactiveProgram, taaProgram, upscaleProgram, bloomProgram,
           bloomBlurProgram, exposureProgram, exposureAdaptProgram, iblProgram, brdfProgram})
         if (p)
             gl.DeleteProgram(p);
@@ -124,13 +125,44 @@ void Renderer::Impl::bindAdvanced(unsigned p) {
     integer(p, "localLightCount", lights.size());
     integer(p, "lightGridWidth", lightGridWidth);
     auto env = environments.find(environment.image.value);
-    bool active = env != environments.end();
+    const bool active = env != environments.end() && environment.imageLightingWeight>0;
     integer(p, "iblEnabled", active);
+    scalar(p, "iblWeight", active?environment.imageLightingWeight:0.f);
     bind(p, "environmentMap", active ? env->second.specular : 0, 9, 0x8513);
     bind(p, "irradianceMap", active ? env->second.irradiance : 0, 10, 0x8513);
     sampler(p, "brdfMap", active ? env->second.brdf : 0, 11);
 }
+void Renderer::Impl::bindSky(unsigned p) {
+    const auto sky=environments.find(environment.image.value);
+    const float weight=probeCapture?environment.imageLightingWeight:environment.imageBackgroundWeight;
+    scalar(p,"skyImageWeight",sky!=environments.end()?weight:0.f);
+    sampler(p,"skyEquirect",sky!=environments.end() && weight>0?sky->second.source:0,0);
+    scalar(p,"environmentRotation",environment.imageRotation);
+    integer(p,"atmosphereEnabled",environment.atmosphere.enabled);
+    vector(p,"skyColor",{environment.skyColor.r,environment.skyColor.g,environment.skyColor.b});
+    vector(p,"sun",normalized(environment.sunDirection));
+    vector(p,"sunColor",{environment.sunColor.r,environment.sunColor.g,environment.sunColor.b});
+    scalar(p,"coverage",environment.atmosphere.cloudCoverage);
+    scalar(p,"turbidity",environment.atmosphere.turbidity);
+}
 unsigned Renderer::Impl::postAdvanced(unsigned source) {
+    const auto& aerial=environment.aerial;
+    const bool hasAerial=aerial.extinctionPerMetre>0;
+    const auto atmosphere=[&](unsigned p,float start) {
+        scalar(p,"extinction",aerial.extinctionPerMetre);
+        if (!hasAerial) return;
+        matrix(p,"aerialInvVP",inverse(vp));
+        vector(p,"aerialEye",camera.position);
+        vector(p,"aerialSun",normalized(environment.sunDirection));
+        const V3 color{aerial.albedo.r,aerial.albedo.g,aerial.albedo.b};
+        vector(p,"aerialHorizon",{color.x*environment.skyColor.r*.87f,
+                                 color.y*environment.skyColor.g*.87f,color.z*environment.skyColor.b*.87f});
+        const float glow=std::min(.53f,environment.sunIntensity*.107f);
+        vector(p,"aerialSunColor",{environment.sunColor.r*glow,environment.sunColor.g*glow,environment.sunColor.b*glow});
+        scalar(p,"referenceHeight",aerial.referenceHeightMetres);
+        scalar(p,"scaleHeight",aerial.scaleHeightMetres);
+        scalar(p,"aerialStart",start);
+    };
     if (fogTarget.fbo) {
         gl.UseProgram(fogProgram);
         sampler(fogProgram, "depthMap", sceneDepth, 1);
@@ -139,8 +171,13 @@ unsigned Renderer::Impl::postAdvanced(unsigned source) {
         for(int c=0;c<4;c++)matrix(fogProgram,("shadowMatrices["+std::to_string(c)+"]").c_str(),shadowMatrices[c]);
         vector(fogProgram, "eye", camera.position);vector(fogProgram, "sun", environment.sunDirection);
         vector(fogProgram, "sunColor",{environment.sunColor.r,environment.sunColor.g,environment.sunColor.b});
-        vector(fogProgram,"ambientColor",{environment.skyColor.r*environment.ambientIntensity*.35f,environment.skyColor.g*environment.ambientIntensity*.35f,environment.skyColor.b*environment.ambientIntensity*.35f});
-        scalar(fogProgram,"density",settings().fogDensity);scalar(fogProgram,"falloff",settings().fogHeightFalloff);
+        const auto sky=environment.skyColor;
+        const V3 ambient=V3{sky.r,sky.g,sky.b}*(environment.ambientIntensity*(hasAerial?.75f:.35f));
+        vector(fogProgram,"ambientColor",ambient);
+        vector(fogProgram,"airAlbedo",hasAerial?V3{aerial.albedo.r,aerial.albedo.g,aerial.albedo.b}:ambient);
+        scalar(fogProgram,"density",hasAerial?aerial.extinctionPerMetre:settings().fogDensity);
+        scalar(fogProgram,"falloff",hasAerial?1.f/aerial.scaleHeightMetres:settings().fogHeightFalloff);
+        scalar(fogProgram,"fogReferenceHeight",hasAerial?aerial.referenceHeightMetres:0.f);
         scalar(fogProgram,"intensity",environment.sunIntensity);scalar(fogProgram,"time",environment.atmosphere.time);
         integer(fogProgram,"steps",std::array{0,16,24,40,64}[int(settings().volumetricFog)]);
         integer(fogProgram,"shadows",shadowDepth!=0);integer(fogProgram,"volumeCount",int(fogVolumes.size()));stats.fogVolumes=fogVolumes.size();
@@ -168,8 +205,17 @@ unsigned Renderer::Impl::postAdvanced(unsigned source) {
         gl.BindVertexArray(fullscreenVao);gl.DrawArrays(GL_TRIANGLES,0,3);stats.drawCalls++;stats.postPasses++;
         gl.Viewport(0,0,width,height);gl.UseProgram(fogCompositeProgram);
         sampler(fogCompositeProgram,"source",source,0);sampler(fogCompositeProgram,"scattering",fogScattering.texture,1);sampler(fogCompositeProgram,"depthMap",sceneDepth,2);
+        atmosphere(fogCompositeProgram,160.f);
         projectionTerms(fogCompositeProgram,false);fullscreen(fogCompositeProgram,fogTarget.fbo);
         source = fogTarget.texture;
+    } else if (hasAerial) {
+        if (!aerialTarget.fbo) aerialTarget=target();
+        gl.UseProgram(aerialProgram);
+        sampler(aerialProgram,"source",source,0);
+        sampler(aerialProgram,"depthMap",sceneDepth,1);
+        atmosphere(aerialProgram,0.f);
+        fullscreen(aerialProgram,aerialTarget.fbo);
+        source=aerialTarget.texture;
     }
     if (motionTarget.fbo) {
         gl.UseProgram(motionProgram);

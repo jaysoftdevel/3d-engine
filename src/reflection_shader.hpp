@@ -43,7 +43,7 @@ vec4 traceReflection(vec3 origin,vec3 ray,float rough){
  }return vec4(0);
 }
 vec3 reflectionFallback(vec3 world,vec3 ray,float rough,vec2 weights){
- vec3 radiance=iblEnabled!=0?textureLod(environmentMap,environmentDirection(ray),rough*7.).rgb*ambientIntensity:skyRadiance(ray,rough);
+ vec3 radiance=backgroundSpecular(ray,rough);
  return probeSpecular(radiance,world,ray,rough*probeMaxLod,weights);
 }
 void main(){
@@ -89,9 +89,9 @@ void main(){
   vec3 radiance=reflectionFallback(world,worldRay,rough,pw);
   vec4 mainHit=rough<.80?traceReflection(origin,reflected,rough):vec4(0);
   radiance=mix(radiance,mainHit.rgb,mainHit.a*(1.-smoothstep(.49,.80,rough)));
-  vec3 f0=mix(vec3(.04),albedo.rgb,metal);vec2 lut=iblEnabled!=0?texture(brdfMap,vec2(nv,rough)).rg:vec2(1,0);
+  vec3 f0=mix(vec3(.04),albedo.rgb,metal);vec2 lut=iblEnabled!=0?mix(vec2(1,0),texture(brdfMap,vec2(nv,rough)).rg,iblWeight):vec2(1,0);
   float coatF=.04+.96*pow(1.-nv,5.);
-  if(iblEnabled==0)f0=mix(f0,max(vec3(1.-rough),f0),pow(1.-nv,5.));
+  f0=mix(f0,max(vec3(1.-rough),f0),pow(1.-nv,5.)*(1.-iblWeight));
   result+=radiance*(f0*lut.x+lut.y)*specAO*(1.-coat*coatF);
   if(coat>.012){
    vec3 coatRadiance=reflectionFallback(world,worldRay,coatRough,pw);

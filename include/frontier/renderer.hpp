@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.27";
+inline constexpr const char *Version = "0.5.28";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -96,6 +96,11 @@ struct Starfield {
     unsigned seed=73021;
     Mat4 orientation=Mat4::identity();
 };
+// Extinction at a reference elevation with exponential decay above it.
+struct AerialPerspective {
+    float extinctionPerMetre = 0, referenceHeightMetres = 0, scaleHeightMetres = 48;
+    Color albedo{.88f,.92f,.98f,1};
+};
 struct Environment {
     V3 sunDirection{-.45f, .8f, .3f};
     Color sunColor{1, .91f, .79f, 1};
@@ -111,6 +116,8 @@ struct Environment {
     Starfield stars;
     float bloomScale = 1;
     float sunAngularRadius = .00465f;
+    float imageLightingWeight = 1, imageBackgroundWeight = 1;
+    AerialPerspective aerial{};
 };
 // Scene-rasterized radiance, box projected inside a bounded region.
 struct ReflectionProbe {

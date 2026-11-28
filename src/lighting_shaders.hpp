@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+#include "sky_shader.hpp"
 namespace rf::gfx::lighting {
 inline const char* probes=R"PROBE(
 uniform samplerCube localProbe,localIrradiance;
@@ -53,10 +55,16 @@ vec3 probeSpecular(vec3 fallback,vec3 p,vec3 r,float lod,vec2 w){
 // Shared by forward shading and the AO composite: occlusion attenuates only
 // indirect illumination, leaving direct lights and emissive surfaces intact.
 inline const char* ambient=R"AMBIENT(
+uniform float iblWeight;
 vec3 skyRadiance(vec3 ray,float roughness){
  // The horizon contributes even before the first local cubemap has been captured.
  float sky=smoothstep(-.19,.31,ray.y+roughness*.10);
  return mix(groundColor*.23,skyColor*mix(.40,.67,clamp(ray.y,0.,1.)),sky)*ambientIntensity;
+}
+vec3 backgroundSpecular(vec3 ray,float rough){
+ vec3 color=skyRadiance(ray,rough);
+ if(iblEnabled!=0)color=mix(color,textureLod(environmentMap,environmentDirection(ray),rough*7.).rgb*ambientIntensity,iblWeight);
+ return color;
 }
 vec3 indirectLighting(vec3 base,vec3 n,vec3 v,float r,float metal,vec3 p,float orm,
                       float coat,float coatRoughness,bool blend){
@@ -68,18 +76,18 @@ vec3 indirectLighting(vec3 base,vec3 n,vec3 v,float r,float metal,vec3 p,float o
  float coatF=.04+.96*pow(1.-nv,5.);
  if(iblEnabled!=0||pw.x+pw.y>0.){
   vec3 fresnel=f0+(max(vec3(1.-r),f0)-f0)*pow(1.-nv,5.);
-  vec3 diffuse=iblEnabled!=0?texture(irradianceMap,environmentDirection(n)).rgb*ambientIntensity:vec3(0);
+  vec3 diffuse=iblEnabled!=0?texture(irradianceMap,environmentDirection(n)).rgb*ambientIntensity*iblWeight:vec3(0);
   value=probeDiffuse(diffuse,n,pw)*base*(1.-metal)*(1.-fresnel);
-  if(iblEnabled==0)value+=base*hemisphere*(1.-metal*.55)*(1.-pw.x-pw.y);
+  value+=base*hemisphere*(1.-metal*.55)*(1.-pw.x-pw.y)*(1.-iblWeight);
  }
  if(hybridReflection==0){
   vec3 ray=reflect(-v,n);
-  vec3 radiance=iblEnabled!=0?textureLod(environmentMap,environmentDirection(ray),r*7.).rgb*ambientIntensity:skyRadiance(ray,r);
+  vec3 radiance=backgroundSpecular(ray,r);
   radiance=probeSpecular(radiance,p,ray,r*probeMaxLod,pw);
-  vec2 lut=iblEnabled!=0?texture(brdfMap,vec2(nv,r)).rg:vec2(1,0);
+  vec2 lut=iblEnabled!=0?mix(vec2(1,0),texture(brdfMap,vec2(nv,r)).rg,iblWeight):vec2(1,0);
   value+=radiance*(f0*lut.x+lut.y)*(1.-coat*coatF);
   if(coat>0.){
-   vec3 top=iblEnabled!=0?textureLod(environmentMap,environmentDirection(ray),coatRoughness*7.).rgb*ambientIntensity:skyRadiance(ray,coatRoughness);
+   vec3 top=backgroundSpecular(ray,coatRoughness);
    value+=probeSpecular(top,p,ray,coatRoughness*probeMaxLod,pw)*coat*coatF;
   }
  }
@@ -260,11 +268,11 @@ void materialLayers(inout vec3 base,inout float r,inout float metal,vec3 n,float
  coatRoughness=clamp(sqrt(pow(mix(clearcoatRoughness,max(.062,clearcoatRoughness*.64),film),2.)+variance*.18),.06,1.);
 }
 )LAYER";
-inline const char* probeSky=R"GLSL(#version 330 core
-in vec2 texcoord;out vec4 color;uniform mat4 invViewProjection;uniform vec3 eye,skyColor;uniform sampler2D sky;uniform int enabled;uniform float rotation;
+inline const std::string probeSky=std::string(R"GLSL(#version 330 core
+in vec2 texcoord;out vec4 color;uniform mat4 invViewProjection;uniform vec3 eye;
+)GLSL")+shader::skyDome+R"GLSL(
 void main(){vec4 p=invViewProjection*vec4(texcoord*2.-1.,1,1);vec3 d=normalize(p.xyz/p.w-eye);
- vec2 uv=vec2(atan(d.z,d.x)/6.283185+.5-rotation/6.283185,acos(clamp(d.y,-1.,1.))/3.141593);
- gl_FragDepth=1.;color=vec4(enabled!=0?textureLod(sky,uv,0.).rgb:skyColor,1);})GLSL";
+ gl_FragDepth=1.;color=vec4(skyDomeColor(d,skyColor),1);})GLSL";
 inline const char* probeFilter=R"GLSL(#version 330 core
 in vec2 texcoord;out vec4 color;uniform samplerCube source;uniform int face,irradiance;uniform float roughness;
 float radical(uint bits){bits=(bits<<16u)|(bits>>16u);bits=((bits&0x55555555u)<<1u)|((bits&0xAAAAAAAAu)>>1u);bits=((bits&0x33333333u)<<2u)|((bits&0xCCCCCCCCu)>>2u);bits=((bits&0x0F0F0F0Fu)<<4u)|((bits&0xF0F0F0F0u)>>4u);bits=((bits&0x00FF00FFu)<<8u)|((bits&0xFF00FF00u)>>8u);return float(bits)*2.3283064365386963e-10;}

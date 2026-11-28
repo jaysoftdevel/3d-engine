@@ -96,9 +96,63 @@ template<class Check>void lightingGraphicsTests(rf::gfx::Renderer&r,Check check)
  auto clear=volume(0),behind=volume(1),front=volume(2);
  check(std::abs(center(clear,0)-center(behind,0))<1,"opaque depth blocks volumetric emission behind a surface");
  check(center(front,0)>center(clear,0)+20&&r.statistics().fogVolumes==1,"bounded emissive volumetrics scatter in front of scene geometry");
+ r.begin(camera,env);
+ Material back;back.emissive={.05f,.05f,.05f,1};
+ r.primitive(Primitive::Box,{{0,1,38},{18,18,1},0},back);
+ FogVolume small;small.position={0,1,6.2f};small.halfExtent={1.f,1.f,.14f};
+ small.density=2.f;small.emission={1,.02f,.005f,1};r.fogVolume(small);
+ r.end();
+ check(center(image(),0)>center(clear,0)+25,"volumetric integration retains shallow volumes between coarse step centers");
  settings.volumetricFog=Quality::Off;settings.shadows=Quality::Medium;r.setSettings(settings);r.begin(camera,env);r.primitive(Primitive::Box,{{0,1,3},{2,2,1},0});r.end();r.check();
  check(r.statistics().shadowCascades==4,"sun shadows use four stabilized atlas cascades");
  settings.shadows=Quality::Off;r.setSettings(settings);
+ {
+  const auto restore=settings;
+  settings.globalIllumination=GlobalIllumination::AmbientProbe;
+  settings.exposureCompensation=0;
+  r.setSettings(settings);
+  Environment authored=env;
+  authored.skyColor={.055f,.10f,.39f,1};
+  authored.groundColor=authored.skyColor;
+  authored.ambientIntensity=1;
+  std::array<float,16*8*3> red{};
+  for (std::size_t i=0;i<red.size();i+=3) {
+   red[i]=1.3f;red[i+1]=.06f;red[i+2]=.025f;
+  }
+  authored.image=r.createEnvironment(16,8,red);
+  const auto skyFrame=[&](float light,float backdrop,bool geometry) {
+   authored.imageLightingWeight=light;
+   authored.imageBackgroundWeight=backdrop;
+   r.begin(camera,authored);
+   if (geometry) {
+    Material diffuse;diffuse.albedo={.55f,.55f,.55f,1};diffuse.roughness=.95f;
+    r.primitive(Primitive::Box,{{0,1,3},{4,4,1},0},diffuse);
+   }
+   r.end();return image();
+  };
+  const auto procedural=skyFrame(1,0,false),photo=skyFrame(0,1,false);
+  const auto ambient=skyFrame(0,1,true),imageLit=skyFrame(1,0,true);
+  check(center(photo,0)>center(procedural,0)+40&&center(imageLit,0)>center(ambient,0)+25,
+      "photographic backdrop and image-based ambient lighting can be weighted independently");
+  r.destroyEnvironment(authored.image);
+  authored.image={};
+  authored.aerial={.04f,1.f,9.f,{.88f,.91f,1,1}};
+  const auto hazeFrame=[&](float height,float distance,float extinction) {
+   authored.aerial.extinctionPerMetre=extinction;
+   auto elevated=camera;elevated.position.y=height;
+   r.begin(elevated,authored);
+   Material marker;marker.albedo={0,0,0,1};marker.emissive={.65f,.65f,.65f,1};
+   r.primitive(Primitive::Box,{{0,height,distance},{15,15,.3f},0},marker);
+   r.end();return image();
+  };
+  const auto distantClear=hazeFrame(1,46,0),distantHaze=hazeFrame(1,46,.04f);
+  const auto nearbyHaze=hazeFrame(1,3,.04f),highHaze=hazeFrame(30,46,.04f);
+  check(center(distantClear,0)>center(distantHaze,0)+40&&
+        center(nearbyHaze,0)>center(distantHaze,0)+25&&center(highHaze,0)>center(distantHaze,0)+25,
+      "analytic aerial perspective attenuates distant geometry and falls off with height");
+  settings=restore;
+  r.setSettings(settings);
+ }
  auto dense=r.createLodMesh(makeSphere(96,48),1.5f);
  auto detail=[&](float z){r.begin({{0,0,z},{0,0,1},60,.08f},env);r.submit({dense,{},Material{},0,{}});r.end();r.check();return r.statistics();};
  auto near=detail(-1.2f),far=detail(-60);

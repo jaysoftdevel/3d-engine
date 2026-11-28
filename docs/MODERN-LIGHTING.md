@@ -1,4 +1,22 @@
-# Reflections, lighting and scenery — 0.5.8–0.5.10
+# Reflections, lighting and scenery
+
+## Photographic skies and local atmosphere in 0.5.28
+
+Load an HDR equirectangular image with `jsd::loadHdr` and create its environment once. Vary the two image weights from 0 to 1 as gameplay changes. `imageBackgroundWeight` controls the visible dome. `imageLightingWeight` controls irradiance, specular fallback, and the sky captured by local reflection probes. `imageRotation` rotates those paths together in radians. Probes retain their last complete capture while significant lighting changes trigger a new capture over subsequent frames.
+
+```cpp
+const auto sky = jsd::loadHdr("assets/daylight.hdr");
+const auto skyImage = renderer.createEnvironment(sky.width, sky.height, sky.rgb, 1.6f);
+
+environment.image = skyImage;
+environment.imageBackgroundWeight = daylight * clearWeather;
+environment.imageLightingWeight = daylight * (.25f + .75f * clearWeather);
+environment.aerial = {.0012f, 2.f, 44.f, {.89f, .94f, 1.f, 1.f}};
+```
+
+`AerialPerspective` sets the extinction coefficient per metre at a reference elevation. Air density drops by a factor of approximately 2.72 per scale height. Set the coefficient to zero to use legacy distance fog. The analytic sky and depth pass works with volumetric fog disabled. With volumetrics enabled, nearby rays include light and shadow scattering and continue to the view distance through analytic haze. Thin local volumes are sampled over their ray intersections, which helps narrow steam vents render at low step counts.
+
+Projects can set `environment.imageBackgroundWeight`, `environment.imageLightingWeight`, `environment.imageBackgroundWeightKeys`, and `environment.imageLightingWeightKeys`. The `environment.aerialPerspective` object accepts `extinctionPerMetre`, `referenceHeightMetres`, `scaleHeightMetres`, and `albedo` as an RGBA array. Existing projects retain full image weights by default and can enable aerial perspective by setting a positive coefficient.
 
 ## Detailed materials in 0.5.27
 

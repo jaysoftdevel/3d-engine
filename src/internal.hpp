@@ -169,7 +169,7 @@ struct Renderer::Impl {
     unsigned focusProgram = 0, focusIndex = 0;
     bool focusValid = false;
     TargetBuffer luminance;
-    TargetBuffer fogTarget, fogScattering, motionTarget;
+    TargetBuffer fogTarget, fogScattering, aerialTarget, motionTarget;
     std::vector<TargetBuffer> bloomPyramid, bloomScratch;
     unsigned temporalIndex = 0, frameIndex = 0, exposureIndex = 0;
     bool historyValid = false;
@@ -290,19 +290,21 @@ struct Renderer::Impl {
     void allocateAdvanced();
     void uploadLights();
     void bindAdvanced(unsigned program);
+    void bindSky(unsigned program);
     unsigned postAdvanced(unsigned source);
     struct ProbeCache {
         ReflectionProbe spec;
         unsigned raw=0, specular=0, irradiance=0, pendingSpecular=0,pendingIrradiance=0,fbo=0, depth=0;
         unsigned environment=0, lastFrame=0, lastRequested=0, firstPublish=0, nextFace=0, filterTask=0;
-        float sun=0, storm=0;
+        float sun=0, storm=0, imageWeight=1, imageRotation=0;
+        V3 sunDirection{};
         bool ready=false, refreshing=false;
     };
     std::map<uint64_t,ProbeCache> probeCache;
     std::array<std::optional<ReflectionProbe>,2> requestedProbes;
     std::array<ProbeCache*,2> activeProbes{};
     bool probeCapture=false, contactDepthValid=false;
-    unsigned probeSkyProgram=0, probeFilterProgram=0, fogCompositeProgram=0;
+    unsigned probeSkyProgram=0, probeFilterProgram=0, fogCompositeProgram=0, aerialProgram=0;
     std::vector<FogVolume> fogVolumes;
     void initializeLighting();
     void releaseLighting();

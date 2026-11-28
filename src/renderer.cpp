@@ -492,6 +492,17 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
         environment.sunAngularRadius<0 || environment.sunAngularRadius>.2f)
         throw std::invalid_argument("Invalid atmosphere/shadow range");
     if (camera.optics) camera.optics->validate();
+    for (float weight:{environment.imageLightingWeight,environment.imageBackgroundWeight})
+        if (!std::isfinite(weight) || weight<0 || weight>1)
+            throw std::invalid_argument("Invalid HDR environment weight");
+    const auto& aerial=environment.aerial;
+    for (float v:{aerial.extinctionPerMetre,aerial.referenceHeightMetres,aerial.scaleHeightMetres,
+                   aerial.albedo.r,aerial.albedo.g,aerial.albedo.b})
+        if (!std::isfinite(v)) throw std::invalid_argument("Nonfinite aerial perspective");
+    if (aerial.extinctionPerMetre<0 || aerial.extinctionPerMetre>.25f ||
+        aerial.scaleHeightMetres<1 || aerial.albedo.r<0 || aerial.albedo.g<0 || aerial.albedo.b<0 ||
+        aerial.albedo.r>1 || aerial.albedo.g>1 || aerial.albedo.b>1)
+        throw std::invalid_argument("Invalid aerial perspective");
     if (environment.sunIlluminanceLux && (!std::isfinite(*environment.sunIlluminanceLux) || *environment.sunIlluminanceLux < 0))
         throw std::invalid_argument("Invalid sun illuminance");
     i.camera = camera;

@@ -81,7 +81,7 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
     require(jobs > 0, 'Jobs must be positive')
     root = no_symlinks(root).resolve()
     require(root == SOURCE_ROOT, 'Build driver belongs to another source tree')
-    meta = source(root,'jsd.engine','0.5.27')
+    meta = source(root,'jsd.engine','0.5.28')
     cmake, generator, instance = select_toolchain(cmake,generator)
     folder = 'windows-vs2026' if generator == GENERATORS[18] else 'windows-vs2022'
     build = build_path(root,Path(os.environ.get('JSD_BUILD_DIR') or root/'build'/folder),meta)
@@ -94,11 +94,11 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
     if instance and cache.get('CMAKE_GENERATOR_INSTANCE'):
         require(Path(cache['CMAKE_GENERATOR_INSTANCE'].split(',')[0]).resolve() == Path(instance).resolve(),
                 f'Build cache belongs to a different Visual Studio installation: {build}')
-    print(f'Engine 0.5.27 / {generator} / x64 / {configuration}\nCMake: {cmake}\nBuild: {build}',flush=True)
+    print(f'Engine 0.5.28 / {generator} / x64 / {configuration}\nCMake: {cmake}\nBuild: {build}',flush=True)
     if check:
         print('Preflight passed; no files changed.'); return
     with operation_lock(root):
-        meta = source(root,'jsd.engine','0.5.27')
+        meta = source(root,'jsd.engine','0.5.28')
         build_path(root,build,meta); install_prefix(root,prefix,meta)
         build.mkdir(parents=True,exist_ok=True)
         # Claim ownership before logs appear in a fresh guarded build directory.
@@ -137,7 +137,7 @@ def main():
                 'clean accepts no additional options')
         require(args.root.resolve() == SOURCE_ROOT,'Build driver belongs to another source tree')
         from build_project import run as clean_project
-        clean_project(SOURCE_ROOT,'jsd.engine','0.5.27',['clean'])
+        clean_project(SOURCE_ROOT,'jsd.engine','0.5.28',['clean'])
         return
     require(not(args.mode and args.configuration and args.mode!=args.configuration),'Conflicting configurations')
     requested = args.configuration or args.mode or (os.environ.get('JSD_BUILD_TYPE') or 'Release').title()

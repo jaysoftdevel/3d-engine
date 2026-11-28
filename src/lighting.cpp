@@ -145,6 +145,16 @@ void Renderer::Impl::drawShadows(){
 void Renderer::Impl::updateProbe(){
  activeProbes={};if(!requestedProbes[0]||compactScene||
    (settings().globalIllumination!=GlobalIllumination::Hybrid&&settings().globalIllumination!=GlobalIllumination::ProbeLite&&settings().reflections==Quality::Off))return;
+ const auto sunDirection=normalized(environment.sunDirection);
+ const bool imageLit=environment.image.value && environment.imageLightingWeight>.12f;
+ const auto recordLighting=[&](ProbeCache& probe) {
+     probe.sun=environment.sunIntensity;
+     probe.storm=environment.storm;
+     probe.imageWeight=environment.imageLightingWeight;
+     probe.imageRotation=environment.imageRotation;
+     probe.sunDirection=sunDirection;
+     probe.environment=environment.image.value;
+ };
  ProbeCache* work=nullptr;
  for (unsigned i=0;i<requestedProbes.size() && requestedProbes[i];++i) {
      const auto& spec=*requestedProbes[i];
@@ -166,16 +176,17 @@ void Renderer::Impl::updateProbe(){
      const bool changed=cached.spec.revision!=spec.revision || cached.environment!=environment.image.value ||
          distance(cached.spec.position,spec.position)>.001f;
      const bool lightingChanged=std::abs(cached.sun-environment.sunIntensity)>.52f ||
-         std::abs(cached.storm-environment.storm)>.36f;
+         std::abs(cached.storm-environment.storm)>.36f ||
+         (environment.image.value && std::abs(cached.imageWeight-environment.imageLightingWeight)>.22f) ||
+         (imageLit && std::cos(cached.imageRotation-environment.imageRotation)<.977f) ||
+         (environment.sunIntensity>.1f && distance(cached.sunDirection,sunDirection)>.24f);
      cached.spec=spec;
      cached.lastRequested=frameIndex;
      if (changed || lightingChanged) {
          if (changed) cached.ready=false;
          cached.nextFace=cached.filterTask=0;
          cached.refreshing=true;
-         cached.sun=environment.sunIntensity;
-         cached.storm=environment.storm;
-         cached.environment=environment.image.value;
+         recordLighting(cached);
      }
      const bool due=spec.refreshFrames && frameIndex-cached.lastFrame>=spec.refreshFrames;
      if (!cached.ready || due) cached.refreshing=true;
@@ -210,9 +221,7 @@ void Renderer::Impl::updateProbe(){
   gl.Disable(GL_BLEND);gl.Enable(0x0B71);gl.DepthFunc(0x0201);gl.DepthMask(1);gl.ClearColor(environment.skyColor.r,environment.skyColor.g,environment.skyColor.b,1);gl.Clear(GL_COLOR_BUFFER_BIT|0x100);
   drawCommands(sceneProgram,vp,false);if(terrainRequested)drawTerrain(false);drawScatter(false);
   gl.DepthFunc(0x0203);gl.DepthMask(0);gl.UseProgram(probeSkyProgram);matrix(probeSkyProgram,"invViewProjection",inverse(vp));vector(probeSkyProgram,"eye",camera.position);
-  vector(probeSkyProgram,"skyColor",{environment.skyColor.r,environment.skyColor.g,environment.skyColor.b});
-  auto env=environments.find(environment.image.value);integer(probeSkyProgram,"enabled",env!=environments.end());sampler(probeSkyProgram,"sky",env==environments.end()?0:env->second.source,0);
-  scalar(probeSkyProgram,"rotation",environment.imageRotation);fullscreen(probeSkyProgram,p.fbo);gl.DepthMask(1);gl.DepthFunc(0x0201);stats.reflectionProbeFaces++;
+  bindSky(probeSkyProgram);fullscreen(probeSkyProgram,p.fbo);gl.DepthMask(1);gl.DepthFunc(0x0201);stats.reflectionProbeFaces++;
  }
  if(p.nextFace==6&&stats.reflectionProbeFaces==0){
   gl.Disable(0x0B71);gl.BindTexture(0x8513,p.raw);if(p.filterTask==0)gl.GenerateMipmap(0x8513);
@@ -227,8 +236,8 @@ void Renderer::Impl::updateProbe(){
   if(p.filterTask==54){
    std::swap(p.specular,p.pendingSpecular);std::swap(p.irradiance,p.pendingIrradiance);
    if(!p.ready){p.firstPublish=frameIndex;++stats.activeReflectionProbes;}
-   p.ready=true;p.refreshing=false;p.nextFace=0;p.filterTask=0;p.lastFrame=frameIndex;p.environment=environment.image.value;
-   p.sun=environment.sunIntensity;p.storm=environment.storm;
+   p.ready=true;p.refreshing=false;p.nextFace=0;p.filterTask=0;p.lastFrame=frameIndex;
+   recordLighting(p);
   }
  }
  camera=savedCamera;view=savedView;projection=savedProjection;vp=savedVP;invProjection=savedInv;previousVP=savedPreviousVP;previousView=savedPreviousView;
