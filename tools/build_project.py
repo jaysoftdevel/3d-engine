@@ -8,8 +8,9 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from build_report import BuildReport
 from project_guard import (GuardError, build_path, cache_values, compatible, digest,
-    install_prefix, operation_lock, output_path, read_json, require, sdk, source)
+    install_prefix, no_symlinks, operation_lock, output_path, read_json, record_build, require, sdk, source)
 
 
 def definitions(arguments):
@@ -96,7 +97,7 @@ def preflight(root, project_id, expected, args, env):
     return meta, build, prefix, opts, None
 
 
-def run(root, project_id, expected, args):
+def run(root, project_id, expected, args, test=False):
     root = root.resolve()
     if args in (['--help'], ['-h']):
         print('Usage: ./build.sh [release|debug|clean] [CMake -DNAME=VALUE ...]\nBuild and SDK paths must belong to this project. See docs/VERSION_GUARDS.md.')
@@ -131,18 +132,28 @@ def run(root, project_id, expected, args):
         build_type = 'Debug' if selected_mode.lower() == 'debug' else 'Release'
         if project_id == 'jsd.engine':
             opts.setdefault('JSD_BUILD_TESTS', 'OFF')
+        if test:
+            opts['JSD_BUILD_TESTS'] = 'ON'
         opts.setdefault('JSD_HEADLESS_ONLY', env.get('JSD_HEADLESS_ONLY', 'OFF'))
         command = [cmake, '-S', str(root), '-B', str(build), '-DCMAKE_BUILD_TYPE=' + build_type, '-DCMAKE_INSTALL_PREFIX=' + str(prefix), '-DCMAKE_INSTALL_LIBDIR=lib']
         command += ['-D' + key + '=' + value for key, value in opts.items()]
-        print(f"Building {project_id} {meta['version']} ({build_type})", flush=True)
-        subprocess.run(command, check=True, env=env)
         jobs = env.get('JSD_BUILD_JOBS', '4')
         require(jobs.isdigit() and int(jobs) > 0, 'JSD_BUILD_JOBS must be a positive integer')
-        subprocess.run([cmake, '--build', str(build), '--parallel', jobs], check=True, env=env)
-        if project_id == 'jsd.engine':
-            subprocess.run([cmake, '--install', str(build), '--prefix', str(prefix)], check=True, env=env)
-        if project_id == 'jsd.editor' and 'JSDGameEngine_DIR' in opts:
-            compatible(sdk(opts['JSDGameEngine_DIR']), meta)
+        name = 'JSD Game Engine' if project_id == 'jsd.engine' else project_id
+        # The query and configure log make a fresh directory nonempty before CMake starts.
+        no_symlinks(build / 'JSD_BUILD.json')
+        record_build(root, build, meta)
+        with BuildReport(cmake, build, build_type, f"{name} v{meta['version']}", env) as report:
+            report.run('Configure', command)
+            report.run('Build', [cmake, '--build', str(build), '--config', build_type, '--parallel', jobs, '--verbose'])
+            if project_id == 'jsd.engine':
+                report.run('Install', [cmake, '--install', str(build), '--prefix', str(prefix),
+                                       '--config', build_type, '--verbose'])
+            if test:
+                ctest = Path(shutil.which(cmake)).with_name('ctest')
+                report.run('Test', [str(ctest), '--test-dir', str(build), '-C', build_type, '--output-on-failure'])
+            if project_id == 'jsd.editor' and 'JSDGameEngine_DIR' in opts:
+                compatible(sdk(opts['JSDGameEngine_DIR']), meta)
         print(f"Built {project_id} {meta['version']} in {build}")
 
 if __name__ == '__main__':
@@ -150,11 +161,12 @@ if __name__ == '__main__':
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--project', required=True)
     parser.add_argument('--expected', required=True)
+    parser.add_argument('--test', action='store_true')
     ns, rest = parser.parse_known_args()
     if rest[:1] == ['--']:
         rest = rest[1:]
     try:
-        run(ns.root, ns.project, ns.expected, rest)
+        run(ns.root, ns.project, ns.expected, rest, ns.test)
     except (GuardError, OSError, KeyError, ValueError, subprocess.CalledProcessError) as error:
         print(f'JSD build stopped: {error}', file=sys.stderr)
         sys.exit(2)

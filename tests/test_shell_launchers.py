@@ -8,15 +8,23 @@ class ShellLaunchers(unittest.TestCase):
         for target in ('jsd-showcase','jsd-graphics-lab','jsd-project-player'):
             self.assertNotIn('add_executable('+target,cmake)
     @unittest.skipUnless(os.name=='posix' and shutil.which('bash'),'requires bash')
-    def test_runner_uses_build_tree(self):
+    def test_runner_passes_configuration_to_timed_build_driver(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=pathlib.Path(tmp); shutil.copyfile(ROOT/'test.sh',p/'test.sh')
-            (p/'build.sh').write_text('printf "%s\n" "$@" > "$LOG"\nexit "${FAIL:-0}"\n')
-            c=p/'ctest'; c.write_text('#!/bin/sh\nprintf "%s\n" "$@" >> "$LOG"\n');c.chmod(0o755)
-            env=dict(os.environ,PATH=str(p)+os.pathsep+os.environ['PATH'],LOG=str(p/'log'),JSD_BUILD_TYPE='Release',JSD_BUILD_DIR=str(p/'custom build'))
+            (p/'tools').mkdir()
+            (p/'tools/build_project.py').write_text(
+                'import json, os, sys\n'
+                'with open("invocation.json", "w") as log:\n'
+                '    json.dump([sys.argv[1:], os.environ["JSD_BUILD_DIR"]], log)\n'
+                'sys.exit(int(os.environ.get("FAIL", "0")))\n'
+            )
+            env=dict(os.environ,JSD_BUILD_TYPE='Debug',JSD_BUILD_DIR=str(p/'custom build'))
             subprocess.run(['bash',str(p/'test.sh')],check=True,env=env)
-            self.assertEqual((p/'log').read_text().splitlines(),['Release','-DJSD_BUILD_TESTS=ON','--test-dir',str(p/'custom build'),'--output-on-failure'])
+            arguments, directory=json.loads((p/'invocation.json').read_text())
+            version=json.loads((ROOT/'JSD_PROJECT.json').read_text())['version']
+            self.assertEqual(arguments,['--root', str(p), '--project', 'jsd.engine',
+                                        '--expected', version, '--test', '--', 'Debug'])
+            self.assertEqual(directory,str(p/'custom build'))
             result=subprocess.run(['bash',str(p/'test.sh')],env=dict(env,FAIL='23'))
             self.assertEqual(result.returncode,23)
-            self.assertNotIn('--test-dir',(p/'log').read_text())
 if __name__=='__main__': unittest.main()

@@ -38,16 +38,17 @@ install.bat --cmake "C:\Program Files\CMake\bin\cmake.exe" --generator "Visual S
 
 The driver keeps `build/windows-vs2022` and `build/windows-vs2026` separate. Existing build caches must match the source project, architecture, generator and Visual Studio instance. Incompatible caches are refused rather than deleted or reused. Source identities, versions, installation-prefix guards and operation locks remain enforced.
 
-## Failure logs
+## Build logs and summary
 
-The build prints its selected toolchain and each stage's log path. Logs are under the selected Windows build directory:
+The build prints its selected toolchain and streams the output of each stage, including compiler and linker commands. The selected Windows build directory contains the following files.
 
 - `configure.log`
 - `build-release.log` or `build-debug.log`
 - `test-release.log` or `test-debug.log`
 - `install-release.log` or `install-debug.log`
+- `build-summary-release.txt` or `build-summary-debug.txt`
 
-On failure the relevant log's last diagnostics are printed and the failing command's exit code is propagated to the batch caller. Paths containing spaces are passed as separate arguments.
+The summary includes the version tag, stage durations and the sizes of binaries, linker inputs, and resolved runtime libraries. Visual Studio link tracking logs identify library files when available. A failed stage keeps its diagnostics and propagates its exit code to the batch caller. Paths containing spaces are passed as separate arguments.
 
 ## MSVC shader fix
 

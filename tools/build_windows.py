@@ -11,6 +11,7 @@ sys.dont_write_bytecode = True
 os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
 from project_guard import (GuardError, build_path, cache_values, install_prefix,
                            no_symlinks, operation_lock, require, source)
+from build_report import BuildReport, run_stage
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 IS_WINDOWS = os.name == 'nt'
 GENERATORS = {18: 'Visual Studio 18 2026', 17: 'Visual Studio 17 2022'}
@@ -65,23 +66,11 @@ def select_toolchain(explicit_cmake=None, explicit_generator=None):
         '(or the Visual Studio CMake component). Use --cmake PATH or --generator NAME if needed. '
         + '; '.join(diagnostics))
 
-def run_stage(command, log):
-    print('Running: '+subprocess.list2cmdline([str(x) for x in command]),flush=True)
-    no_symlinks(log)
-    with log.open('w',encoding='utf-8') as handle:
-        # Argument arrays preserve spaces and avoid cmd.exe/PowerShell reparsing.
-        result = subprocess.run(command,stdout=handle,stderr=subprocess.STDOUT)
-    if result.returncode:
-        print(log.read_text(encoding='utf-8',errors='replace')[-12000:],file=sys.stderr)
-        print(f'Failure log: {log}',file=sys.stderr)
-        raise subprocess.CalledProcessError(result.returncode,command)
-    print(f'Completed. Log: {log}',flush=True)
-
 def run(root, configuration, jobs, test, install, check=False, cmake=None, generator=None):
     require(jobs > 0, 'Jobs must be positive')
     root = no_symlinks(root).resolve()
     require(root == SOURCE_ROOT, 'Build driver belongs to another source tree')
-    meta = source(root,'jsd.engine','0.5.28')
+    meta = source(root,'jsd.engine','0.5.29')
     cmake, generator, instance = select_toolchain(cmake,generator)
     folder = 'windows-vs2026' if generator == GENERATORS[18] else 'windows-vs2022'
     build = build_path(root,Path(os.environ.get('JSD_BUILD_DIR') or root/'build'/folder),meta)
@@ -94,11 +83,11 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
     if instance and cache.get('CMAKE_GENERATOR_INSTANCE'):
         require(Path(cache['CMAKE_GENERATOR_INSTANCE'].split(',')[0]).resolve() == Path(instance).resolve(),
                 f'Build cache belongs to a different Visual Studio installation: {build}')
-    print(f'Engine 0.5.28 / {generator} / x64 / {configuration}\nCMake: {cmake}\nBuild: {build}',flush=True)
+    print(f'Engine 0.5.29 / {generator} / x64 / {configuration}\nCMake: {cmake}\nBuild: {build}',flush=True)
     if check:
         print('Preflight passed; no files changed.'); return
     with operation_lock(root):
-        meta = source(root,'jsd.engine','0.5.28')
+        meta = source(root,'jsd.engine','0.5.29')
         build_path(root,build,meta); install_prefix(root,prefix,meta)
         build.mkdir(parents=True,exist_ok=True)
         # Claim ownership before logs appear in a fresh guarded build directory.
@@ -109,15 +98,17 @@ def run(root, configuration, jobs, test, install, check=False, cmake=None, gener
                      '-DCMAKE_INSTALL_PREFIX='+str(prefix),
                      '-DJSD_GUARD_PYTHON:FILEPATH='+sys.executable]
         if instance: configure.append('-DCMAKE_GENERATOR_INSTANCE='+instance)
-        run_stage(configure,build/'configure.log')
-        run_stage([cmake,'--build',str(build),'--config',configuration,'--parallel',str(jobs)],build/f'build-{configuration.lower()}.log')
-        if test:
-            ctest = Path(cmake).with_name('ctest.exe')
-            require(ctest.is_file(),f'ctest.exe is missing beside {cmake}')
-            run_stage([str(ctest),'--test-dir',str(build),'-C',configuration,'--output-on-failure'],build/f'test-{configuration.lower()}.log')
-        if install:
-            run_stage([cmake,'--install',str(build),'--config',configuration],build/f'install-{configuration.lower()}.log')
-            print(f'Installed engine into {prefix}',flush=True)
+        with BuildReport(cmake, build, configuration, f"JSD Game Engine v{meta['version']}") as report:
+            report.run('Configure', configure)
+            report.run('Build', [cmake, '--build', str(build), '--config', configuration,
+                                 '--parallel', str(jobs), '--verbose'])
+            if test:
+                ctest = Path(cmake).with_name('ctest.exe')
+                require(ctest.is_file(), f'ctest.exe is missing beside {cmake}')
+                report.run('Test', [str(ctest), '--test-dir', str(build), '-C', configuration, '--output-on-failure'])
+            if install:
+                report.run('Install', [cmake, '--install', str(build), '--config', configuration, '--verbose'])
+                print(f'Installed engine into {prefix}', flush=True)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -137,7 +128,7 @@ def main():
                 'clean accepts no additional options')
         require(args.root.resolve() == SOURCE_ROOT,'Build driver belongs to another source tree')
         from build_project import run as clean_project
-        clean_project(SOURCE_ROOT,'jsd.engine','0.5.28',['clean'])
+        clean_project(SOURCE_ROOT,'jsd.engine','0.5.29',['clean'])
         return
     require(not(args.mode and args.configuration and args.mode!=args.configuration),'Conflicting configurations')
     requested = args.configuration or args.mode or (os.environ.get('JSD_BUILD_TYPE') or 'Release').title()

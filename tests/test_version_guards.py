@@ -45,6 +45,12 @@ def tree(root):
 
 class Guards(unittest.TestCase):
     def setUp(self):
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        for name in ('DESTDIR', 'JSD_BUILD_TYPE', 'JSD_BUILD_DIR', 'JSD_INSTALL_PREFIX',
+                     'JSD_EDITOR_BUILD_DIR', 'JSD_EDITOR_INSTALL_PREFIX'):
+            os.environ.pop(name, None)
         output = contextlib.redirect_stdout(io.StringIO())
         output.__enter__();self.addCleanup(output.__exit__, None, None, None)
         self.temp = tempfile.TemporaryDirectory()

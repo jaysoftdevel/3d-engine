@@ -35,7 +35,7 @@ class BuildEntrypoints(unittest.TestCase):
                         JSD_BUILD_DIR=str(self.root / 'build/release'),
                         JSD_INSTALL_PREFIX=str(Path(self.temp.name) / 'sdk'))
         for name in ('build.sh', 'install_deps.sh', 'tools/project_guard.py',
-                     'tools/build_project.py', 'cmake/build-common.sh'):
+                     'tools/build_project.py', 'tools/build_report.py', 'cmake/build-common.sh'):
             dest = self.root / name
             dest.parent.mkdir(exist_ok=True, parents=True)
             shutil.copyfile(ROOT / name, dest)
@@ -62,8 +62,12 @@ class BuildEntrypoints(unittest.TestCase):
         self.assertEqual(calls[0], ['--version'])
         self.assertEqual(calls[1][:2], ['-S', str(self.root)])
         self.assertEqual(calls[2][:2], ['--build', str(self.root / 'build/release')])
+        self.assertIn('--verbose', calls[2])
         self.assertEqual(calls[3][:2], ['--install', str(self.root / 'build/release')])
         self.assertIn('Built jsd.engine ' + CURRENT, result.stdout)
+        summary = (self.root / 'build/release/build-summary-release.txt').read_text()
+        self.assertIn('Tag: JSD Game Engine v' + CURRENT, summary)
+        self.assertIn('Duration by stage', summary)
 
     @unittest.skipUnless(os.name == 'posix' and shutil.which('bash'), 'POSIX installer')
     def test_current_dependency_installer_passes_guard(self):
@@ -88,7 +92,8 @@ class BuildEntrypoints(unittest.TestCase):
                     self.assertFalse((self.root / 'build').exists())
 
     def test_windows_preflight_uses_current_release(self):
-        with patch.object(build_windows, 'SOURCE_ROOT', self.root), \
+        with patch.dict(os.environ, {'JSD_BUILD_DIR': '', 'JSD_INSTALL_PREFIX': ''}), \
+             patch.object(build_windows, 'SOURCE_ROOT', self.root), \
              patch.object(build_windows, 'select_toolchain', return_value=('cmake.exe', build_windows.GENERATORS[17], None)), \
              contextlib.redirect_stdout(io.StringIO()):
             build_windows.run(self.root, 'Release', 2, False, False, check=True)
