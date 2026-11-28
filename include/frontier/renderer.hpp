@@ -10,7 +10,7 @@
 #include <string_view>
 
 namespace rf::gfx {
-inline constexpr const char *Version = "0.5.26";
+inline constexpr const char *Version = "0.5.27";
 struct MeshId {
     unsigned value = 0;
     bool operator==(const MeshId &) const = default;
@@ -36,6 +36,12 @@ struct Transform {
 enum class TextureProjection { UV, Triplanar };
 enum class AlphaMode { Opaque, Mask, Blend, Additive };
 enum class SurfaceKind { Textured, Rock, Soil, Concrete, PaintedMetal, BareMetal, Rubber, Regolith, HullPanels, InteriorPanels, RobotArmor, DeckPlating, FabricWeave, Console, PressureDoor, SolarShield, PhotovoltaicCells, CorridorDeck };
+struct MaterialDetail {
+    // Independent of the base texture scale. Zero disables the detail layer.
+    // Coordinates follow surfaceWorld and surfaceUV, including object-space detail on moving meshes.
+    float cellsPerMetre = 0;
+    float color = 0, relief = 0, roughness = 0;
+};
 struct Material {
     Color albedo{};
     TextureId albedoTexture{};
@@ -56,6 +62,9 @@ struct Material {
     float wetness = 0, dust = 0, sheen = 0, anisotropy = 0;
     // Use metre-scaled mesh UVs for detail on world-batched or animated objects.
     bool surfaceUV = false;
+    MaterialDetail detail{};
+    // Weight of the optional water-retention mask in the alpha channel of the ORM map.
+    float wetnessVariation = 0;
 };
 // Screen-width, depth-tested engineering guides, composited after temporal AA.
 struct LineSegment { V3 a{},b{}; Color color{}; float width=1; };
@@ -101,6 +110,7 @@ struct Environment {
     std::optional<float> sunIlluminanceLux;
     Starfield stars;
     float bloomScale = 1;
+    float sunAngularRadius = .00465f;
 };
 // Scene-rasterized radiance, box projected inside a bounded region.
 struct ReflectionProbe {
@@ -243,9 +253,10 @@ class Renderer {
     void updateMesh(MeshId, std::span<const Vertex> vertices);
     void destroyMesh(MeshId);
     TextureId createTexture(int width, int height, std::span<const unsigned char> rgba, bool srgb = true);
-    // Opaque RGB maps upload coarse-to-fine, using BC1 where supported.
-    TextureId stageTexture(int width,int height,std::span<const unsigned char> rgba,bool srgb=true);
-    void requestTexture(TextureId texture,int edgePixels);
+    // Coarse-to-fine streaming. Opaque color uses BC1 where available.
+    // Disable compression for alpha-bearing textures and independent packed material channels.
+    TextureId stageTexture(int width,int height,std::span<const unsigned char> rgba,bool srgb=true,bool compress=true);
+    void requestTexture(TextureId texture,int edgePixels,float distanceMetres=0);
     void destroyTexture(TextureId);
     std::pair<int, int> textureDimensions(TextureId) const;
     EnvironmentId createEnvironment(int width, int height, std::span<const float> rgb);

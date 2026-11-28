@@ -30,7 +30,17 @@ vec3 stars(vec3 direction){
  }
  return result*starIntensity*smoothstep(-.022,.008,ray.y);
 }
-vec3 atmosphere(vec3 d){float altitude=max(d.y,0.);float haze=pow(1.-altitude,4.);vec3 zenith=vec3(.045,.14,.29),horizon=vec3(.58,.58,.49);float daylight=smoothstep(-.16,.10,sun.y);vec3 result=mix(vec3(.0004,.0007,.0018),mix(zenith,horizon,haze),daylight);float angle=dot(d,sun);result+=sunColor*pow(max(angle,0.),12.)*.18*turbidity*daylight;float sunDisc=smoothstep(cos(.009),cos(.004),angle);result+=sunColor*sunDisc*7.;result=mix(result,vec3(.24,.20,.15)*daylight,(1.-smoothstep(-.12,0.,d.y)));return result;}
+vec3 atmosphere(vec3 d){
+ float altitude=max(d.y,0.),haze=pow(1.-altitude,4.),daylight=smoothstep(-.16,.10,sun.y);
+ float overcast=smoothstep(.42,.96,coverage);
+ vec3 night=vec3(.0004,.0007,.0018)+skyColor*haze*(.06+.18*overcast);
+ vec3 day=mix(vec3(.045,.14,.29),vec3(.58,.58,.49),haze);
+ day=mix(day,skyColor*.86,overcast*.61);
+ float angle=dot(d,sun),glare=pow(max(angle,0.),12.)*.18*turbidity;
+ float sunDisc=smoothstep(cos(.009),cos(.004),angle)*7.;
+ vec3 result=mix(night,day,daylight)+sunColor*(glare+sunDisc)*daylight*(1.-overcast*.91);
+ return mix(result,vec3(.24,.20,.15)*daylight+night*(1.-daylight),1.-smoothstep(-.12,0.,d.y));
+}
 void main(){vec4 p=invProjection*vec4(texcoord*2.-1.,1,1);vec3 d=normalize(mat3(invView)*(p.xyz/p.w));vec4 old=previousVP*vec4(d,0);vec2 previousUV=abs(old.w)>.0001?old.xy/old.w*.5+.5:texcoord;float C=cos(-environmentRotation),S=sin(-environmentRotation);vec3 rotated=vec3(C*d.x+S*d.z,d.y,-S*d.x+C*d.z);vec2 envUV=vec2(atan(rotated.z,rotated.x)/6.283185+.5,acos(clamp(rotated.y,-1.,1.))/3.14159265);vec3 background=enabled!=0?textureLod(skyEquirect,envUV,0.).rgb:skyColor*.4;
 if(atmosphereEnabled!=0 && enabled==0)background=atmosphere(d);
 background+=stars(d);

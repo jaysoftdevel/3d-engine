@@ -1,5 +1,29 @@
 # Reflections, lighting and scenery — 0.5.8–0.5.10
 
+## Detailed materials in 0.5.27
+
+`Material::detail` specifies independent detail cells per metre and weights for color, relief, and roughness. The renderer filters the detail by pixel footprint. Set `surfaceWorld=false` for object-space detail on moving geometry or `surfaceUV=true` with metre-scaled mesh UVs. The lowest texture tier skips the extra detail.
+
+The alpha channel of a packed ORM texture can hold water retention. White receives the full wetness value. Black receives zero at `wetnessVariation=1`. Existing materials default to uniform wetness and existing RGB ORM maps fill the entire film.
+
+```cpp
+rf::gfx::Material asphalt;
+asphalt.detail = {43.f, .23f, .31f, .18f};
+asphalt.wetness = rainAccumulation;
+asphalt.wetnessVariation = .83f;
+asphalt.clearcoatRoughness = .17f;
+asphalt.ormTexture = renderer.stageTexture(width, height, packedRgba, false, false);
+
+// Request near mips before submitting the surface each frame.
+renderer.requestTexture(asphalt.ormTexture, 512, distanceMetres);
+```
+
+Disable compression for linear normal and packed ORM maps to retain independent channels. The same coarse-to-fine stream supports RGB color with BC1 and alpha-bearing RGBA with compression disabled. Texture requests prioritize the closest use. Project capture and runtime preserve the detail weights, coordinate mapping, and water-retention weight with the material.
+
+The reflection pass traces the base and top coat at their own roughness. Reflection reconstruction and history reject samples across depth, normal, and roughness changes. A directional sky fallback and cached local probes supply offscreen radiance. Custom full-material fragment shaders can write coat roughness to the alpha of the normal attachment and coat weight to the alpha of the base color attachment.
+
+Sun cascades filter around the receiver plane and use world-scale occluder distances to estimate penumbra width. `Environment::sunAngularRadius` sets the apparent emitter radius in radians. Projects can set `environment.sunAngularRadius`. Nearby geometry adds depth-based contact shadows. Spotlight depth bias scales with the projected texel footprint, and finite light sources broaden direct highlights.
+
 Version 0.5.10 adds cached spotlight scene shadows, finite-emitter highlights, indirect-only ambient occlusion and improved exposure/bloom. See [LIGHTING-0.5.10.md](LIGHTING-0.5.10.md) for API examples, shadow-atlas changes, profiling and limits. The feature comparison below describes the original 0.5.8 foundation; the 0.5.10 additions remain custom raster and screen-space techniques.
 
 This release extends the custom OpenGL engine shared by Windows and Linux. The Unreal Engine feature names in the request are reference targets; this package does not integrate Unreal Engine or advertise its systems as implemented.

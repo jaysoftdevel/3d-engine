@@ -34,6 +34,7 @@ struct GpuTexture {
     std::vector<Mip> mips;
     unsigned compression=0, lastRequested=0;
     int residentMip=-1, requestedMip=-1;
+    float requestDistance=0;
     std::size_t residentBytes=0;
 };
 struct GpuInstance {
@@ -206,14 +207,14 @@ struct Renderer::Impl {
     void drawParticles();
     void drawImages();
     std::vector<Draw> commands;
-    using BatchKey = std::array<unsigned, 31>;
+    using BatchKey = std::array<unsigned, 36>;
     struct PreparedDraw {
         const Draw *source;
         const GpuMesh *mesh;
         GpuInstance instance;
         BatchKey key;
         V3 center;
-        float radius, distanceSquared, sortDistanceSquared;
+        float radius, distanceSquared, sortDepth;
     };
     std::vector<PreparedDraw> prepared;
     std::vector<size_t> opaqueOrder, transparentOrder;

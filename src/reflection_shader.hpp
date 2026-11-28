@@ -18,36 +18,48 @@ vec3 environmentDirection(vec3 d){float c=cos(-environmentRotation),s=sin(-envir
 )GLSL")+lighting::probes+lighting::ambient+R"GLSL(
 vec3 radianceAt(vec2 uv,float lod){vec3 value=textureLod(source,uv,lod).rgb;if(denoiseDirect!=0)value+=textureLod(directFiltered,uv,lod).rgb-textureLod(directRaw,uv,lod).rgb;return max(value,vec3(0));}
 vec4 traceReflection(vec3 origin,vec3 ray,float rough){
- vec3 q=origin;float previous=-1.,travel=0.;
+ vec3 q=origin;float previous=1.,travel=0.;
  for(int i=0;i<96;i++){if(i>=reflectionSteps)break;
-  float stepLength=max(.055,-origin.z*.0015)*(1.+float(i)*.09);q+=ray*stepLength;travel+=stepLength;
+  float stepLength=max(.048,-origin.z*.0023)*(1.+float(i)*.12);q+=ray*stepLength;travel+=stepLength;
   if(q.z>=-.08)break;vec2 uv=screenUV(q);
   if(any(lessThan(uv,vec2(.002)))||any(greaterThan(uv,vec2(.998))))break;
-  float d=texture(depthMap,uv).r;if(d>=.999999){previous=-1.;continue;}
-  float delta=viewZ(d)-q.z,thickness=.06+travel*.012;
-  if(delta>0.&&delta<thickness+stepLength&&previous<=thickness&&i>2){
+  float d=texture(depthMap,uv).r;if(d>=.999999){previous=1.;continue;}
+  float delta=viewZ(d)-q.z,thickness=.037+travel*.009-q.z*.002;
+  if(delta>0.&&delta<thickness+stepLength&&previous<=0.&&i>1){
    vec3 lo=q-ray*stepLength,hi=q;
-   for(int k=0;k<6;k++){vec3 mid=(lo+hi)*.5;vec2 m=screenUV(mid);
+   for(int k=0;k<5;k++){vec3 mid=(lo+hi)*.5;vec2 m=screenUV(mid);
     if(viewZ(texture(depthMap,m).r)>mid.z)hi=mid;else lo=mid;}
-   vec3 hit=(lo+hi)*.5;uv=screenUV(hit);float gap=abs(viewZ(texture(depthMap,uv).r)-hit.z);
+   uv=screenUV(hi);float gap=viewZ(texture(depthMap,uv).r)-hi.z;
    vec3 hn=normalize(mat3(view)*(texture(normalMap,uv).xyz*2.-1.));
-   float edge=clamp(min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y))*15.,0.,1.);
-   float confidence=edge*(1.-smoothstep(thickness,thickness*2.,gap))*smoothstep(-.05,.2,dot(hn,-ray));
-   float lod=clamp(log2(1.+rough*rough*travel*8.),0.,7.);
-   return vec4(radianceAt(uv,lod),confidence);
+   float edge=smoothstep(.003,.075,min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y)));
+   float confidence=edge*(1.-smoothstep(thickness,thickness*1.9,abs(gap)))*
+                    smoothstep(-.05,.19,dot(hn,-ray))*smoothstep(.16,.55,travel);
+   if(confidence>.01){
+    float footprint=rough*rough*travel*float(textureSize(source,0).y)*.16/max(-hi.z,.8);
+    float lod=clamp(log2(1.+footprint),0.,7.);
+    return vec4(radianceAt(uv,lod),confidence);
+   }
   }previous=delta;
  }return vec4(0);
 }
+vec3 reflectionFallback(vec3 world,vec3 ray,float rough,vec2 weights){
+ vec3 radiance=iblEnabled!=0?textureLod(environmentMap,environmentDirection(ray),rough*7.).rgb*ambientIntensity:skyRadiance(ray,rough);
+ return probeSpecular(radiance,world,ray,rough*probeMaxLod,weights);
+}
 void main(){
- vec3 base=radianceAt(texcoord,0.);float depth=texture(depthMap,texcoord).r;
+ vec3 base=radianceAt(texcoord,0.);
+ ivec2 pixel=min(ivec2(texcoord*vec2(textureSize(depthMap,0))),textureSize(depthMap,0)-1);
+ float depth=texelFetch(depthMap,pixel,0).r;
  if(depth>=.999999){outputColor=lightingPass==0?vec4(base,1):vec4(0);return;}
- vec3 p=position(texcoord,depth),nw=normalize(texture(normalMap,texcoord).xyz*2.-1.),n=normalize(mat3(view)*nw),v=normalize(-p);
- vec3 world=(invView*vec4(p,1)).xyz;vec4 surface=texture(surfaceMap,texcoord),albedo=texture(albedoMap,texcoord);
+ vec4 normalSample=texelFetch(normalMap,pixel,0);
+ vec3 p=position(texcoord,depth),nw=normalize(normalSample.xyz*2.-1.),n=normalize(mat3(view)*nw),v=normalize(-p);
+ vec3 world=(invView*vec4(p,1)).xyz;vec4 surface=texelFetch(surfaceMap,pixel,0),albedo=texelFetch(albedoMap,pixel,0);
  float rough=surface.x,metal=surface.y,ao=aoEnabled!=0?texture(aoMap,texcoord).r:1.;
+ float coat=albedo.a,coatRough=clamp(normalSample.a,.06,1.);
  if(lightingPass==0){
   vec3 vw=normalize(mat3(invView)*v);
-  vec3 primary=indirectLighting(albedo.rgb,nw,vw,rough,metal,world,surface.z,false);
-  vec3 ambient=indirectLighting(albedo.rgb,nw,vw,rough,metal,world,surface.z,true);
+  vec3 primary=indirectLighting(albedo.rgb,nw,vw,rough,metal,world,surface.z,coat,coatRough,false);
+  vec3 ambient=indirectLighting(albedo.rgb,nw,vw,rough,metal,world,surface.z,coat,coatRough,true);
   vec3 result=customLighting!=0?base*(.4+.6*ao):max(base-primary,vec3(0))+ambient*ao;
   outputColor=vec4(clamp(result,vec3(0),vec3(60000)),1);return;
  }
@@ -65,33 +77,30 @@ void main(){
   outputColor=vec4(bounce/max(total,1.)*albedo.rgb*(1.-metal)*.32,0);return;
  }
  vec3 result=vec3(0);
+ float response=mix(rough,min(rough,coatRough),coat);
  if(reflectionSteps>0){
   float nv=clamp(dot(n,v),.001,1.);
   float specAO=clamp(pow(nv+ao,exp2(-16.*rough-1.))-1.+ao,0.,1.);
   // Both screen-space and probe contributions are multiplied by specAO.
-  if(specAO==0.){outputColor=vec4(clamp(result,vec3(0),vec3(60000)),1);return;}
+  if(specAO==0.){outputColor=vec4(0,0,0,response);return;}
   vec3 reflected=normalize(reflect(-v,n)),worldRay=normalize(mat3(invView)*reflected);
   vec2 pw=probeWeights(world,true);
-  vec3 radiance=iblEnabled!=0?textureLod(environmentMap,environmentDirection(worldRay),rough*7.).rgb*ambientIntensity:skyColor*.15;
-  radiance=probeSpecular(radiance,world,worldRay,rough*probeMaxLod,pw);
-  vec3 sum=vec3(0);int rays=rough>.6?1:reflectionSteps>=64?3:1;
-  vec3 t=normalize(cross(abs(reflected.y)<.95?vec3(0,1,0):vec3(1,0,0),reflected)),b=cross(reflected,t);
-  for(int j=0;j<3;j++){if(j>=rays)break;float a=float(j)*2.399963;
-   vec3 ray=normalize(reflected+(t*cos(a)+b*sin(a))*rough*rough*.35*(rays>1?1.:0.));
-   vec4 hit=rough<.82?traceReflection(p+n*.065,ray,rough):vec4(0);
-   sum+=mix(radiance,hit.rgb,hit.a);
-  }
-  radiance=sum/float(rays);
+  vec3 origin=p+n*clamp(-p.z*.0025,.028,.095);
+  vec3 radiance=reflectionFallback(world,worldRay,rough,pw);
+  vec4 mainHit=rough<.80?traceReflection(origin,reflected,rough):vec4(0);
+  radiance=mix(radiance,mainHit.rgb,mainHit.a*(1.-smoothstep(.49,.80,rough)));
   vec3 f0=mix(vec3(.04),albedo.rgb,metal);vec2 lut=iblEnabled!=0?texture(brdfMap,vec2(nv,rough)).rg:vec2(1,0);
-  float coat=albedo.a,coatF=.04+.96*pow(1.-nv,5.);
+  float coatF=.04+.96*pow(1.-nv,5.);
+  if(iblEnabled==0)f0=mix(f0,max(vec3(1.-rough),f0),pow(1.-nv,5.));
   result+=radiance*(f0*lut.x+lut.y)*specAO*(1.-coat*coatF);
-  if(coat>0.){
-   vec3 coatRadiance=iblEnabled!=0?textureLod(environmentMap,environmentDirection(worldRay),.7).rgb*ambientIntensity:radiance;
-   coatRadiance=probeSpecular(coatRadiance,world,worldRay,.7,pw);
-   vec4 hit=traceReflection(p+n*.065,reflected,.1);coatRadiance=mix(coatRadiance,hit.rgb,hit.a);
+  if(coat>.012){
+   vec3 coatRadiance=reflectionFallback(world,worldRay,coatRough,pw);
+   vec4 hit=mainHit;
+   if(abs(coatRough-rough)>.085 && coatRough<.72)hit=traceReflection(origin,reflected,coatRough);
+   coatRadiance=mix(coatRadiance,hit.rgb,hit.a*(1.-smoothstep(.42,.76,coatRough)));
    result+=coatRadiance*coatF*coat*specAO;
   }
  }
- outputColor=vec4(clamp(result,vec3(0),vec3(60000)),1);
+ outputColor=vec4(clamp(result,vec3(0),vec3(60000)),response);
 })GLSL";
 }

@@ -1,10 +1,12 @@
-# JSD Game Engine 0.5.26 — standalone source project
+# JSD Game Engine 0.5.27 — standalone source project
 
 An independent native C++20 engine for Linux and Windows. The lunar-colony SDK edition contains the full native engine, bundled dependencies and optional source-level regression tests. No standalone scene, demo, or player is built or installed.
 
 **No compiled executables, libraries, object files, Gradle wrapper JARs or build caches are distributed.** All engine, SDL2 and Jolt code is built locally; cgltf/stb/SMAA source is compiled as part of the engine. Images, meshes and audio are runtime input data.
 
 Version 0.5.25 adds an engine-owned title menu and a startup splash that reports shader compilation and cache restores. New games can start from the [game starter](docs/GAME-STARTER.md).
+
+Version 0.5.27 adds filtered metre-scale material detail, water-retention masks, prioritized streaming for packed material textures, roughness-aware reflection history, and refined sun and spot shadows. [Modern lighting](docs/MODERN-LIGHTING.md)
 
 Version 0.5.26 adds budgeted geometry and texture mip streaming, blended local reflection probes, separate temporal resolves for screen-space reflections and indirect light, per-pass GPU queries, and subject focus per camera. See [Modern lighting](docs/MODERN-LIGHTING.md).
 

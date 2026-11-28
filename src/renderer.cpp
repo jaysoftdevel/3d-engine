@@ -474,7 +474,7 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
                     environment.skyColor.b,     environment.groundColor.r,
                     environment.groundColor.g,  environment.groundColor.b,
                     environment.sunIntensity,   environment.ambientIntensity,
-                    environment.fogDensity,     environment.storm,environment.bloomScale})
+                    environment.fogDensity,     environment.storm,environment.bloomScale,environment.sunAngularRadius})
         if (!std::isfinite(f))
             throw std::invalid_argument("Nonfinite camera/environment state");
     if (!std::isfinite(camera.fovDegrees) || camera.fovDegrees < 10 || camera.fovDegrees > 150 ||
@@ -488,7 +488,8 @@ void Renderer::begin(const Camera &camera, const Environment &environment) {
             throw std::invalid_argument("Nonfinite atmosphere");
     if (int(a.clouds) < 0 || int(a.clouds) > 4 || a.cloudCoverage < 0 || a.cloudCoverage > 1 ||
         a.cloudDensity < 0 || a.cloudDensity > 10 || a.cloudThickness < 1 || a.cloudBase < 1 ||
-        environment.shadowDistance < 0 || environment.bloomScale<0 || environment.bloomScale>4)
+        environment.shadowDistance < 0 || environment.bloomScale<0 || environment.bloomScale>4 ||
+        environment.sunAngularRadius<0 || environment.sunAngularRadius>.2f)
         throw std::invalid_argument("Invalid atmosphere/shadow range");
     if (camera.optics) camera.optics->validate();
     if (environment.sunIlluminanceLux && (!std::isfinite(*environment.sunIlluminanceLux) || *environment.sunIlluminanceLux < 0))
@@ -558,8 +559,14 @@ void Renderer::submit(const Draw &draw) {
                     draw.material.occlusionStrength})
         if (!std::isfinite(f))
             throw std::invalid_argument("Nonfinite draw state");
-    for(float f:{draw.material.wetness,draw.material.dust,draw.material.sheen})
+    for(float f:{draw.material.wetness,draw.material.dust,draw.material.sheen,draw.material.wetnessVariation})
         if(!std::isfinite(f)||f<0||f>1)throw std::invalid_argument("Invalid material layer weight");
+    const auto& detail=draw.material.detail;
+    if (!std::isfinite(detail.cellsPerMetre) || detail.cellsPerMetre<0 || detail.cellsPerMetre>1024)
+        throw std::invalid_argument("Invalid material detail scale");
+    for (float strength:{detail.color,detail.relief,detail.roughness})
+        if (!std::isfinite(strength) || strength<0.f || strength>1.f)
+            throw std::invalid_argument("Invalid material detail strength");
     if(!std::isfinite(draw.material.anisotropy)||std::abs(draw.material.anisotropy)>.95f)
         throw std::invalid_argument("Invalid material anisotropy");
     if (int(draw.material.surface)<0||int(draw.material.surface)>int(SurfaceKind::CorridorDeck)||draw.material.surfaceSeed>2147483647u)

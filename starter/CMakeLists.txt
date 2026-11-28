@@ -5,7 +5,7 @@ set(JSD_ENGINE_SOURCE "" CACHE PATH "Optional JSD engine source directory")
 if(JSD_ENGINE_SOURCE)
     add_subdirectory("${JSD_ENGINE_SOURCE}" external-jsd EXCLUDE_FROM_ALL)
 else()
-    find_package(JSDGameEngine 0.5.26 REQUIRED)
+    find_package(JSDGameEngine 0.5.27 REQUIRED)
 endif()
 
 add_executable(starter main.cpp)

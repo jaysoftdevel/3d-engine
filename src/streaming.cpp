@@ -73,14 +73,15 @@ std::vector<unsigned char> halve(int w,int h,std::span<const unsigned char> pixe
     for (int y=0;y<height;++y) for (int x=0;x<width;++x) {
         const int left=x*w/width,right=(x+1)*w/width,top=y*h/height,bottom=(y+1)*h/height;
         const auto to=(std::size_t(y)*width+x)*4;
-        for (int c=0;c<3;++c) {
+        for (int c=0;c<4;++c) {
+            const bool gamma=srgb && c<3;
             unsigned sum=0;
             for (int sy=top;sy<bottom;++sy) for (int sx=left;sx<right;++sx) {
                 const unsigned p=pixels[(std::size_t(sy)*w+sx)*4+c];
-                sum+=srgb?p*p:p;
+                sum+=gamma?p*p:p;
             }
             const double mean=double(sum)/((bottom-top)*(right-left));
-            reduced[to+c]=static_cast<unsigned char>(std::lround(srgb?std::sqrt(mean):mean));
+            reduced[to+c]=static_cast<unsigned char>(std::lround(gamma?std::sqrt(mean):mean));
         }
     }
     return reduced;
@@ -113,20 +114,25 @@ bool Renderer::requestMesh(MeshId id,float distanceMetres) {
     return i.meshes.contains(id.value);
 }
 
-TextureId Renderer::stageTexture(int w,int h,std::span<const unsigned char> rgba,bool srgb) {
+TextureId Renderer::stageTexture(int w,int h,std::span<const unsigned char> rgba,bool srgb,bool compress) {
     if (w<=0 || h<=0 || w>4096 || h>4096 || std::size_t(w)*h*4!=rgba.size())
-        throw std::invalid_argument("Invalid staged RGB texture dimensions");
-    for (std::size_t i=3;i<rgba.size();i+=4)
-        if (rgba[i]!=255) throw std::invalid_argument("Staged textures require opaque texels");
+        throw std::invalid_argument("Invalid staged texture dimensions");
+    if (compress)
+        for (std::size_t i=3;i<rgba.size();i+=4)
+            if (rgba[i]!=255) throw std::invalid_argument("Compressed staged textures require opaque texels");
     auto& i=*impl;
     GpuTexture texture;
     texture.width=w;
     texture.height=h;
     texture.srgb=srgb;
-    if (i.bc1 && (!srgb || i.bc1Srgb)) texture.compression=srgb?0x8C4C:0x83F0;
+    if (compress && i.bc1 && (!srgb || i.bc1Srgb)) texture.compression=srgb?0x8C4C:0x83F0;
     std::vector<unsigned char> pixels(rgba.begin(),rgba.end());
     for (;;) {
         auto lower=w>1 || h>1?halve(w,h,pixels,srgb):std::vector<unsigned char>{};
+        if (lower.empty()) {
+            for (unsigned c=0;c<4;++c) texture.average[c]=float(pixels[c])/255.f;
+            texture.averageReady=true;
+        }
         auto data=texture.compression?bc1Blocks(w,h,pixels):std::move(pixels);
         texture.mips.push_back({w,h,std::move(data)});
         if (lower.empty()) break;
@@ -151,13 +157,18 @@ int Renderer::Impl::textureMip(const GpuTexture& t,int edge) const {
     return level-1;
 }
 
-void Renderer::requestTexture(TextureId id,int edgePixels) {
+void Renderer::requestTexture(TextureId id,int edgePixels,float distanceMetres) {
     auto& i=*impl;
     const auto found=i.textures.find(id.value);
     if (found==i.textures.end() || found->second.mips.empty()) return;
+    if (!std::isfinite(distanceMetres) || distanceMetres<0)
+        throw std::invalid_argument("Invalid texture streaming distance");
     auto& t=found->second;
     const int level=i.textureMip(t,std::max(edgePixels,32));
-    if (t.requestedMip<0) i.textureRequests.push_back(id.value);
+    if (t.requestedMip<0) {
+        i.textureRequests.push_back(id.value);
+        t.requestDistance=distanceMetres;
+    } else t.requestDistance=std::min(t.requestDistance,distanceMetres);
     t.lastRequested=i.frameIndex;
     t.requestedMip=t.requestedMip<0?level:std::min(level,t.requestedMip);
 }
@@ -227,10 +238,14 @@ void Renderer::Impl::streamResources() {
         }
         stats.streamedMeshBytes=streamedMeshBytes;
     }
+    std::erase_if(textureRequests,[&](unsigned id){return !textures.contains(id);});
+    std::sort(textureRequests.begin(),textureRequests.end(),[&](unsigned a,unsigned b) {
+        const auto& x=textures.at(a);
+        const auto& y=textures.at(b);
+        return x.requestDistance==y.requestDistance?a<b:x.requestDistance<y.requestDistance;
+    });
     for (const auto id:textureRequests) {
-        const auto found=textures.find(id);
-        if (found==textures.end()) continue;
-        auto& t=found->second;
+        auto& t=textures.at(id);
         const int desired=std::max(t.requestedMip,textureMip(t,caps.maxTextureSize));
         for (int level=t.residentMip-1;level>=desired;--level) {
             if (stats.mipUploadBytes && stats.mipUploadBytes+t.mips[level].bytes.size()>mipBudget) break;

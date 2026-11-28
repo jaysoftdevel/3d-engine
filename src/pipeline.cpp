@@ -240,6 +240,7 @@ void Renderer::Impl::common(unsigned p, const Mat4 &m) {
     vector(p, "groundColor",
            {environment.groundColor.r, environment.groundColor.g, environment.groundColor.b});
     scalar(p, "sunIntensity", environment.sunIntensity);
+    scalar(p, "sunAngularRadius", environment.sunAngularRadius);
     integer(p, "physicalLighting", physicalLighting);
     scalar(p, "ambientIntensity", environment.ambientIntensity);
     scalar(p, "viewDistance", settings().viewDistance);
@@ -285,6 +286,9 @@ void Renderer::Impl::material(unsigned p, const Material &m) {
     if(p==minimalProgram){scalar(p,"normalScale",m.normalScale);scalar(p,"windStrength",m.windStrength);scalar(p,"alphaCutoff",m.alphaCutoff);integer(p,"alphaMode",int(m.alphaMode));integer(p,"doubleSided",m.doubleSided);integer(p,"textureProjection",int(m.projection));scalar(p,"textureScale",m.textureScale);scalar(p,"roughness",std::clamp(m.roughness*(procedural?1:constantOrm.y),.06f,1.f));scalar(p,"metallic",std::clamp(m.metallic*(procedural?1:constantOrm.z),0.f,1.f));vector(p,"emissive",{m.emissive.r,m.emissive.g,m.emissive.b});auto a=textures.find(m.albedoTexture.value),e=textures.find(m.emissiveTexture.value);integer(p,"textured",!procedural&&a!=textures.end());integer(p,"hasEmissive",e!=textures.end());sampler(p,"albedoMap",a==textures.end()?0:a->second.object,0);sampler(p,"emissiveMap",e==textures.end()?0:e->second.object,1);return;}
     scalar(p,"wetness",m.wetness);scalar(p,"dust",m.dust);scalar(p,"sheen",m.sheen);scalar(p,"anisotropy",m.anisotropy);
     const bool lowest=settings().textureQuality==TextureQuality::Lowest;
+    scalar(p,"detailCellsPerMetre",lowest?0.f:m.detail.cellsPerMetre);
+    vector(p,"detailStrength",{m.detail.color,m.detail.relief,m.detail.roughness});
+    scalar(p,"wetnessVariation",m.wetnessVariation);
     integer(p,"lowestTextures",lowest);vector(p,"constantOrm",procedural?V3{1,1,1}:constantOrm);
     scalar(p, "roughness", clamp(m.roughness, .04f, 1));
     scalar(p, "metallic", clamp(m.metallic));
@@ -431,7 +435,8 @@ void Renderer::Impl::prepareCommands() {
                         bits(a.clearcoat),
                         bits(a.clearcoatRoughness),
                         bits(a.windStrength),
-                        bits(a.occlusionStrength),unsigned(a.surface),a.surfaceSeed,unsigned(a.surfaceWorld),bits(a.wetness),bits(a.dust),bits(a.sheen),bits(a.anisotropy),unsigned(a.surfaceUV)};
+                        bits(a.occlusionStrength),unsigned(a.surface),a.surfaceSeed,unsigned(a.surfaceWorld),bits(a.wetness),bits(a.dust),bits(a.sheen),bits(a.anisotropy),unsigned(a.surfaceUV),
+                        bits(a.detail.cellsPerMetre),bits(a.detail.color),bits(a.detail.relief),bits(a.detail.roughness),bits(a.wetnessVariation)};
     };
     const auto &meshLookup = std::as_const(meshes);
     const auto &motionLookup = std::as_const(previousModels);
@@ -450,13 +455,12 @@ void Renderer::Impl::prepareCommands() {
             for (int row = 0; row < 3; row++)
                 bound += x.m[col * 4 + row] * x.m[col * 4 + row];
         auto delta = center - camera.position;
-        auto originDelta = transformPoint(x, {}) - camera.position;
         prepared[index] = 
             {&c, &mesh->second,
              GpuInstance{x, historyValid && c.objectId && old != motionLookup.end() ? old->second : x,
                          c.material.albedo},
              key(c), center, mesh->second.radius * std::sqrt(bound), dot(delta, delta),
-             dot(originDelta, originDelta)};
+             dot(delta, camera.direction)};
       }
     };
     stats.preparationWorkers = jobs.parallelFor(commands.size(), 2048, prepare);
@@ -469,7 +473,7 @@ void Renderer::Impl::prepareCommands() {
     std::stable_sort(opaqueOrder.begin(), opaqueOrder.end(),
                      [&](size_t a, size_t b) { return prepared[a].key < prepared[b].key; });
     std::stable_sort(transparentOrder.begin(), transparentOrder.end(), [&](size_t a, size_t b) {
-        return prepared[a].sortDistanceSquared > prepared[b].sortDistanceSquared;
+        return prepared[a].sortDepth > prepared[b].sortDepth;
     });
     stats.preparationMilliseconds = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - started).count();

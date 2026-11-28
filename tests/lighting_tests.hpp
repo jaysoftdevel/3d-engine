@@ -123,6 +123,29 @@ template<class Check>void lightingGraphicsTests(rf::gfx::Renderer&r,Check check)
  Material finish;finish.albedoTexture=mip;
  r.submit({streamed,{{0,1,2},{2,2,2},0},finish,0,{}});
  r.end();r.validateFrame();
+ auto channels=texels;
+ for (std::size_t i=3;i<channels.size();i+=4) channels[i]=0;
+ auto retention=r.stageTexture(128,128,channels,false,false);
+ auto wet=finish;
+ wet.albedoTexture={};
+ wet.ormTexture=retention;
+ wet.wetness=1.f;
+ const auto maps=std::filesystem::temp_directory_path()/("jsd-wetness-"+std::to_string(jsdTestProcessId()));
+ const auto coated=[&](float variation,int edge,float detailScale) {
+  r.begin(camera,env);
+  r.requestTexture(retention,edge,3.f);
+  wet.wetnessVariation=variation;wet.detail={detailScale,.32f,.48f,.32f};
+  r.primitive(Primitive::Box,{{0,1,3},{4,4,1},0},wet);
+  r.end();r.check();r.validateFrame();r.captureBuffers(maps);
+  return jsd::loadImage(maps/"material.ppm");
+ };
+ auto coarseDry=coated(1.f,32,0.f),finestDry=coated(1.f,128,0.f);
+ auto unmasked=coated(0.f,128,0.f),detailed=coated(1.f,128,3.f);
+ check(r.textureDimensions(retention)==std::pair{128,128} && finestDry.rgba==coarseDry.rgba &&
+       center(finestDry,0)>center(unmasked,0)+32,"packed mip streaming preserves linear water retention through all mip levels");
+ check(detailed.rgba!=finestDry.rgba,"metre-scale detail affects material roughness over the authored map");
+ std::filesystem::remove_all(maps);
+ r.destroyTexture(retention);
  r.destroyMesh(streamed);
  r.destroyTexture(mip);
  r.setSettings(initial);r.resetHistory();std::filesystem::remove(path);
